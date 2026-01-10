@@ -5,6 +5,7 @@ import { BuildingSystem } from './BuildingSystem';
 import { UIManager } from './UIManager';
 import { ResourceManager } from './ResourceManager';
 import { ResourceNode } from './ResourceNode';
+import { Enemy } from './Enemy'; // <--- Импорт
 
 export class Game {
     private app: Application;
@@ -15,6 +16,8 @@ export class Game {
     private uiManager!: UIManager;
     public resourceManager!: ResourceManager;
     public resources: ResourceNode[] = [];
+    
+    public enemies: Enemy[] = []; // <--- Список врагов
 
     constructor(app: Application) {
         this.app = app;
@@ -30,8 +33,6 @@ export class Game {
         this.generateResources();
 
         this.buildingSystem = new BuildingSystem(this.app, this.world);
-        
-        // ВАЖНО: Передаем ресурсы и менеджер в систему строительства
         this.buildingSystem.setResources(this.resources, this.resourceManager);
 
         this.uiManager = new UIManager((type) => {
@@ -42,19 +43,37 @@ export class Game {
         this.player.x = 200;
         this.player.y = 200;
         this.world.addChild(this.player);
-        
         this.buildingSystem.setPlayer(this.player);
 
         this.camera = new Camera(this.world, this.app.screen);
         this.camera.follow(this.player);
 
+        // --- СПАВН ТЕСТОВОГО ВРАГА ---
+        this.spawnEnemy(600, 600);
+        // -----------------------------
+
         this.app.ticker.add((ticker) => {
             this.player.update(ticker);
             this.camera.update();
-            
-            // ВАЖНО: Обновляем здания (чтобы буры капали ресурсы)
             this.buildingSystem.update(ticker);
+
+            // Обновляем всех врагов
+            this.enemies.forEach(enemy => enemy.update(ticker));
         });
+    }
+
+    // Метод для создания врага
+    private spawnEnemy(x: number, y: number) {
+        // Создаем врага, даем ему цель (игрока) и функцию проверки стен
+        const enemy = new Enemy(
+            this.player, 
+            this.buildingSystem.isOccupied.bind(this.buildingSystem)
+        );
+        enemy.x = x;
+        enemy.y = y;
+        
+        this.world.addChild(enemy);
+        this.enemies.push(enemy);
     }
 
     private generateResources() {
@@ -64,12 +83,10 @@ export class Game {
             let rx = Math.floor(Math.random() * 100) * gridSize;
             let ry = Math.floor(Math.random() * 100) * gridSize;
 
-            if (Math.abs(rx - 200) < 200 && Math.abs(ry - 200) < 200) {
-                continue; 
-            }
+            if (Math.abs(rx - 200) < 200 && Math.abs(ry - 200) < 200) continue; 
+            
             node.x = rx;
             node.y = ry;
-            
             this.world.addChild(node);
             this.resources.push(node);
         }
