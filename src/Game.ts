@@ -1,4 +1,3 @@
-// Импорты...
 import { Application, Container, Graphics, FederatedPointerEvent } from 'pixi.js';
 import { Camera } from './Camera';
 import { Player } from './Player';
@@ -9,7 +8,8 @@ import { ResourceNode } from './ResourceNode';
 import { Enemy } from './Enemy';
 import { WaveManager } from './WaveManager';
 import { Projectile } from './Projectile';
-import { UpgradeManager } from './UpgradeManager'; // <--- Импорт
+import { UpgradeManager } from './UpgradeManager';
+import { SoundManager } from './SoundManager'; // <--- Импорт
 
 export class Game {
     private app: Application;
@@ -23,14 +23,14 @@ export class Game {
     public enemies: Enemy[] = [];
     public projectiles: Projectile[] = [];
     private waveManager!: WaveManager;
-    private upgradeManager!: UpgradeManager; // <--- Магазин
+    private upgradeManager!: UpgradeManager;
+    private soundManager!: SoundManager; // <--- Звуковой менеджер
 
     private manualMiningTimer: number = 0;
     private isGameOver: boolean = false;
     private isRightMouseDown: boolean = false;
     private lastMousePosition: { x: number, y: number } = { x: 0, y: 0 };
 
-    // Глобальные статы
     private currentDamage: number = 1;
     private currentMineMultiplier: number = 1;
 
@@ -43,37 +43,42 @@ export class Game {
     public init() {
         document.addEventListener('contextmenu', event => event.preventDefault());
 
+        // 1. Создаем звуковой менеджер
+        this.soundManager = new SoundManager();
+
         this.drawGrid();
         this.resourceManager = new ResourceManager();
         this.resourceManager.addMetal(50); 
         this.generateResources();
 
-        // МАГАЗИН
         this.upgradeManager = new UpgradeManager(this.resourceManager);
-        
-        // Логика апгрейдов
         this.upgradeManager.onDamageUpgrade = (val) => {
-            this.currentDamage = val; // Урон = уровню (Lvl 1 = 1 dmg, Lvl 2 = 2 dmg)
-            console.log("Damage upgraded to", this.currentDamage);
+            this.currentDamage = val;
+            this.soundManager.playBuild(); // Звук апгрейда
         };
         this.upgradeManager.onMineSpeedUpgrade = (multiplier) => {
             this.currentMineMultiplier = multiplier;
-            // Нужно как-то сообщить зданиям? Пока передадим в update
+            this.soundManager.playBuild();
         };
         this.upgradeManager.onMoveSpeedUpgrade = (multiplier) => {
             this.player.speedMultiplier = multiplier;
+            this.soundManager.playBuild();
         };
 
         this.buildingSystem = new BuildingSystem(this.app, this.world);
         this.buildingSystem.setResources(this.resources, this.resourceManager);
-
+        this.buildingSystem.setSoundManager(this.soundManager); // <--- Передаем менеджер звука
+        
         this.uiManager = new UIManager((type) => {
             this.buildingSystem.setBuildingType(type);
         });
 
         this.player = new Player(
             this.buildingSystem.isOccupied.bind(this.buildingSystem),
-            (x, y, tx, ty) => this.spawnProjectile(x, y, tx, ty) // Использует currentDamage внутри spawnProjectile
+            (x, y, tx, ty) => {
+                this.spawnProjectile(x, y, tx, ty);
+                this.soundManager.playShoot(); // <--- Звук выстрела игрока
+            }
         );
         this.player.x = 200;
         this.player.y = 200;
@@ -101,18 +106,9 @@ export class Game {
 
             this.camera.update();
             
-            // Передаем currentDamage и для турелей тоже (через spawnProjectile)
-            // И эффективность.
-            // Но еще надо передать множитель майнинга!
-            // Для этого придется немного исправить BuildingSystem.update, но пока сделаем хак:
-            // В Building.update добавим параметр mineMultiplier
-            
-            // ВАЖНО: Мы пока не прокинули mineMultiplier в BuildingSystem. 
-            // Давай сделаем это, если ты хочешь идеальную архитектуру, 
-            // но пока турели и пули игрока используют один метод спавна
-            
             this.buildingSystem.update(ticker, this.enemies, (x, y, tx, ty) => {
                 this.spawnProjectile(x, y, tx, ty);
+                this.soundManager.playTurretShoot(); // <--- Звук турели
             });
 
             this.enemies.forEach(enemy => enemy.update(ticker));
@@ -124,14 +120,11 @@ export class Game {
         });
     }
 
-    // Исправили спавн пуль: теперь передаем currentDamage
     private spawnProjectile(x: number, y: number, tx: number, ty: number) {
         const p = new Projectile(x, y, tx, ty, this.currentDamage);
         this.world.addChild(p);
         this.projectiles.push(p);
     }
-    
-    // ... Остальные методы без изменений (initInput, checkPlayerHit, gameOver, handleManualMining, updateProjectiles, cleanUp, spawnWave, spawnEnemy, generateResources, drawGrid) ...
     
     private initInput() {
         this.app.stage.eventMode = 'static';
@@ -150,7 +143,6 @@ export class Game {
         });
     }
     
-    // Ниже просто заглушки, чтобы TypeScript не ругался в примере, но у тебя эти методы уже есть полные
     private checkPlayerHit() {
         for (const enemy of this.enemies) {
             const dx = this.player.x - enemy.x;
@@ -158,6 +150,7 @@ export class Game {
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < 25) {
                 this.player.takeDamage(1);
+                this.soundManager.playHit(); // <--- Звук получения урона
                 if (this.player.hp <= 0) this.gameOver();
             }
         }
@@ -165,6 +158,8 @@ export class Game {
     
     private gameOver() {
         this.isGameOver = true;
+        this.soundManager.playGameOver(); // <--- ГРУСТНЫЙ ЗВУК
+
         const overlay = document.createElement('div');
         overlay.style.position = 'fixed';
         overlay.style.top = '0';
@@ -195,10 +190,10 @@ export class Game {
         }
         if (onResource) {
             this.manualMiningTimer += ticker.deltaTime;
-            // Учитываем currentMineMultiplier для ручной добычи тоже!
             if (this.manualMiningTimer >= (30 / this.currentMineMultiplier)) {
                 this.manualMiningTimer = 0;
                 this.resourceManager.addMetal(1);
+                this.soundManager.playMine(); // <--- Звук добычи
                 this.player.scale.set(1.1);
                 setTimeout(() => this.player.scale.set(1.0), 50);
             }
