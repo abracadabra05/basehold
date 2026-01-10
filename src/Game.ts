@@ -1,4 +1,3 @@
-// ... импорты ...
 import { Application, Container, Graphics, FederatedPointerEvent } from 'pixi.js';
 import { Camera } from './Camera';
 import { Player } from './Player';
@@ -12,6 +11,7 @@ import { Projectile } from './Projectile';
 import { UpgradeManager } from './UpgradeManager';
 import { SoundManager } from './SoundManager';
 import { WorldBoundary } from './WorldBoundary';
+import { Building } from './Building'; // <--- Добавили Building
 
 export class Game {
     private app: Application;
@@ -39,7 +39,7 @@ export class Game {
     private mapSizePixel = 0; 
     private voidDamageTimer: number = 0;
     
-    private coreBuilding: any; // Ссылка на ядро
+    private coreBuilding!: Building; // <--- Уточнили тип
 
     constructor(app: Application) {
         this.app = app;
@@ -144,10 +144,12 @@ export class Game {
         });
     }
 
-    // ... (Остальные методы без изменений) ...
-    
     private spawnWave(waveNum: number, count: number) {
-        const spawnRadius = 800;
+        // Если ядра нет (уничтожено), спавнить некого (или игра уже окончена)
+        if (!this.coreBuilding || this.coreBuilding.isDestroyed) return;
+
+        const spawnRadius = 800; // Расстояние от базы до точки спавна
+
         for (let i = 0; i < count; i++) {
             let type: EnemyType = 'basic';
             const rand = Math.random();
@@ -156,15 +158,28 @@ export class Game {
             else { if (rand < 0.2) type = 'tank'; else if (rand < 0.5) type = 'fast'; else type = 'basic'; }
 
             const angle = Math.random() * Math.PI * 2;
-            const x = this.player.x + Math.cos(angle) * spawnRadius;
-            const y = this.player.y + Math.sin(angle) * spawnRadius;
+            
+            // СЧИТАЕМ ОТ ЯДРА, А НЕ ОТ ИГРОКА
+            const x = this.coreBuilding.x + Math.cos(angle) * spawnRadius;
+            const y = this.coreBuilding.y + Math.sin(angle) * spawnRadius;
+            
             this.spawnEnemy(x, y, type);
         }
     }
     
     public spawnEnemy(x: number, y: number, type: EnemyType) {
-        const enemy = new Enemy(this.player, this.buildingSystem.getBuildingAt.bind(this.buildingSystem), type);
-        enemy.x = x; enemy.y = y;
+        // Если ядра уже нет, целью временно ставим игрока (редкий кейс перед Game Over)
+        const target = (this.coreBuilding && !this.coreBuilding.isDestroyed) 
+            ? this.coreBuilding 
+            : this.player;
+
+        const enemy = new Enemy(
+            target, // <--- Враг идет к Ядру
+            this.buildingSystem.getBuildingAt.bind(this.buildingSystem),
+            type
+        );
+        enemy.x = x;
+        enemy.y = y;
         this.world.addChild(enemy);
         this.enemies.push(enemy);
     }
