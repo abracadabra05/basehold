@@ -4,13 +4,14 @@ import type { ResourceNode } from './ResourceNode';
 import type { ResourceManager } from './ResourceManager';
 import type { Enemy } from './Enemy';
 import type { SoundManager } from './SoundManager';
-import type { ToolType } from './UIManager'; // Импорт нового типа
+import type { ToolType } from './UIManager';
 
 const BUILDING_COSTS: Record<BuildingType, number> = {
     'wall': 10,
     'drill': 50,
     'generator': 100,
-    'turret': 30
+    'turret': 30,
+    'core': 0 // Ядро бесплатно, но строится только игрой
 };
 
 export class BuildingSystem {
@@ -21,14 +22,12 @@ export class BuildingSystem {
     
     private buildings: Map<string, Building>; 
     private player: Container | null = null;
-    
-    // Теперь храним ToolType
     private selectedTool: ToolType = 'wall';
-    
     private resources: ResourceNode[] = [];
     private resourceManager: ResourceManager | null = null;
     private isDragging: boolean = false;
     private soundManager: SoundManager | null = null;
+    private isPaused: boolean = false; // <--- Флаг паузы
 
     constructor(app: Application, world: Container) {
         this.app = app;
@@ -45,21 +44,24 @@ export class BuildingSystem {
         this.resources = resources;
         this.resourceManager = manager;
     }
-    
-    // Обновили сигнатуру: принимает ToolType
-    public setTool(tool: ToolType) { 
-        this.selectedTool = tool; 
-    }
-    
+    public setTool(tool: ToolType) { this.selectedTool = tool; }
     public setPlayer(player: Container) { this.player = player; }
 
+    // Метод установки паузы
+    public setPaused(paused: boolean) {
+        this.isPaused = paused;
+        this.ghost.visible = !paused;
+    }
+
     public update(ticker: Ticker, enemies: Enemy[], spawnProjectile: any) {
-        let totalProduction = 10;
+        let totalProduction = 0; // Базовая продукция теперь 0, все зависит от ядра/генераторов
         let totalConsumption = 0;
+        
         this.buildings.forEach(b => {
             totalProduction += b.energyProduction;
             totalConsumption += b.energyConsumption;
         });
+        
         let efficiency = totalConsumption > totalProduction ? totalProduction / totalConsumption : 1.0;
         if (this.resourceManager) this.resourceManager.updateEnergy(totalProduction, totalConsumption);
 
@@ -84,14 +86,26 @@ export class BuildingSystem {
         return this.getBuildingAt(worldX, worldY) !== null;
     }
     
+    // Публичный метод для спавна Ядра (бесплатно, без проверок)
+    public spawnCore(x: number, y: number) {
+        const building = new Building('core', this.gridSize);
+        building.x = x;
+        building.y = y;
+        this.world.addChild(building);
+        this.buildings.set(`${x},${y}`, building);
+        return building; 
+    }
+
     private initInput() {
         this.app.stage.eventMode = 'static';
         this.app.stage.hitArea = this.app.screen;
         this.app.stage.on('pointermove', (e) => { 
+            if (this.isPaused) return; // <---
             this.updateGhost(e); 
-            if (this.isDragging) this.handleAction(); // Переименовали placeBuilding в handleAction
+            if (this.isDragging) this.handleAction();
         });
         this.app.stage.on('pointerdown', (e) => {
+            if (this.isPaused) return; // <---
             if (e.button === 0) {
                 this.isDragging = true;
                 this.handleAction();
@@ -102,36 +116,39 @@ export class BuildingSystem {
     }
 
     private updateGhost(e: FederatedPointerEvent) {
+        if (this.isPaused) {
+            this.ghost.visible = false;
+            return;
+        }
+        this.ghost.visible = true;
+
         const pos = this.getMouseGridPosition(e);
         this.ghost.x = pos.x;
         this.ghost.y = pos.y;
         this.ghost.clear();
         this.ghost.rect(0, 0, this.gridSize, this.gridSize);
         
-        // РЕЖИМ РЕМОНТА
         if (this.selectedTool === 'repair') {
             const building = this.getBuildingAt(pos.x, pos.y);
             if (building && building.hp < building.maxHp) {
-                this.ghost.fill({ color: 0xFFFF00, alpha: 0.5 }); // Желтый (можно чинить)
+                this.ghost.fill({ color: 0xFFFF00, alpha: 0.5 });
             } else {
-                this.ghost.clear(); // Нечего чинить
+                this.ghost.clear(); 
             }
             return;
         }
 
-        // РЕЖИМ СНОСА
         if (this.selectedTool === 'demolish') {
             const building = this.getBuildingAt(pos.x, pos.y);
-            if (building) {
-                this.ghost.fill({ color: 0xFF0000, alpha: 0.7 }); // Ярко красный (удалить)
+            if (building && building.buildingType !== 'core') { // Ядро нельзя снести
+                this.ghost.fill({ color: 0xFF0000, alpha: 0.7 });
             } else {
                 this.ghost.clear();
             }
             return;
         }
 
-        // РЕЖИМ СТРОИТЕЛЬСТВА
-        const type = this.selectedTool as BuildingType; // Приводим к типу здания
+        const type = this.selectedTool as BuildingType;
         const cost = BUILDING_COSTS[type];
         const canAfford = this.resourceManager ? this.resourceManager.hasMetal(cost) : false;
         const isPlaceable = this.canBuildAt(pos.x, pos.y);
@@ -154,45 +171,36 @@ export class BuildingSystem {
         return { x: snapX, y: snapY };
     }
 
-    // Главный метод действия
     private handleAction() {
         const x = this.ghost.x;
         const y = this.ghost.y;
 
-        // 1. РЕМОНТ
         if (this.selectedTool === 'repair') {
             const building = this.getBuildingAt(x, y);
             if (building && building.hp < building.maxHp) {
-                // Цена ремонта: 1 металл за 10 HP (или просто 1 за клик)
-                // Сделаем просто: 5 металла за полную починку или потихоньку?
-                // Сделаем по клику +10 HP за 2 металла
                 const repairCost = 2;
                 if (this.resourceManager && this.resourceManager.hasMetal(repairCost)) {
                     this.resourceManager.spendMetal(repairCost);
-                    building.repair(20); // Чиним 20 HP
-                    this.soundManager?.playBuild(); // Звук (можно другой добавить)
+                    building.repair(20); 
+                    this.soundManager?.playBuild(); 
                 }
             }
             return;
         }
 
-        // 2. СНОС
         if (this.selectedTool === 'demolish') {
             const building = this.getBuildingAt(x, y);
-            if (building) {
+            if (building && building.buildingType !== 'core') {
                 const key = `${x},${y}`;
                 const originalCost = BUILDING_COSTS[building.buildingType];
-                // Возврат 50%
                 this.resourceManager?.addMetal(Math.floor(originalCost * 0.5));
-                
                 this.world.removeChild(building);
                 this.buildings.delete(key);
-                this.soundManager?.playMine(); // Звук (как будто разобрали)
+                this.soundManager?.playMine(); 
             }
             return;
         }
 
-        // 3. СТРОИТЕЛЬСТВО
         this.placeBuilding(x, y);
     }
 
@@ -213,10 +221,7 @@ export class BuildingSystem {
         const type = this.selectedTool as BuildingType;
         const cost = BUILDING_COSTS[type];
         
-        if (this.resourceManager && !this.resourceManager.hasMetal(cost)) {
-            // this.soundManager?.playError();  // Слишком часто играет при драге
-            return;
-        }
+        if (this.resourceManager && !this.resourceManager.hasMetal(cost)) return;
         if (this.resourceManager) this.resourceManager.spendMetal(cost);
 
         const building = new Building(type, this.gridSize);

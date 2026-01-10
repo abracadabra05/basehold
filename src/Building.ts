@@ -1,12 +1,11 @@
-// ... импорты ...
+// ... (импорты)
 import { Container, Graphics, Ticker } from 'pixi.js';
 import type { ResourceManager } from './ResourceManager';
 import type { Enemy } from './Enemy';
 
-export type BuildingType = 'wall' | 'drill' | 'generator' | 'turret';
+export type BuildingType = 'wall' | 'drill' | 'generator' | 'turret' | 'core'; // <--- Добавили core
 
 export class Building extends Container {
-    // ... поля остаются те же ...
     public buildingType: BuildingType;
     private resourceManager: ResourceManager | null = null;
     public hp: number;
@@ -26,20 +25,20 @@ export class Building extends Container {
         super();
         this.buildingType = type;
 
-        // ... настройка HP и switch (type) ... 
-        // (Оставь весь код конструктора и switch без изменений, он длинный, копировать не буду, 
-        // главное убедись, что maxHp задается корректно)
         switch (type) {
             case 'wall': this.maxHp = 100; this.energyConsumption = 0; break;
             case 'drill': this.maxHp = 30; this.energyConsumption = 5; break;
             case 'turret': this.maxHp = 50; this.energyConsumption = 10; break;
             case 'generator': this.maxHp = 20; this.energyProduction = 20; break;
+            case 'core': // <--- Настройки Ядра
+                this.maxHp = 500; // Очень крепкое
+                this.energyProduction = 50; // Дает стартовую энергию
+                break;
             default: this.maxHp = 10;
         }
         this.hp = this.maxHp;
 
         const g = new Graphics();
-        // ... (код отрисовки графики тот же) ...
         switch (type) {
             case 'wall':
                 g.rect(0, 0, size, size).fill(0x888888).stroke({ width: 2, color: 0x000000 });
@@ -48,9 +47,16 @@ export class Building extends Container {
             case 'drill': g.rect(0, 0, size, size).fill(0x3498db).circle(size / 2, size / 2, size / 4).fill(0xffffff); break;
             case 'generator': g.rect(0, 0, size, size).fill(0xe67e22).moveTo(size / 2, 5).lineTo(size / 2, size - 5).stroke({ width: 4, color: 0xffff00 }); break;
             case 'turret': g.rect(0, 0, size, size).fill(0x2ecc71).circle(size / 2, size / 2, size / 3).fill(0x2c3e50).rect(size / 2 - 2, 0, 4, size / 2).fill(0x000000); break;
+            
+            case 'core': // <--- Визуал Ядра
+                g.rect(0, 0, size, size).fill(0x00FFFF); // Циан
+                // Рисуем пульсирующий центр
+                g.circle(size / 2, size / 2, size / 3).fill(0xFFFFFF);
+                g.stroke({ width: 3, color: 0x0000FF });
+                break;
         }
         this.addChild(g);
-
+        
         this.hpBar = new Graphics();
         this.hpBar.y = -10;
         this.hpBar.visible = false;
@@ -70,15 +76,11 @@ export class Building extends Container {
         if (this.hp <= 0) this.isDestroyed = true;
     }
 
-    // <--- НОВЫЙ МЕТОД: Починка
     public repair(amount: number) {
         this.hp += amount;
         if (this.hp > this.maxHp) this.hp = this.maxHp;
-        
-        // Зеленая вспышка при починке
         this.tint = 0x00FF00;
         setTimeout(() => this.tint = 0xFFFFFF, 100);
-        
         this.updateHpBar();
     }
 
@@ -97,7 +99,6 @@ export class Building extends Container {
         }
     }
 
-    // ... update, findTarget ... (без изменений)
     public update(ticker: Ticker, enemies: Enemy[], spawnProjectile: any, efficiency: number) {
         if (efficiency <= 0 && this.buildingType !== 'wall') return;
         if (this.isMining && this.resourceManager) {

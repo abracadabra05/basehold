@@ -1,4 +1,4 @@
-// ... импорты ... (без изменений)
+// ... импорты ...
 import { Application, Container, Graphics, FederatedPointerEvent } from 'pixi.js';
 import { Camera } from './Camera';
 import { Player } from './Player';
@@ -14,8 +14,6 @@ import { SoundManager } from './SoundManager';
 import { WorldBoundary } from './WorldBoundary';
 
 export class Game {
-    // ... поля ...
-    // (Все поля как были)
     private app: Application;
     public world: Container;
     private camera!: Camera;
@@ -40,6 +38,8 @@ export class Game {
     private mapWidthTiles = 60; 
     private mapSizePixel = 0; 
     private voidDamageTimer: number = 0;
+    
+    private coreBuilding: any; // Ссылка на ядро
 
     constructor(app: Application) {
         this.app = app;
@@ -66,9 +66,11 @@ export class Game {
         this.upgradeManager.onMineSpeedUpgrade = (mul) => { this.currentMineMultiplier = mul; this.soundManager.playBuild(); };
         this.upgradeManager.onMoveSpeedUpgrade = (mul) => { this.player.speedMultiplier = mul; this.soundManager.playBuild(); };
         
-        // Когда магазин закрывают -> продолжаем волны
+        // Когда магазин закрывают -> продолжаем волны и снимаем паузу
         this.upgradeManager.setOnClose(() => {
             this.waveManager.resume();
+            this.uiManager.setPaused(false);
+            this.buildingSystem.setPaused(false);
         });
 
         this.buildingSystem = new BuildingSystem(this.app, this.world);
@@ -82,43 +84,56 @@ export class Game {
         );
         this.player.x = this.mapSizePixel / 2;
         this.player.y = this.mapSizePixel / 2;
+        
         this.world.addChild(this.player);
         this.buildingSystem.setPlayer(this.player);
+        
+        // СПАВН ЯДРА
+        const coreX = Math.floor(this.player.x / 40) * 40;
+        const coreY = Math.floor(this.player.y / 40) * 40;
+        this.coreBuilding = this.buildingSystem.spawnCore(coreX, coreY);
+        this.player.x += 60; // Сдвигаем игрока
 
         this.camera = new Camera(this.world, this.app.screen);
         this.camera.follow(this.player);
 
         // 2. Настраиваем Менеджер Волн
         this.waveManager = new WaveManager(
-            // Колбек спавна (как и раньше)
             (waveNum, count) => {
                 if (!this.isGameOver) this.spawnWave(waveNum, count);
             },
-            // Колбек открытия магазина (НОВЫЙ)
-            () => {
-                this.soundManager.playBuild(); // Звук открытия
+            () => { // On Open Shop
+                this.soundManager.playBuild();
                 this.upgradeManager.show();
+                this.uiManager.setPaused(true);
+                this.buildingSystem.setPaused(true);
             }
         );
 
         this.initInput();
 
-                this.app.ticker.add((ticker) => {
+        this.app.ticker.add((ticker) => {
+            if (this.isGameOver || this.waveManager.isShopOpen) return;
 
-                    if (this.isGameOver || this.waveManager.isShopOpen) return;
-
-        
-
-                    this.player.update(ticker);
+            this.player.update(ticker);
+            
             if (this.isRightMouseDown) {
                 const worldPos = this.world.toLocal(this.lastMousePosition);
                 this.player.tryShoot(worldPos.x, worldPos.y);
             }
+
             this.camera.update();
+            
             this.buildingSystem.update(ticker, this.enemies, (x, y, tx, ty) => {
                 this.spawnProjectile(x, y, tx, ty);
                 this.soundManager.playTurretShoot();
             });
+
+            // ПРОВЕРКА ЖИЗНИ ЯДРА
+            if (this.coreBuilding && this.coreBuilding.isDestroyed) {
+                this.gameOver();
+            }
+
             this.enemies.forEach(enemy => enemy.update(ticker));
             this.waveManager.update(ticker);
             this.updateProjectiles(ticker);
@@ -130,10 +145,6 @@ export class Game {
     }
 
     // ... (Остальные методы без изменений) ...
-    // Скопируй их из предыдущего шага, если нужно.
-    // (spawnWave, spawnEnemy, spawnProjectile, initInput, checkPlayerHit, checkVoidDamage, gameOver, handleManualMining, updateProjectiles, cleanUp, generateResources, drawGrid)
-    
-    // ВАЖНО: Ниже приведены только методы, которые могли вызвать сомнения, остальные 1-в-1.
     
     private spawnWave(waveNum: number, count: number) {
         const spawnRadius = 800;
