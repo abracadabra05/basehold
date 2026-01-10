@@ -78,17 +78,20 @@ export class Game {
 
     // <--- Новый метод: Ручная добыча
     private handleManualMining(ticker: any) {
-        // Проверяем, стоит ли игрок на какой-либо руде
-        // Игрок (200, 200), Руда (200, 200) -> расстояние 0. Радиус руды ~20
         let onResource = false;
+        const halfGrid = 20; // Половина клетки (40 / 2)
         
         for (const res of this.resources) {
-            const dx = this.player.x - res.x;
-            const dy = this.player.y - res.y;
+            // ИСПРАВЛЕНИЕ: Считаем дистанцию до ЦЕНТРА руды, а не до угла
+            const resourceCenterX = res.x + halfGrid;
+            const resourceCenterY = res.y + halfGrid;
+
+            const dx = this.player.x - resourceCenterX;
+            const dy = this.player.y - resourceCenterY;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            // Если игрок стоит на руде (ближе 25 пикселей)
-            if (dist < 25) {
+            // Увеличили радиус с 25 до 30, чтобы было удобнее
+            if (dist < 30) {
                 onResource = true;
                 break; 
             }
@@ -96,12 +99,11 @@ export class Game {
 
         if (onResource) {
             this.manualMiningTimer += ticker.deltaTime;
-            // Добываем раз в 30 тиков (2 раза в секунду), быстрее бура, но требует присутствия
+            // Добываем раз в 30 тиков
             if (this.manualMiningTimer >= 30) {
                 this.manualMiningTimer = 0;
                 this.resourceManager.addMetal(1);
                 
-                // Визуальный эффект: Игрок чуть подпрыгивает/пульсирует
                 this.player.scale.set(1.1);
                 setTimeout(() => this.player.scale.set(1.0), 50);
             }
