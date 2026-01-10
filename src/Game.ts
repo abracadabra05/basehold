@@ -1,4 +1,4 @@
-// ... импорты те же ...
+// ... импорты ... (без изменений)
 import { Application, Container, Graphics, FederatedPointerEvent } from 'pixi.js';
 import { Camera } from './Camera';
 import { Player } from './Player';
@@ -6,7 +6,7 @@ import { BuildingSystem } from './BuildingSystem';
 import { UIManager } from './UIManager';
 import { ResourceManager } from './ResourceManager';
 import { ResourceNode } from './ResourceNode';
-import { Enemy, type EnemyType } from './Enemy'; // <--- Импорт типа
+import { Enemy, type EnemyType } from './Enemy';
 import { WaveManager } from './WaveManager';
 import { Projectile } from './Projectile';
 import { UpgradeManager } from './UpgradeManager';
@@ -14,7 +14,8 @@ import { SoundManager } from './SoundManager';
 import { WorldBoundary } from './WorldBoundary';
 
 export class Game {
-    // ... поля те же ...
+    // ... поля ...
+    // (Все поля как были)
     private app: Application;
     public world: Container;
     private camera!: Camera;
@@ -59,15 +60,20 @@ export class Game {
         this.resourceManager.addMetal(100); 
         this.generateResources();
 
+        // 1. Настраиваем магазин
         this.upgradeManager = new UpgradeManager(this.resourceManager);
         this.upgradeManager.onDamageUpgrade = (val) => { this.currentDamage = val; this.soundManager.playBuild(); };
         this.upgradeManager.onMineSpeedUpgrade = (mul) => { this.currentMineMultiplier = mul; this.soundManager.playBuild(); };
         this.upgradeManager.onMoveSpeedUpgrade = (mul) => { this.player.speedMultiplier = mul; this.soundManager.playBuild(); };
+        
+        // Когда магазин закрывают -> продолжаем волны
+        this.upgradeManager.setOnClose(() => {
+            this.waveManager.resume();
+        });
 
         this.buildingSystem = new BuildingSystem(this.app, this.world);
         this.buildingSystem.setSoundManager(this.soundManager);
         this.buildingSystem.setResources(this.resources, this.resourceManager);
-        
         this.uiManager = new UIManager((tool) => { this.buildingSystem.setTool(tool); });
 
         this.player = new Player(
@@ -76,17 +82,24 @@ export class Game {
         );
         this.player.x = this.mapSizePixel / 2;
         this.player.y = this.mapSizePixel / 2;
-        
         this.world.addChild(this.player);
         this.buildingSystem.setPlayer(this.player);
 
         this.camera = new Camera(this.world, this.app.screen);
         this.camera.follow(this.player);
 
-        // ОБНОВЛЕННЫЙ WAVE MANAGER
-        this.waveManager = new WaveManager((waveNum, count) => {
-            if (!this.isGameOver) this.spawnWave(waveNum, count);
-        });
+        // 2. Настраиваем Менеджер Волн
+        this.waveManager = new WaveManager(
+            // Колбек спавна (как и раньше)
+            (waveNum, count) => {
+                if (!this.isGameOver) this.spawnWave(waveNum, count);
+            },
+            // Колбек открытия магазина (НОВЫЙ)
+            () => {
+                this.soundManager.playBuild(); // Звук открытия
+                this.upgradeManager.show();
+            }
+        );
 
         this.initInput();
 
@@ -112,73 +125,50 @@ export class Game {
         });
     }
 
-    // ЛОГИКА СОСТАВА ВОЛНЫ
+    // ... (Остальные методы без изменений) ...
+    // Скопируй их из предыдущего шага, если нужно.
+    // (spawnWave, spawnEnemy, spawnProjectile, initInput, checkPlayerHit, checkVoidDamage, gameOver, handleManualMining, updateProjectiles, cleanUp, generateResources, drawGrid)
+    
+    // ВАЖНО: Ниже приведены только методы, которые могли вызвать сомнения, остальные 1-в-1.
+    
     private spawnWave(waveNum: number, count: number) {
         const spawnRadius = 800;
-
         for (let i = 0; i < count; i++) {
-            // Определяем тип врага случайно, но с весами в зависимости от волны
             let type: EnemyType = 'basic';
-
             const rand = Math.random();
+            if (waveNum === 1) type = 'basic';
+            else if (waveNum <= 3) { if (rand < 0.3) type = 'fast'; else type = 'basic'; }
+            else { if (rand < 0.2) type = 'tank'; else if (rand < 0.5) type = 'fast'; else type = 'basic'; }
 
-            if (waveNum === 1) {
-                type = 'basic';
-            } else if (waveNum <= 3) {
-                // 30% шанс на быстрого
-                if (rand < 0.3) type = 'fast';
-                else type = 'basic';
-            } else {
-                // 4+ волна: Появляются танки
-                if (rand < 0.2) type = 'tank';       // 20% Танк
-                else if (rand < 0.5) type = 'fast';  // 30% Быстрый
-                else type = 'basic';                 // 50% Обычный
-            }
-
-            // Спавн
             const angle = Math.random() * Math.PI * 2;
             const x = this.player.x + Math.cos(angle) * spawnRadius;
             const y = this.player.y + Math.sin(angle) * spawnRadius;
-            
             this.spawnEnemy(x, y, type);
         }
     }
-
-    // Добавили аргумент type
+    
     public spawnEnemy(x: number, y: number, type: EnemyType) {
-        const enemy = new Enemy(
-            this.player, 
-            this.buildingSystem.getBuildingAt.bind(this.buildingSystem),
-            type // <--- Передаем тип
-        );
-        enemy.x = x;
-        enemy.y = y;
+        const enemy = new Enemy(this.player, this.buildingSystem.getBuildingAt.bind(this.buildingSystem), type);
+        enemy.x = x; enemy.y = y;
         this.world.addChild(enemy);
         this.enemies.push(enemy);
     }
     
-    // ... Остальные методы без изменений (spawnProjectile, initInput, checkPlayerHit, checkVoidDamage, gameOver, handleManualMining, updateProjectiles, cleanUp, generateResources, drawGrid)
     private spawnProjectile(x: number, y: number, tx: number, ty: number) {
         const p = new Projectile(x, y, tx, ty, this.currentDamage);
         this.world.addChild(p);
         this.projectiles.push(p);
     }
+    
     private initInput() {
         this.app.stage.eventMode = 'static';
         this.app.stage.hitArea = this.app.screen;
-        this.app.stage.on('pointerdown', (e) => {
-            if (e.button === 2) this.isRightMouseDown = true;
-        });
-        this.app.stage.on('pointerup', (e) => {
-            if (e.button === 2) this.isRightMouseDown = false;
-        });
-        this.app.stage.on('pointerupoutside', (e) => {
-            if (e.button === 2) this.isRightMouseDown = false;
-        });
-        this.app.stage.on('pointermove', (e: FederatedPointerEvent) => {
-            this.lastMousePosition = { x: e.global.x, y: e.global.y };
-        });
+        this.app.stage.on('pointerdown', (e) => { if (e.button === 2) this.isRightMouseDown = true; });
+        this.app.stage.on('pointerup', (e) => { if (e.button === 2) this.isRightMouseDown = false; });
+        this.app.stage.on('pointerupoutside', (e) => { if (e.button === 2) this.isRightMouseDown = false; });
+        this.app.stage.on('pointermove', (e: FederatedPointerEvent) => { this.lastMousePosition = { x: e.global.x, y: e.global.y }; });
     }
+    
     private checkPlayerHit() {
         for (const enemy of this.enemies) {
             const dx = this.player.x - enemy.x;
@@ -191,6 +181,7 @@ export class Game {
             }
         }
     }
+    
     private checkVoidDamage(ticker: any) {
         const x = this.player.x;
         const y = this.player.y;
@@ -206,6 +197,7 @@ export class Game {
             this.voidDamageTimer = 0;
         }
     }
+    
     private gameOver() {
         this.isGameOver = true;
         this.soundManager.playGameOver();
@@ -225,6 +217,7 @@ export class Game {
         overlay.innerHTML = `<h1 style="font-size: 64px; color: #e74c3c;">GAME OVER</h1><button onclick="location.reload()" style="padding: 15px; font-size: 24px;">Restart</button>`;
         document.body.appendChild(overlay);
     }
+    
     private handleManualMining(ticker: any) {
         let onResource = false;
         const halfGrid = 20; 
@@ -249,6 +242,7 @@ export class Game {
             this.manualMiningTimer = 0;
         }
     }
+    
     private updateProjectiles(ticker: any) {
         for (const p of this.projectiles) {
             p.update(ticker);
@@ -265,6 +259,7 @@ export class Game {
             }
         }
     }
+    
     private cleanUp() {
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             if (this.enemies[i].isDead) {
@@ -280,6 +275,7 @@ export class Game {
             }
         }
     }
+    
     private generateResources() {
         const gridSize = this.gridSize;
         const tiles = this.mapWidthTiles;
@@ -296,19 +292,14 @@ export class Game {
             this.resources.push(node);
         }
     }
+    
     private drawGrid() {
         const gridSize = this.gridSize;
         const tiles = this.mapWidthTiles;
         const color = 0x444444;
         const g = new Graphics();
-        for (let x = 0; x <= tiles; x++) {
-            g.rect(x * gridSize, 0, 1, tiles * gridSize); 
-            g.fill(color);
-        }
-        for (let y = 0; y <= tiles; y++) {
-            g.rect(0, y * gridSize, tiles * gridSize, 1);
-            g.fill(color);
-        }
+        for (let x = 0; x <= tiles; x++) { g.rect(x * gridSize, 0, 1, tiles * gridSize); g.fill(color); }
+        for (let y = 0; y <= tiles; y++) { g.rect(0, y * gridSize, tiles * gridSize, 1); g.fill(color); }
         this.world.addChild(g);
     }
 }
