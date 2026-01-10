@@ -1,11 +1,8 @@
 export class ResourceManager {
     private metal: number = 0;
     private biomass: number = 0;
-    
-    // Энергия (баланс)
     private energyProduced: number = 0;
     private energyConsumed: number = 0;
-
     private uiElement: HTMLElement;
 
     constructor() {
@@ -34,6 +31,16 @@ export class ResourceManager {
         this.updateUI();
     }
 
+    // <--- НОВЫЙ МЕТОД
+    public spendBiomass(amount: number): boolean {
+        if (this.biomass >= amount) {
+            this.biomass -= amount;
+            this.updateUI();
+            return true;
+        }
+        return false;
+    }
+
     public hasMetal(amount: number): boolean {
         return this.metal >= amount;
     }
@@ -45,7 +52,6 @@ export class ResourceManager {
         }
     }
 
-    // Метод для обновления показателей энергии (вызываем каждый кадр из Game/BuildingSystem)
     public updateEnergy(produced: number, consumed: number) {
         this.energyProduced = produced;
         this.energyConsumed = consumed;

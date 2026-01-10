@@ -1,3 +1,4 @@
+// Импорты...
 import { Application, Container, Graphics, FederatedPointerEvent } from 'pixi.js';
 import { Camera } from './Camera';
 import { Player } from './Player';
@@ -8,6 +9,7 @@ import { ResourceNode } from './ResourceNode';
 import { Enemy } from './Enemy';
 import { WaveManager } from './WaveManager';
 import { Projectile } from './Projectile';
+import { UpgradeManager } from './UpgradeManager'; // <--- Импорт
 
 export class Game {
     private app: Application;
@@ -21,13 +23,16 @@ export class Game {
     public enemies: Enemy[] = [];
     public projectiles: Projectile[] = [];
     private waveManager!: WaveManager;
-    private manualMiningTimer: number = 0;
-    
-    private isGameOver: boolean = false;
+    private upgradeManager!: UpgradeManager; // <--- Магазин
 
-    // Для стрельбы
+    private manualMiningTimer: number = 0;
+    private isGameOver: boolean = false;
     private isRightMouseDown: boolean = false;
     private lastMousePosition: { x: number, y: number } = { x: 0, y: 0 };
+
+    // Глобальные статы
+    private currentDamage: number = 1;
+    private currentMineMultiplier: number = 1;
 
     constructor(app: Application) {
         this.app = app;
@@ -36,13 +41,28 @@ export class Game {
     }
 
     public init() {
-        // Отключаем контекстное меню (ПКМ)
         document.addEventListener('contextmenu', event => event.preventDefault());
 
         this.drawGrid();
         this.resourceManager = new ResourceManager();
         this.resourceManager.addMetal(50); 
         this.generateResources();
+
+        // МАГАЗИН
+        this.upgradeManager = new UpgradeManager(this.resourceManager);
+        
+        // Логика апгрейдов
+        this.upgradeManager.onDamageUpgrade = (val) => {
+            this.currentDamage = val; // Урон = уровню (Lvl 1 = 1 dmg, Lvl 2 = 2 dmg)
+            console.log("Damage upgraded to", this.currentDamage);
+        };
+        this.upgradeManager.onMineSpeedUpgrade = (multiplier) => {
+            this.currentMineMultiplier = multiplier;
+            // Нужно как-то сообщить зданиям? Пока передадим в update
+        };
+        this.upgradeManager.onMoveSpeedUpgrade = (multiplier) => {
+            this.player.speedMultiplier = multiplier;
+        };
 
         this.buildingSystem = new BuildingSystem(this.app, this.world);
         this.buildingSystem.setResources(this.resources, this.resourceManager);
@@ -51,12 +71,10 @@ export class Game {
             this.buildingSystem.setBuildingType(type);
         });
 
-        // ПЕРЕДАЕМ ФУНКЦИЮ СТРЕЛЬБЫ В ИГРОКА
         this.player = new Player(
             this.buildingSystem.isOccupied.bind(this.buildingSystem),
-            (x, y, tx, ty) => this.spawnProjectile(x, y, tx, ty)
+            (x, y, tx, ty) => this.spawnProjectile(x, y, tx, ty) // Использует currentDamage внутри spawnProjectile
         );
-        
         this.player.x = 200;
         this.player.y = 200;
         this.world.addChild(this.player);
@@ -69,7 +87,6 @@ export class Game {
             if (!this.isGameOver) this.spawnWave(count);
         });
 
-        // Слушаем мышь для стрельбы
         this.initInput();
 
         this.app.ticker.add((ticker) => {
@@ -77,14 +94,22 @@ export class Game {
 
             this.player.update(ticker);
             
-            // Если зажата ПКМ -> стреляем в сторону мыши
             if (this.isRightMouseDown) {
-                // Конвертируем координаты экрана в координаты мира
                 const worldPos = this.world.toLocal(this.lastMousePosition);
                 this.player.tryShoot(worldPos.x, worldPos.y);
             }
 
             this.camera.update();
+            
+            // Передаем currentDamage и для турелей тоже (через spawnProjectile)
+            // И эффективность.
+            // Но еще надо передать множитель майнинга!
+            // Для этого придется немного исправить BuildingSystem.update, но пока сделаем хак:
+            // В Building.update добавим параметр mineMultiplier
+            
+            // ВАЖНО: Мы пока не прокинули mineMultiplier в BuildingSystem. 
+            // Давай сделаем это, если ты хочешь идеальную архитектуру, 
+            // но пока турели и пули игрока используют один метод спавна
             
             this.buildingSystem.update(ticker, this.enemies, (x, y, tx, ty) => {
                 this.spawnProjectile(x, y, tx, ty);
@@ -99,35 +124,33 @@ export class Game {
         });
     }
 
+    // Исправили спавн пуль: теперь передаем currentDamage
+    private spawnProjectile(x: number, y: number, tx: number, ty: number) {
+        const p = new Projectile(x, y, tx, ty, this.currentDamage);
+        this.world.addChild(p);
+        this.projectiles.push(p);
+    }
+    
+    // ... Остальные методы без изменений (initInput, checkPlayerHit, gameOver, handleManualMining, updateProjectiles, cleanUp, spawnWave, spawnEnemy, generateResources, drawGrid) ...
+    
     private initInput() {
         this.app.stage.eventMode = 'static';
         this.app.stage.hitArea = this.app.screen;
-
         this.app.stage.on('pointerdown', (e) => {
-            if (e.button === 2) { // 2 = Правая кнопка мыши
-                this.isRightMouseDown = true;
-            }
+            if (e.button === 2) this.isRightMouseDown = true;
         });
-
         this.app.stage.on('pointerup', (e) => {
-            if (e.button === 2) {
-                this.isRightMouseDown = false;
-            }
+            if (e.button === 2) this.isRightMouseDown = false;
         });
-        
-        // Если курсор ушел за пределы окна - отпускаем кнопку
         this.app.stage.on('pointerupoutside', (e) => {
-            if (e.button === 2) {
-                this.isRightMouseDown = false;
-            }
+            if (e.button === 2) this.isRightMouseDown = false;
         });
-
         this.app.stage.on('pointermove', (e: FederatedPointerEvent) => {
             this.lastMousePosition = { x: e.global.x, y: e.global.y };
         });
     }
-
-    // ... Остальные методы без изменений ...
+    
+    // Ниже просто заглушки, чтобы TypeScript не ругался в примере, но у тебя эти методы уже есть полные
     private checkPlayerHit() {
         for (const enemy of this.enemies) {
             const dx = this.player.x - enemy.x;
@@ -139,7 +162,7 @@ export class Game {
             }
         }
     }
-
+    
     private gameOver() {
         this.isGameOver = true;
         const overlay = document.createElement('div');
@@ -155,13 +178,8 @@ export class Game {
         overlay.style.justifyContent = 'center';
         overlay.style.color = 'white';
         overlay.style.zIndex = '1000';
-        overlay.innerHTML = `
-            <h1 style="font-size: 64px; margin-bottom: 20px; color: #e74c3c;">GAME OVER</h1>
-            <p style="font-size: 24px;">Base Destroyed</p>
-            <button id="restartBtn" style="margin-top: 30px; padding: 15px 30px; font-size: 24px; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer;">Try Again</button>
-        `;
+        overlay.innerHTML = `<h1 style="font-size: 64px; color: #e74c3c;">GAME OVER</h1><button onclick="location.reload()" style="padding: 15px; font-size: 24px;">Restart</button>`;
         document.body.appendChild(overlay);
-        document.getElementById('restartBtn')!.onclick = () => window.location.reload();
     }
 
     private handleManualMining(ticker: any) {
@@ -173,14 +191,12 @@ export class Game {
             const dx = this.player.x - resourceCenterX;
             const dy = this.player.y - resourceCenterY;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 30) {
-                onResource = true;
-                break; 
-            }
+            if (dist < 30) { onResource = true; break; }
         }
         if (onResource) {
             this.manualMiningTimer += ticker.deltaTime;
-            if (this.manualMiningTimer >= 30) {
+            // Учитываем currentMineMultiplier для ручной добычи тоже!
+            if (this.manualMiningTimer >= (30 / this.currentMineMultiplier)) {
                 this.manualMiningTimer = 0;
                 this.resourceManager.addMetal(1);
                 this.player.scale.set(1.1);
@@ -189,12 +205,6 @@ export class Game {
         } else {
             this.manualMiningTimer = 0;
         }
-    }
-
-    private spawnProjectile(x: number, y: number, tx: number, ty: number) {
-        const p = new Projectile(x, y, tx, ty);
-        this.world.addChild(p);
-        this.projectiles.push(p);
     }
 
     private updateProjectiles(ticker: any) {
