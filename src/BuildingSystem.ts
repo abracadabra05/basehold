@@ -1,12 +1,18 @@
 import { Application, Container, Graphics, FederatedPointerEvent } from 'pixi.js';
+import { Building, type BuildingType } from './Building'; // Импортируем типы
 
 export class BuildingSystem {
     private world: Container;
     private app: Application;
     private ghost: Graphics;
     private gridSize: number = 40;
-    private buildings: Map<string, Graphics>;
-    private player: Container | null = null; // Ссылка на игрока
+    
+    // Храним теперь Building, а не просто Graphics
+    private buildings: Map<string, Building>; 
+    private player: Container | null = null;
+    
+    // Текущий выбранный тип
+    private selectedType: BuildingType = 'wall'; 
 
     constructor(app: Application, world: Container) {
         this.app = app;
@@ -20,7 +26,11 @@ export class BuildingSystem {
         this.initInput();
     }
 
-    // Метод для получения ссылки на игрока
+    // Метод для смены типа (вызывается из UI)
+    public setBuildingType(type: BuildingType) {
+        this.selectedType = type;
+    }
+
     public setPlayer(player: Container) {
         this.player = player;
     }
@@ -45,14 +55,18 @@ export class BuildingSystem {
         this.ghost.x = pos.x;
         this.ghost.y = pos.y;
 
-        // Визуализация: Красный - нельзя, Зеленый - можно
         this.ghost.clear();
         this.ghost.rect(0, 0, this.gridSize, this.gridSize);
         
         if (this.canBuildAt(pos.x, pos.y)) {
-            this.ghost.fill({ color: 0x00FF00, alpha: 0.5 }); // Зеленый
+            // Цвет призрака зависит от выбранного типа, чтобы было видно, что строим
+            let color = 0x00FF00;
+            if (this.selectedType === 'drill') color = 0x3498db;
+            if (this.selectedType === 'generator') color = 0xe67e22;
+
+            this.ghost.fill({ color: color, alpha: 0.5 });
         } else {
-            this.ghost.fill({ color: 0xFF0000, alpha: 0.5 }); // Красный
+            this.ghost.fill({ color: 0xFF0000, alpha: 0.5 });
         }
     }
 
@@ -63,37 +77,26 @@ export class BuildingSystem {
         return { x: snapX, y: snapY };
     }
 
-    // Главная проверка возможности строительства
     private canBuildAt(x: number, y: number): boolean {
-        // 1. Проверка: занята ли клетка зданием
         const key = `${x},${y}`;
         if (this.buildings.has(key)) return false;
 
-        // 2. Проверка: стоит ли тут игрок
         if (this.player) {
-            // Клетка, которую хотим построить
             const buildRect = { x: x, y: y, w: this.gridSize, h: this.gridSize };
-            
-            // Игрок (центр в x,y, размер 32x32)
-            // Координаты левого верхнего угла игрока:
             const playerRect = { 
                 x: this.player.x - 16, 
                 y: this.player.y - 16, 
                 w: 32, 
                 h: 32 
             };
-
-            // Пересекаются ли прямоугольники?
             const overlap = (
                 buildRect.x < playerRect.x + playerRect.w &&
                 buildRect.x + buildRect.w > playerRect.x &&
                 buildRect.y < playerRect.y + playerRect.h &&
                 buildRect.y + buildRect.h > playerRect.y
             );
-
             if (overlap) return false;
         }
-
         return true;
     }
 
@@ -101,17 +104,10 @@ export class BuildingSystem {
         const x = this.ghost.x;
         const y = this.ghost.y;
 
-        // Используем ту же проверку перед строительством
-        if (!this.canBuildAt(x, y)) {
-            // Можно добавить звук ошибки
-            return;
-        }
+        if (!this.canBuildAt(x, y)) return;
 
-        const building = new Graphics();
-        building.rect(0, 0, this.gridSize, this.gridSize);
-        building.fill(0x888888);
-        building.stroke({ width: 2, color: 0x000000 });
-        
+        // Создаем экземпляр нашего нового класса Building
+        const building = new Building(this.selectedType, this.gridSize);
         building.x = x;
         building.y = y;
 
