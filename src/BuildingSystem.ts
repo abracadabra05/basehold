@@ -59,6 +59,15 @@ export class BuildingSystem {
         return { x: snapX, y: snapY };
     }
 
+    public isOccupied(worldX: number, worldY: number): boolean {
+        // Переводим координаты мира в координаты сетки
+        const gridX = Math.floor(worldX / this.gridSize) * this.gridSize;
+        const gridY = Math.floor(worldY / this.gridSize) * this.gridSize;
+        
+        // Проверяем, есть ли запись в Map
+        return this.buildings.has(`${gridX},${gridY}`);
+    }
+
     private placeBuilding() {
         const x = this.ghost.x;
         const y = this.ghost.y;
