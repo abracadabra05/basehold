@@ -1,4 +1,4 @@
-import { Application, Container, Graphics } from 'pixi.js';
+import { Application, Container, Graphics, Ticker } from 'pixi.js'; // Добавлен Ticker в импорт
 import { Camera } from './Camera';
 import { Player } from './Player';
 import { BuildingSystem } from './BuildingSystem';
@@ -20,11 +20,11 @@ export class Game {
     public resources: ResourceNode[] = [];
     public enemies: Enemy[] = [];
     public projectiles: Projectile[] = [];
-    
     private waveManager!: WaveManager;
-
-    // Таймер для ручной добычи
-    private manualMiningTimer: number = 0; 
+    private manualMiningTimer: number = 0;
+    
+    // Флаг состояния игры
+    private isGameOver: boolean = false;
 
     constructor(app: Application) {
         this.app = app;
@@ -55,10 +55,13 @@ export class Game {
         this.camera.follow(this.player);
 
         this.waveManager = new WaveManager((count) => {
-            this.spawnWave(count);
+            if (!this.isGameOver) this.spawnWave(count);
         });
 
         this.app.ticker.add((ticker) => {
+            // Если игра окончена, ничего не обновляем
+            if (this.isGameOver) return;
+
             this.player.update(ticker);
             this.camera.update();
             
@@ -70,27 +73,87 @@ export class Game {
             this.waveManager.update(ticker);
             this.updateProjectiles(ticker);
             this.cleanUp();
-
-            // <--- ЛОГИКА РУЧНОЙ ДОБЫЧИ
             this.handleManualMining(ticker);
+            
+            // Проверка: Кусают ли игрока?
+            this.checkPlayerHit();
         });
     }
 
-    // <--- Новый метод: Ручная добыча
+    private checkPlayerHit() {
+        for (const enemy of this.enemies) {
+            const dx = this.player.x - enemy.x;
+            const dy = this.player.y - enemy.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            // Если враг коснулся игрока (сумма радиусов ~ 16 + 12 = 28)
+            if (dist < 25) {
+                this.player.takeDamage(1);
+                
+                // Если HP кончилось
+                if (this.player.hp <= 0) {
+                    this.gameOver();
+                }
+            }
+        }
+    }
+
+    private gameOver() {
+        this.isGameOver = true;
+        
+        // Создаем затемнение
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        overlay.style.display = 'flex';
+        overlay.style.flexDirection = 'column';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.color = 'white';
+        overlay.style.zIndex = '1000';
+
+        overlay.innerHTML = `
+            <h1 style="font-size: 64px; margin-bottom: 20px; color: #e74c3c;">GAME OVER</h1>
+            <p style="font-size: 24px;">Base Destroyed</p>
+            <button id="restartBtn" style="
+                margin-top: 30px;
+                padding: 15px 30px;
+                font-size: 24px;
+                background: #27ae60;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+            ">Try Again</button>
+        `;
+
+        document.body.appendChild(overlay);
+
+        // Кнопка рестарта просто перезагружает страницу (самый надежный способ очистить память)
+        document.getElementById('restartBtn')!.onclick = () => {
+            window.location.reload();
+        };
+    }
+
+    // ... Остальные методы (handleManualMining, spawnProjectile, updateProjectiles, cleanUp, spawnWave, spawnEnemy, generateResources, drawGrid) без изменений ...
+    // Скопируй их из прошлого шага, если нужно, или просто оставь как есть.
+    
+    // ВАЖНО: Ниже я привожу handleManualMining, так как мы его меняли в прошлый раз, чтобы ты не запутался
     private handleManualMining(ticker: any) {
         let onResource = false;
-        const halfGrid = 20; // Половина клетки (40 / 2)
+        const halfGrid = 20; 
         
         for (const res of this.resources) {
-            // ИСПРАВЛЕНИЕ: Считаем дистанцию до ЦЕНТРА руды, а не до угла
             const resourceCenterX = res.x + halfGrid;
             const resourceCenterY = res.y + halfGrid;
-
             const dx = this.player.x - resourceCenterX;
             const dy = this.player.y - resourceCenterY;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            // Увеличили радиус с 25 до 30, чтобы было удобнее
             if (dist < 30) {
                 onResource = true;
                 break; 
@@ -99,11 +162,9 @@ export class Game {
 
         if (onResource) {
             this.manualMiningTimer += ticker.deltaTime;
-            // Добываем раз в 30 тиков
             if (this.manualMiningTimer >= 30) {
                 this.manualMiningTimer = 0;
                 this.resourceManager.addMetal(1);
-                
                 this.player.scale.set(1.1);
                 setTimeout(() => this.player.scale.set(1.0), 50);
             }
@@ -138,14 +199,11 @@ export class Game {
     private cleanUp() {
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             if (this.enemies[i].isDead) {
-                // <--- НАЧИСЛЕНИЕ БИОМАССЫ ПРИ СМЕРТИ
-                this.resourceManager.addBiomass(5); // +5 душ за врага
-                
+                this.resourceManager.addBiomass(5); 
                 this.world.removeChild(this.enemies[i]);
                 this.enemies.splice(i, 1);
             }
         }
-
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             if (this.projectiles[i].shouldDestroy) {
                 this.world.removeChild(this.projectiles[i]);

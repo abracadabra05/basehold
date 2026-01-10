@@ -1,6 +1,11 @@
 export class ResourceManager {
     private metal: number = 0;
-    private biomass: number = 0; // <--- Новый ресурс
+    private biomass: number = 0;
+    
+    // Энергия (баланс)
+    private energyProduced: number = 0;
+    private energyConsumed: number = 0;
+
     private uiElement: HTMLElement;
 
     constructor() {
@@ -10,10 +15,10 @@ export class ResourceManager {
         this.uiElement.style.left = '20px';
         this.uiElement.style.color = 'white';
         this.uiElement.style.fontFamily = 'Arial, sans-serif';
-        this.uiElement.style.fontSize = '20px'; // Чуть меньше, чтобы влезло
+        this.uiElement.style.fontSize = '20px';
         this.uiElement.style.fontWeight = 'bold';
         this.uiElement.style.textShadow = '2px 2px 0 #000';
-        this.uiElement.style.pointerEvents = 'none'; // Чтобы клики проходили сквозь текст
+        this.uiElement.style.pointerEvents = 'none';
         
         document.body.appendChild(this.uiElement);
         this.updateUI();
@@ -24,7 +29,6 @@ export class ResourceManager {
         this.updateUI();
     }
 
-    // <--- Новый метод
     public addBiomass(amount: number) {
         this.biomass += amount;
         this.updateUI();
@@ -41,11 +45,21 @@ export class ResourceManager {
         }
     }
 
+    // Метод для обновления показателей энергии (вызываем каждый кадр из Game/BuildingSystem)
+    public updateEnergy(produced: number, consumed: number) {
+        this.energyProduced = produced;
+        this.energyConsumed = consumed;
+        this.updateUI();
+    }
+
     private updateUI() {
-        // Отображаем оба ресурса
+        // Цвет энергии: Желтый, если все ок. Красный, если перегрузка.
+        const energyColor = (this.energyProduced >= this.energyConsumed) ? '#f1c40f' : '#e74c3c';
+
         this.uiElement.innerHTML = `
             <span style="color: #bdc3c7">🔩 Metal: ${Math.floor(this.metal)}</span><br>
-            <span style="color: #9b59b6">🧬 Biomass: ${Math.floor(this.biomass)}</span>
+            <span style="color: #9b59b6">🧬 Biomass: ${Math.floor(this.biomass)}</span><br>
+            <span style="color: ${energyColor}">⚡ Energy: ${this.energyConsumed} / ${this.energyProduced}</span>
         `;
     }
 }
