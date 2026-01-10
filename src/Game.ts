@@ -7,7 +7,7 @@ import { ResourceManager } from './ResourceManager';
 import { ResourceNode } from './ResourceNode';
 import { Enemy } from './Enemy';
 import { WaveManager } from './WaveManager';
-import { Projectile } from './Projectile'; // <--- Импорт
+import { Projectile } from './Projectile';
 
 export class Game {
     private app: Application;
@@ -19,9 +19,12 @@ export class Game {
     public resourceManager!: ResourceManager;
     public resources: ResourceNode[] = [];
     public enemies: Enemy[] = [];
-    public projectiles: Projectile[] = []; // <--- Список пуль
+    public projectiles: Projectile[] = [];
     
     private waveManager!: WaveManager;
+
+    // Таймер для ручной добычи
+    private manualMiningTimer: number = 0; 
 
     constructor(app: Application) {
         this.app = app;
@@ -59,23 +62,52 @@ export class Game {
             this.player.update(ticker);
             this.camera.update();
             
-            // Обновляем здания и даем им возможность создавать пули
             this.buildingSystem.update(ticker, this.enemies, (x, y, tx, ty) => {
                 this.spawnProjectile(x, y, tx, ty);
             });
 
-            // Враги
             this.enemies.forEach(enemy => enemy.update(ticker));
-            
-            // Волны
             this.waveManager.update(ticker);
-
-            // Пули
             this.updateProjectiles(ticker);
-            
-            // Очистка мертвых врагов
             this.cleanUp();
+
+            // <--- ЛОГИКА РУЧНОЙ ДОБЫЧИ
+            this.handleManualMining(ticker);
         });
+    }
+
+    // <--- Новый метод: Ручная добыча
+    private handleManualMining(ticker: any) {
+        // Проверяем, стоит ли игрок на какой-либо руде
+        // Игрок (200, 200), Руда (200, 200) -> расстояние 0. Радиус руды ~20
+        let onResource = false;
+        
+        for (const res of this.resources) {
+            const dx = this.player.x - res.x;
+            const dy = this.player.y - res.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            // Если игрок стоит на руде (ближе 25 пикселей)
+            if (dist < 25) {
+                onResource = true;
+                break; 
+            }
+        }
+
+        if (onResource) {
+            this.manualMiningTimer += ticker.deltaTime;
+            // Добываем раз в 30 тиков (2 раза в секунду), быстрее бура, но требует присутствия
+            if (this.manualMiningTimer >= 30) {
+                this.manualMiningTimer = 0;
+                this.resourceManager.addMetal(1);
+                
+                // Визуальный эффект: Игрок чуть подпрыгивает/пульсирует
+                this.player.scale.set(1.1);
+                setTimeout(() => this.player.scale.set(1.0), 50);
+            }
+        } else {
+            this.manualMiningTimer = 0;
+        }
     }
 
     private spawnProjectile(x: number, y: number, tx: number, ty: number) {
@@ -87,35 +119,31 @@ export class Game {
     private updateProjectiles(ticker: any) {
         for (const p of this.projectiles) {
             p.update(ticker);
-
-            // Проверка попаданий
             for (const enemy of this.enemies) {
                 if (enemy.isDead) continue;
-                
                 const dx = p.x - enemy.x;
                 const dy = p.y - enemy.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-
-                // Если попали (радиус врага ~12)
                 if (dist < 15) {
                     enemy.takeDamage(p.damage);
                     p.shouldDestroy = true;
-                    break; // Пуля удаляется после первого попадания
+                    break; 
                 }
             }
         }
     }
 
     private cleanUp() {
-        // Удаляем мертвых врагов
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             if (this.enemies[i].isDead) {
+                // <--- НАЧИСЛЕНИЕ БИОМАССЫ ПРИ СМЕРТИ
+                this.resourceManager.addBiomass(5); // +5 душ за врага
+                
                 this.world.removeChild(this.enemies[i]);
                 this.enemies.splice(i, 1);
             }
         }
 
-        // Удаляем старые пули
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             if (this.projectiles[i].shouldDestroy) {
                 this.world.removeChild(this.projectiles[i]);
@@ -124,8 +152,6 @@ export class Game {
         }
     }
 
-    // ... spawnWave, spawnEnemy, generateResources, drawGrid ...
-    // (Оставь их как были)
     private spawnWave(count: number) {
         const spawnRadius = 800;
         for (let i = 0; i < count; i++) {

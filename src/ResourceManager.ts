@@ -1,25 +1,32 @@
 export class ResourceManager {
     private metal: number = 0;
-    private metalElement: HTMLElement;
+    private biomass: number = 0; // <--- Новый ресурс
+    private uiElement: HTMLElement;
 
     constructor() {
-        // Создаем UI для ресурсов
-        this.metalElement = document.createElement('div');
-        this.metalElement.style.position = 'absolute';
-        this.metalElement.style.top = '20px';
-        this.metalElement.style.left = '20px';
-        this.metalElement.style.color = 'white';
-        this.metalElement.style.fontFamily = 'Arial, sans-serif';
-        this.metalElement.style.fontSize = '24px';
-        this.metalElement.style.fontWeight = 'bold';
-        this.metalElement.style.textShadow = '2px 2px 0 #000';
+        this.uiElement = document.createElement('div');
+        this.uiElement.style.position = 'absolute';
+        this.uiElement.style.top = '20px';
+        this.uiElement.style.left = '20px';
+        this.uiElement.style.color = 'white';
+        this.uiElement.style.fontFamily = 'Arial, sans-serif';
+        this.uiElement.style.fontSize = '20px'; // Чуть меньше, чтобы влезло
+        this.uiElement.style.fontWeight = 'bold';
+        this.uiElement.style.textShadow = '2px 2px 0 #000';
+        this.uiElement.style.pointerEvents = 'none'; // Чтобы клики проходили сквозь текст
         
-        document.body.appendChild(this.metalElement);
+        document.body.appendChild(this.uiElement);
         this.updateUI();
     }
 
     public addMetal(amount: number) {
         this.metal += amount;
+        this.updateUI();
+    }
+
+    // <--- Новый метод
+    public addBiomass(amount: number) {
+        this.biomass += amount;
         this.updateUI();
     }
 
@@ -35,6 +42,10 @@ export class ResourceManager {
     }
 
     private updateUI() {
-        this.metalElement.innerText = `🔩 Metal: ${Math.floor(this.metal)}`;
+        // Отображаем оба ресурса
+        this.uiElement.innerHTML = `
+            <span style="color: #bdc3c7">🔩 Metal: ${Math.floor(this.metal)}</span><br>
+            <span style="color: #9b59b6">🧬 Biomass: ${Math.floor(this.biomass)}</span>
+        `;
     }
 }
