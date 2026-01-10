@@ -2,7 +2,9 @@ import { Application, Container, Graphics } from 'pixi.js';
 import { Camera } from './Camera';
 import { Player } from './Player';
 import { BuildingSystem } from './BuildingSystem';
-import { UIManager } from './UIManager'; // <--- Импорт
+import { UIManager } from './UIManager';
+import { ResourceManager } from './ResourceManager';
+import { ResourceNode } from './ResourceNode';
 
 export class Game {
     private app: Application;
@@ -10,7 +12,9 @@ export class Game {
     private camera!: Camera;
     private player!: Player;
     private buildingSystem!: BuildingSystem;
-    private uiManager!: UIManager; // <--- UI
+    private uiManager!: UIManager;
+    public resourceManager!: ResourceManager;
+    public resources: ResourceNode[] = [];
 
     constructor(app: Application) {
         this.app = app;
@@ -21,9 +25,15 @@ export class Game {
     public init() {
         this.drawGrid();
 
-        this.buildingSystem = new BuildingSystem(this.app, this.world);
+        this.resourceManager = new ResourceManager();
+        this.resourceManager.addMetal(50); 
+        this.generateResources();
 
-        // Инициализируем UI и говорим ему: "Когда нажали кнопку, передай тип в buildingSystem"
+        this.buildingSystem = new BuildingSystem(this.app, this.world);
+        
+        // ВАЖНО: Передаем ресурсы и менеджер в систему строительства
+        this.buildingSystem.setResources(this.resources, this.resourceManager);
+
         this.uiManager = new UIManager((type) => {
             this.buildingSystem.setBuildingType(type);
         });
@@ -41,7 +51,28 @@ export class Game {
         this.app.ticker.add((ticker) => {
             this.player.update(ticker);
             this.camera.update();
+            
+            // ВАЖНО: Обновляем здания (чтобы буры капали ресурсы)
+            this.buildingSystem.update(ticker);
         });
+    }
+
+    private generateResources() {
+        const gridSize = 40;
+        for (let i = 0; i < 20; i++) {
+            const node = new ResourceNode(gridSize);
+            let rx = Math.floor(Math.random() * 100) * gridSize;
+            let ry = Math.floor(Math.random() * 100) * gridSize;
+
+            if (Math.abs(rx - 200) < 200 && Math.abs(ry - 200) < 200) {
+                continue; 
+            }
+            node.x = rx;
+            node.y = ry;
+            
+            this.world.addChild(node);
+            this.resources.push(node);
+        }
     }
 
     private drawGrid() {

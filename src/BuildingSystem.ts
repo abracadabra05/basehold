@@ -1,5 +1,7 @@
-import { Application, Container, Graphics, FederatedPointerEvent } from 'pixi.js';
-import { Building, type BuildingType } from './Building'; // Импортируем типы
+import { Application, Container, Graphics, FederatedPointerEvent, Ticker } from 'pixi.js';
+import { Building, type BuildingType } from './Building';
+import type { ResourceNode } from './ResourceNode';
+import type { ResourceManager } from './ResourceManager';
 
 export class BuildingSystem {
     private world: Container;
@@ -7,12 +9,13 @@ export class BuildingSystem {
     private ghost: Graphics;
     private gridSize: number = 40;
     
-    // Храним теперь Building, а не просто Graphics
     private buildings: Map<string, Building>; 
     private player: Container | null = null;
+    private selectedType: BuildingType = 'wall';
     
-    // Текущий выбранный тип
-    private selectedType: BuildingType = 'wall'; 
+    // Новые ссылки
+    private resources: ResourceNode[] = [];
+    private resourceManager: ResourceManager | null = null;
 
     constructor(app: Application, world: Container) {
         this.app = app;
@@ -26,7 +29,12 @@ export class BuildingSystem {
         this.initInput();
     }
 
-    // Метод для смены типа (вызывается из UI)
+    // Передаем данные игры в систему
+    public setResources(resources: ResourceNode[], manager: ResourceManager) {
+        this.resources = resources;
+        this.resourceManager = manager;
+    }
+
     public setBuildingType(type: BuildingType) {
         this.selectedType = type;
     }
@@ -35,18 +43,21 @@ export class BuildingSystem {
         this.player = player;
     }
 
+    // Главный цикл обновлений зданий
+    public update(ticker: Ticker) {
+        // Проходим по всем зданиям и обновляем их
+        this.buildings.forEach(building => {
+            building.update(ticker);
+        });
+    }
+
     private initInput() {
         this.app.stage.eventMode = 'static';
         this.app.stage.hitArea = this.app.screen;
 
-        this.app.stage.on('pointermove', (e) => {
-            this.updateGhost(e);
-        });
-
+        this.app.stage.on('pointermove', (e) => { this.updateGhost(e); });
         this.app.stage.on('pointerdown', (e) => {
-            if (e.button === 0) {
-                this.placeBuilding();
-            }
+            if (e.button === 0) this.placeBuilding();
         });
     }
 
@@ -54,16 +65,13 @@ export class BuildingSystem {
         const pos = this.getMouseGridPosition(e);
         this.ghost.x = pos.x;
         this.ghost.y = pos.y;
-
         this.ghost.clear();
         this.ghost.rect(0, 0, this.gridSize, this.gridSize);
         
         if (this.canBuildAt(pos.x, pos.y)) {
-            // Цвет призрака зависит от выбранного типа, чтобы было видно, что строим
             let color = 0x00FF00;
             if (this.selectedType === 'drill') color = 0x3498db;
             if (this.selectedType === 'generator') color = 0xe67e22;
-
             this.ghost.fill({ color: color, alpha: 0.5 });
         } else {
             this.ghost.fill({ color: 0xFF0000, alpha: 0.5 });
@@ -103,13 +111,25 @@ export class BuildingSystem {
     private placeBuilding() {
         const x = this.ghost.x;
         const y = this.ghost.y;
-
         if (!this.canBuildAt(x, y)) return;
 
-        // Создаем экземпляр нашего нового класса Building
         const building = new Building(this.selectedType, this.gridSize);
         building.x = x;
         building.y = y;
+
+        // ЛОГИКА БУРА
+        if (this.selectedType === 'drill' && this.resourceManager) {
+            // Проверяем, есть ли под нами руда
+            // (Сравниваем координаты. Так как всё привязано к сетке, точное сравнение работает)
+            const ore = this.resources.find(r => r.x === x && r.y === y);
+            
+            if (ore) {
+                console.log("Бур установлен на руду!");
+                building.startMining(this.resourceManager);
+            } else {
+                console.log("Бур установлен в пустую землю (нет руды).");
+            }
+        }
 
         this.world.addChild(building);
         this.buildings.set(`${x},${y}`, building);
