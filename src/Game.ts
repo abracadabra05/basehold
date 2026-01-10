@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Ticker } from 'pixi.js'; // Добавлен Ticker в импорт
+import { Application, Container, Graphics, FederatedPointerEvent } from 'pixi.js';
 import { Camera } from './Camera';
 import { Player } from './Player';
 import { BuildingSystem } from './BuildingSystem';
@@ -23,8 +23,11 @@ export class Game {
     private waveManager!: WaveManager;
     private manualMiningTimer: number = 0;
     
-    // Флаг состояния игры
     private isGameOver: boolean = false;
+
+    // Для стрельбы
+    private isRightMouseDown: boolean = false;
+    private lastMousePosition: { x: number, y: number } = { x: 0, y: 0 };
 
     constructor(app: Application) {
         this.app = app;
@@ -33,6 +36,9 @@ export class Game {
     }
 
     public init() {
+        // Отключаем контекстное меню (ПКМ)
+        document.addEventListener('contextmenu', event => event.preventDefault());
+
         this.drawGrid();
         this.resourceManager = new ResourceManager();
         this.resourceManager.addMetal(50); 
@@ -45,7 +51,12 @@ export class Game {
             this.buildingSystem.setBuildingType(type);
         });
 
-        this.player = new Player(this.buildingSystem.isOccupied.bind(this.buildingSystem));
+        // ПЕРЕДАЕМ ФУНКЦИЮ СТРЕЛЬБЫ В ИГРОКА
+        this.player = new Player(
+            this.buildingSystem.isOccupied.bind(this.buildingSystem),
+            (x, y, tx, ty) => this.spawnProjectile(x, y, tx, ty)
+        );
+        
         this.player.x = 200;
         this.player.y = 200;
         this.world.addChild(this.player);
@@ -58,11 +69,21 @@ export class Game {
             if (!this.isGameOver) this.spawnWave(count);
         });
 
+        // Слушаем мышь для стрельбы
+        this.initInput();
+
         this.app.ticker.add((ticker) => {
-            // Если игра окончена, ничего не обновляем
             if (this.isGameOver) return;
 
             this.player.update(ticker);
+            
+            // Если зажата ПКМ -> стреляем в сторону мыши
+            if (this.isRightMouseDown) {
+                // Конвертируем координаты экрана в координаты мира
+                const worldPos = this.world.toLocal(this.lastMousePosition);
+                this.player.tryShoot(worldPos.x, worldPos.y);
+            }
+
             this.camera.update();
             
             this.buildingSystem.update(ticker, this.enemies, (x, y, tx, ty) => {
@@ -74,34 +95,53 @@ export class Game {
             this.updateProjectiles(ticker);
             this.cleanUp();
             this.handleManualMining(ticker);
-            
-            // Проверка: Кусают ли игрока?
             this.checkPlayerHit();
         });
     }
 
+    private initInput() {
+        this.app.stage.eventMode = 'static';
+        this.app.stage.hitArea = this.app.screen;
+
+        this.app.stage.on('pointerdown', (e) => {
+            if (e.button === 2) { // 2 = Правая кнопка мыши
+                this.isRightMouseDown = true;
+            }
+        });
+
+        this.app.stage.on('pointerup', (e) => {
+            if (e.button === 2) {
+                this.isRightMouseDown = false;
+            }
+        });
+        
+        // Если курсор ушел за пределы окна - отпускаем кнопку
+        this.app.stage.on('pointerupoutside', (e) => {
+            if (e.button === 2) {
+                this.isRightMouseDown = false;
+            }
+        });
+
+        this.app.stage.on('pointermove', (e: FederatedPointerEvent) => {
+            this.lastMousePosition = { x: e.global.x, y: e.global.y };
+        });
+    }
+
+    // ... Остальные методы без изменений ...
     private checkPlayerHit() {
         for (const enemy of this.enemies) {
             const dx = this.player.x - enemy.x;
             const dy = this.player.y - enemy.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-
-            // Если враг коснулся игрока (сумма радиусов ~ 16 + 12 = 28)
             if (dist < 25) {
                 this.player.takeDamage(1);
-                
-                // Если HP кончилось
-                if (this.player.hp <= 0) {
-                    this.gameOver();
-                }
+                if (this.player.hp <= 0) this.gameOver();
             }
         }
     }
 
     private gameOver() {
         this.isGameOver = true;
-        
-        // Создаем затемнение
         const overlay = document.createElement('div');
         overlay.style.position = 'fixed';
         overlay.style.top = '0';
@@ -115,51 +155,29 @@ export class Game {
         overlay.style.justifyContent = 'center';
         overlay.style.color = 'white';
         overlay.style.zIndex = '1000';
-
         overlay.innerHTML = `
             <h1 style="font-size: 64px; margin-bottom: 20px; color: #e74c3c;">GAME OVER</h1>
             <p style="font-size: 24px;">Base Destroyed</p>
-            <button id="restartBtn" style="
-                margin-top: 30px;
-                padding: 15px 30px;
-                font-size: 24px;
-                background: #27ae60;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                cursor: pointer;
-            ">Try Again</button>
+            <button id="restartBtn" style="margin-top: 30px; padding: 15px 30px; font-size: 24px; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer;">Try Again</button>
         `;
-
         document.body.appendChild(overlay);
-
-        // Кнопка рестарта просто перезагружает страницу (самый надежный способ очистить память)
-        document.getElementById('restartBtn')!.onclick = () => {
-            window.location.reload();
-        };
+        document.getElementById('restartBtn')!.onclick = () => window.location.reload();
     }
 
-    // ... Остальные методы (handleManualMining, spawnProjectile, updateProjectiles, cleanUp, spawnWave, spawnEnemy, generateResources, drawGrid) без изменений ...
-    // Скопируй их из прошлого шага, если нужно, или просто оставь как есть.
-    
-    // ВАЖНО: Ниже я привожу handleManualMining, так как мы его меняли в прошлый раз, чтобы ты не запутался
     private handleManualMining(ticker: any) {
         let onResource = false;
         const halfGrid = 20; 
-        
         for (const res of this.resources) {
             const resourceCenterX = res.x + halfGrid;
             const resourceCenterY = res.y + halfGrid;
             const dx = this.player.x - resourceCenterX;
             const dy = this.player.y - resourceCenterY;
             const dist = Math.sqrt(dx * dx + dy * dy);
-
             if (dist < 30) {
                 onResource = true;
                 break; 
             }
         }
-
         if (onResource) {
             this.manualMiningTimer += ticker.deltaTime;
             if (this.manualMiningTimer >= 30) {

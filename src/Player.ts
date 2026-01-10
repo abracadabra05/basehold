@@ -4,30 +4,37 @@ export class Player extends Container {
     private keys: { [key: string]: boolean } = {};
     private speed: number = 5; 
     private body: Graphics;
+    private hpBar: Graphics;
     private checkCollision: (x: number, y: number) => boolean;
+    
+    // Новое: Колбек для выстрела
+    private onShoot: (x: number, y: number, tx: number, ty: number) => void;
 
-    // Новые свойства для здоровья
     public maxHp: number = 10;
     public hp: number = 10;
-    private hpBar: Graphics;
     
-    // Неуязвимость после удара (i-frames)
     private invulnerableTimer: number = 0;
-    private invulnerableTime: number = 60; // 1 секунда (60 тиков)
+    private invulnerableTime: number = 60; 
 
-    constructor(checkCollision: (x: number, y: number) => boolean) {
+    // Параметры оружия
+    private fireCooldown: number = 0;
+    private fireRate: number = 10; // Скорострельность (меньше = быстрее). 10 тиков = 6 выстрелов в сек.
+
+    constructor(
+        checkCollision: (x: number, y: number) => boolean,
+        onShoot: (x: number, y: number, tx: number, ty: number) => void // <--- Принимаем функцию выстрела
+    ) {
         super();
         this.checkCollision = checkCollision;
+        this.onShoot = onShoot;
         
-        // Тело игрока
         this.body = new Graphics();
         this.body.rect(-16, -16, 32, 32); 
         this.body.fill(0xFFD700); 
         this.addChild(this.body);
 
-        // Полоска здоровья (над головой)
         this.hpBar = new Graphics();
-        this.hpBar.y = -25; // Сдвигаем вверх
+        this.hpBar.y = -25;
         this.addChild(this.hpBar);
         this.updateHpBar();
 
@@ -40,11 +47,25 @@ export class Player extends Container {
         window.addEventListener('blur', () => { this.keys = {}; });
     }
 
+    // Метод попытки выстрела (вызывается из Game.ts, если зажата ПКМ)
+    public tryShoot(targetX: number, targetY: number) {
+        if (this.fireCooldown <= 0) {
+            // Стреляем!
+            this.onShoot(this.x, this.y, targetX, targetY);
+            this.fireCooldown = this.fireRate; // Сброс таймера
+        }
+    }
+
     public update(ticker: Ticker) {
+        // Обновляем таймер стрельбы
+        if (this.fireCooldown > 0) {
+            this.fireCooldown -= ticker.deltaTime;
+        }
+
         // Таймер неуязвимости
         if (this.invulnerableTimer > 0) {
             this.invulnerableTimer -= ticker.deltaTime;
-            this.alpha = 0.5; // Мигаем (полупрозрачный)
+            this.alpha = 0.5; 
         } else {
             this.alpha = 1.0;
         }
@@ -73,27 +94,20 @@ export class Player extends Container {
     }
 
     public takeDamage(amount: number) {
-        if (this.invulnerableTimer > 0) return; // Если под щитом - урон не проходит
+        if (this.invulnerableTimer > 0) return; 
 
         this.hp -= amount;
-        this.invulnerableTimer = this.invulnerableTime; // Включаем щит
+        this.invulnerableTimer = this.invulnerableTime; 
         this.updateHpBar();
-
-        // Небольшой отброс камеры или эффекта можно добавить позже
-        console.log(`Player hit! HP: ${this.hp}`);
     }
 
     private updateHpBar() {
         this.hpBar.clear();
-        
-        // Фон бара (черный)
         this.hpBar.rect(-20, -5, 40, 6);
         this.hpBar.fill(0x000000);
 
-        // Жизнь (зеленая или красная, если мало)
         const pct = Math.max(0, this.hp / this.maxHp);
         const width = 40 * pct;
-        
         const color = pct > 0.3 ? 0x00FF00 : 0xFF0000;
         
         this.hpBar.rect(-20, -5, width, 6);
