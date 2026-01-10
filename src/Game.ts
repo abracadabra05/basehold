@@ -103,9 +103,13 @@ export class Game {
 
         this.initInput();
 
-        this.app.ticker.add((ticker) => {
-            if (this.isGameOver) return;
-            this.player.update(ticker);
+                this.app.ticker.add((ticker) => {
+
+                    if (this.isGameOver || this.waveManager.isShopOpen) return;
+
+        
+
+                    this.player.update(ticker);
             if (this.isRightMouseDown) {
                 const worldPos = this.world.toLocal(this.lastMousePosition);
                 this.player.tryShoot(worldPos.x, worldPos.y);

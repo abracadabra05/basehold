@@ -35,6 +35,10 @@ export class WaveManager {
         document.body.appendChild(this.uiElement);
     }
 
+    public get isShopOpen(): boolean {
+        return this.isPaused;
+    }
+
     public resume() {
         this.isPaused = false;
         // После закрытия магазина сразу запускаем следующую волну
