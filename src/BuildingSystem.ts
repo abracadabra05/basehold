@@ -1,10 +1,10 @@
-// ... импорты ...
 import { Application, Container, Graphics, FederatedPointerEvent, Ticker } from 'pixi.js';
 import { Building, type BuildingType } from './Building';
 import type { ResourceNode } from './ResourceNode';
 import type { ResourceManager } from './ResourceManager';
 import type { Enemy } from './Enemy';
 import type { SoundManager } from './SoundManager';
+import type { ToolType } from './UIManager'; // Импорт нового типа
 
 const BUILDING_COSTS: Record<BuildingType, number> = {
     'wall': 10,
@@ -19,10 +19,12 @@ export class BuildingSystem {
     private ghost: Graphics;
     private gridSize: number = 40;
     
-    // Храним Buildings
     private buildings: Map<string, Building>; 
     private player: Container | null = null;
-    private selectedType: BuildingType = 'wall';
+    
+    // Теперь храним ToolType
+    private selectedTool: ToolType = 'wall';
+    
     private resources: ResourceNode[] = [];
     private resourceManager: ResourceManager | null = null;
     private isDragging: boolean = false;
@@ -43,15 +45,15 @@ export class BuildingSystem {
         this.resources = resources;
         this.resourceManager = manager;
     }
-    public setBuildingType(type: BuildingType) { this.selectedType = type; }
+    
+    // Обновили сигнатуру: принимает ToolType
+    public setTool(tool: ToolType) { 
+        this.selectedTool = tool; 
+    }
+    
     public setPlayer(player: Container) { this.player = player; }
 
-    public update(
-        ticker: Ticker, 
-        enemies: Enemy[], 
-        spawnProjectile: (x: number, y: number, tx: number, ty: number) => void
-    ) {
-        // Расчет энергии (сокращенно, логика та же)
+    public update(ticker: Ticker, enemies: Enemy[], spawnProjectile: any) {
         let totalProduction = 10;
         let totalConsumption = 0;
         this.buildings.forEach(b => {
@@ -61,47 +63,38 @@ export class BuildingSystem {
         let efficiency = totalConsumption > totalProduction ? totalProduction / totalConsumption : 1.0;
         if (this.resourceManager) this.resourceManager.updateEnergy(totalProduction, totalConsumption);
 
-        // Обновление и УДАЛЕНИЕ зданий
         this.buildings.forEach((building, key) => {
             if (building.isDestroyed) {
-                // Здание разрушено!
                 this.world.removeChild(building);
                 this.buildings.delete(key);
-                
-                // Тут можно добавить партиклы взрыва и звук
-                this.soundManager?.playHit(); // Временный звук
+                this.soundManager?.playHit(); 
             } else {
                 building.update(ticker, enemies, spawnProjectile, efficiency);
             }
         });
     }
 
-    // ВАЖНО: Изменен возвращаемый тип с boolean на Building | null
     public getBuildingAt(worldX: number, worldY: number): Building | null {
         const gridX = Math.floor(worldX / this.gridSize) * this.gridSize;
         const gridY = Math.floor(worldY / this.gridSize) * this.gridSize;
         return this.buildings.get(`${gridX},${gridY}`) || null;
     }
 
-    // Старый метод для совместимости (игрок использует его для проверки "можно ли пройти")
     public isOccupied(worldX: number, worldY: number): boolean {
         return this.getBuildingAt(worldX, worldY) !== null;
     }
-
-    // ... initInput, updateGhost, getMouseGridPosition, canBuildAt, placeBuilding ...
-    // (Код этих методов не меняется, просто убедись, что они есть)
     
     private initInput() {
         this.app.stage.eventMode = 'static';
         this.app.stage.hitArea = this.app.screen;
         this.app.stage.on('pointermove', (e) => { 
             this.updateGhost(e); 
-            if (this.isDragging) this.placeBuilding();
+            if (this.isDragging) this.handleAction(); // Переименовали placeBuilding в handleAction
         });
         this.app.stage.on('pointerdown', (e) => {
             if (e.button === 0) {
                 this.isDragging = true;
-                this.placeBuilding();
+                this.handleAction();
             }
         });
         this.app.stage.on('pointerup', () => { this.isDragging = false; });
@@ -114,14 +107,40 @@ export class BuildingSystem {
         this.ghost.y = pos.y;
         this.ghost.clear();
         this.ghost.rect(0, 0, this.gridSize, this.gridSize);
-        const cost = BUILDING_COSTS[this.selectedType];
+        
+        // РЕЖИМ РЕМОНТА
+        if (this.selectedTool === 'repair') {
+            const building = this.getBuildingAt(pos.x, pos.y);
+            if (building && building.hp < building.maxHp) {
+                this.ghost.fill({ color: 0xFFFF00, alpha: 0.5 }); // Желтый (можно чинить)
+            } else {
+                this.ghost.clear(); // Нечего чинить
+            }
+            return;
+        }
+
+        // РЕЖИМ СНОСА
+        if (this.selectedTool === 'demolish') {
+            const building = this.getBuildingAt(pos.x, pos.y);
+            if (building) {
+                this.ghost.fill({ color: 0xFF0000, alpha: 0.7 }); // Ярко красный (удалить)
+            } else {
+                this.ghost.clear();
+            }
+            return;
+        }
+
+        // РЕЖИМ СТРОИТЕЛЬСТВА
+        const type = this.selectedTool as BuildingType; // Приводим к типу здания
+        const cost = BUILDING_COSTS[type];
         const canAfford = this.resourceManager ? this.resourceManager.hasMetal(cost) : false;
         const isPlaceable = this.canBuildAt(pos.x, pos.y);
+
         if (isPlaceable && canAfford) {
             let color = 0x00FF00;
-            if (this.selectedType === 'drill') color = 0x3498db;
-            if (this.selectedType === 'generator') color = 0xe67e22;
-            if (this.selectedType === 'turret') color = 0x2ecc71; 
+            if (type === 'drill') color = 0x3498db;
+            if (type === 'generator') color = 0xe67e22;
+            if (type === 'turret') color = 0x2ecc71; 
             this.ghost.fill({ color: color, alpha: 0.5 });
         } else {
             this.ghost.fill({ color: 0xFF0000, alpha: 0.5 });
@@ -135,37 +154,75 @@ export class BuildingSystem {
         return { x: snapX, y: snapY };
     }
 
+    // Главный метод действия
+    private handleAction() {
+        const x = this.ghost.x;
+        const y = this.ghost.y;
+
+        // 1. РЕМОНТ
+        if (this.selectedTool === 'repair') {
+            const building = this.getBuildingAt(x, y);
+            if (building && building.hp < building.maxHp) {
+                // Цена ремонта: 1 металл за 10 HP (или просто 1 за клик)
+                // Сделаем просто: 5 металла за полную починку или потихоньку?
+                // Сделаем по клику +10 HP за 2 металла
+                const repairCost = 2;
+                if (this.resourceManager && this.resourceManager.hasMetal(repairCost)) {
+                    this.resourceManager.spendMetal(repairCost);
+                    building.repair(20); // Чиним 20 HP
+                    this.soundManager?.playBuild(); // Звук (можно другой добавить)
+                }
+            }
+            return;
+        }
+
+        // 2. СНОС
+        if (this.selectedTool === 'demolish') {
+            const building = this.getBuildingAt(x, y);
+            if (building) {
+                const key = `${x},${y}`;
+                const originalCost = BUILDING_COSTS[building.buildingType];
+                // Возврат 50%
+                this.resourceManager?.addMetal(Math.floor(originalCost * 0.5));
+                
+                this.world.removeChild(building);
+                this.buildings.delete(key);
+                this.soundManager?.playMine(); // Звук (как будто разобрали)
+            }
+            return;
+        }
+
+        // 3. СТРОИТЕЛЬСТВО
+        this.placeBuilding(x, y);
+    }
+
     private canBuildAt(x: number, y: number): boolean {
         const key = `${x},${y}`;
         if (this.buildings.has(key)) return false;
         if (this.player) {
             const buildRect = { x: x, y: y, w: this.gridSize, h: this.gridSize };
             const playerRect = { x: this.player.x - 16, y: this.player.y - 16, w: 32, h: 32 };
-            const overlap = (
-                buildRect.x < playerRect.x + playerRect.w &&
-                buildRect.x + buildRect.w > playerRect.x &&
-                buildRect.y < playerRect.y + playerRect.h &&
-                buildRect.y + buildRect.h > playerRect.y
-            );
+            const overlap = (buildRect.x < playerRect.x + playerRect.w && buildRect.x + buildRect.w > playerRect.x && buildRect.y < playerRect.y + playerRect.h && buildRect.y + buildRect.h > playerRect.y);
             if (overlap) return false;
         }
         return true;
     }
 
-    private placeBuilding() {
-        const x = this.ghost.x;
-        const y = this.ghost.y;
+    private placeBuilding(x: number, y: number) {
         if (!this.canBuildAt(x, y)) return;
-        const cost = BUILDING_COSTS[this.selectedType];
+        const type = this.selectedTool as BuildingType;
+        const cost = BUILDING_COSTS[type];
+        
         if (this.resourceManager && !this.resourceManager.hasMetal(cost)) {
-            this.soundManager?.playError(); 
+            // this.soundManager?.playError();  // Слишком часто играет при драге
             return;
         }
         if (this.resourceManager) this.resourceManager.spendMetal(cost);
-        const building = new Building(this.selectedType, this.gridSize);
+
+        const building = new Building(type, this.gridSize);
         building.x = x;
         building.y = y;
-        if (this.selectedType === 'drill' && this.resourceManager) {
+        if (type === 'drill' && this.resourceManager) {
             const ore = this.resources.find(r => r.x === x && r.y === y);
             if (ore) building.startMining(this.resourceManager);
         }

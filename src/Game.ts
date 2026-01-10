@@ -9,7 +9,8 @@ import { Enemy } from './Enemy';
 import { WaveManager } from './WaveManager';
 import { Projectile } from './Projectile';
 import { UpgradeManager } from './UpgradeManager';
-import { SoundManager } from './SoundManager'; // <--- Импорт
+import { SoundManager } from './SoundManager';
+import { WorldBoundary } from './WorldBoundary'; // <--- Импорт
 
 export class Game {
     private app: Application;
@@ -24,7 +25,8 @@ export class Game {
     public projectiles: Projectile[] = [];
     private waveManager!: WaveManager;
     private upgradeManager!: UpgradeManager;
-    private soundManager!: SoundManager; // <--- Звуковой менеджер
+    private soundManager!: SoundManager;
+    private worldBoundary!: WorldBoundary; // <--- Граница
 
     private manualMiningTimer: number = 0;
     private isGameOver: boolean = false;
@@ -34,27 +36,40 @@ export class Game {
     private currentDamage: number = 1;
     private currentMineMultiplier: number = 1;
 
+    // Настройки карты
+    private gridSize = 40;
+    private mapWidthTiles = 60; // 60x60 клеток (2400x2400 пикселей)
+    private mapSizePixel = 0;   // Вычислим в конструкторе
+
+    // Таймер урона от тьмы
+    private voidDamageTimer: number = 0;
+
     constructor(app: Application) {
         this.app = app;
         this.world = new Container();
         this.app.stage.addChild(this.world);
+        this.mapSizePixel = this.mapWidthTiles * this.gridSize;
     }
 
     public init() {
         document.addEventListener('contextmenu', event => event.preventDefault());
 
-        // 1. Создаем звуковой менеджер
         this.soundManager = new SoundManager();
 
-        this.drawGrid();
+        // 1. Рисуем границы
+        this.worldBoundary = new WorldBoundary(this.mapSizePixel);
+        this.world.addChild(this.worldBoundary);
+
+        this.drawGrid(); // Сетка теперь поверх тьмы (или под, порядок добавления важен, но здесь ок)
+        
         this.resourceManager = new ResourceManager();
-        this.resourceManager.addMetal(50); 
+        this.resourceManager.addMetal(100); // Чуть больше металла на старт, так как враги злее
         this.generateResources();
 
         this.upgradeManager = new UpgradeManager(this.resourceManager);
         this.upgradeManager.onDamageUpgrade = (val) => {
             this.currentDamage = val;
-            this.soundManager.playBuild(); // Звук апгрейда
+            this.soundManager.playBuild();
         };
         this.upgradeManager.onMineSpeedUpgrade = (multiplier) => {
             this.currentMineMultiplier = multiplier;
@@ -66,22 +81,25 @@ export class Game {
         };
 
         this.buildingSystem = new BuildingSystem(this.app, this.world);
+        this.buildingSystem.setSoundManager(this.soundManager);
         this.buildingSystem.setResources(this.resources, this.resourceManager);
-        this.buildingSystem.setSoundManager(this.soundManager); // <--- Передаем менеджер звука
         
-        this.uiManager = new UIManager((type) => {
-            this.buildingSystem.setBuildingType(type);
+        this.uiManager = new UIManager((tool) => {
+            this.buildingSystem.setTool(tool);
         });
 
         this.player = new Player(
             this.buildingSystem.isOccupied.bind(this.buildingSystem),
             (x, y, tx, ty) => {
                 this.spawnProjectile(x, y, tx, ty);
-                this.soundManager.playShoot(); // <--- Звук выстрела игрока
+                this.soundManager.playShoot();
             }
         );
-        this.player.x = 200;
-        this.player.y = 200;
+        
+        // 2. Спавним игрока в ЦЕНТРЕ карты
+        this.player.x = this.mapSizePixel / 2;
+        this.player.y = this.mapSizePixel / 2;
+        
         this.world.addChild(this.player);
         this.buildingSystem.setPlayer(this.player);
 
@@ -108,7 +126,7 @@ export class Game {
             
             this.buildingSystem.update(ticker, this.enemies, (x, y, tx, ty) => {
                 this.spawnProjectile(x, y, tx, ty);
-                this.soundManager.playTurretShoot(); // <--- Звук турели
+                this.soundManager.playTurretShoot();
             });
 
             this.enemies.forEach(enemy => enemy.update(ticker));
@@ -117,7 +135,34 @@ export class Game {
             this.cleanUp();
             this.handleManualMining(ticker);
             this.checkPlayerHit();
+            
+            // 3. Проверка выхода за границы (The Void)
+            this.checkVoidDamage(ticker);
         });
+    }
+
+    private checkVoidDamage(ticker: any) {
+        const x = this.player.x;
+        const y = this.player.y;
+
+        // Если игрок за пределами квадрата 0..mapSizePixel
+        if (x < 0 || y < 0 || x > this.mapSizePixel || y > this.mapSizePixel) {
+            this.voidDamageTimer += ticker.deltaTime;
+            
+            // Урон каждые 30 тиков (0.5 сек)
+            if (this.voidDamageTimer >= 30) {
+                this.voidDamageTimer = 0;
+                this.player.takeDamage(1);
+                this.soundManager.playHit();
+                
+                // Визуальное предупреждение (можно добавить текст, но пока просто урон)
+                console.log("Darkness burns you!");
+
+                if (this.player.hp <= 0) this.gameOver();
+            }
+        } else {
+            this.voidDamageTimer = 0;
+        }
     }
 
     private spawnProjectile(x: number, y: number, tx: number, ty: number) {
@@ -126,6 +171,7 @@ export class Game {
         this.projectiles.push(p);
     }
     
+    // ... initInput, checkPlayerHit, gameOver, handleManualMining, updateProjectiles, cleanUp ... (без изменений)
     private initInput() {
         this.app.stage.eventMode = 'static';
         this.app.stage.hitArea = this.app.screen;
@@ -142,7 +188,7 @@ export class Game {
             this.lastMousePosition = { x: e.global.x, y: e.global.y };
         });
     }
-    
+
     private checkPlayerHit() {
         for (const enemy of this.enemies) {
             const dx = this.player.x - enemy.x;
@@ -150,16 +196,15 @@ export class Game {
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < 25) {
                 this.player.takeDamage(1);
-                this.soundManager.playHit(); // <--- Звук получения урона
+                this.soundManager.playHit();
                 if (this.player.hp <= 0) this.gameOver();
             }
         }
     }
-    
+
     private gameOver() {
         this.isGameOver = true;
-        this.soundManager.playGameOver(); // <--- ГРУСТНЫЙ ЗВУК
-
+        this.soundManager.playGameOver();
         const overlay = document.createElement('div');
         overlay.style.position = 'fixed';
         overlay.style.top = '0';
@@ -193,7 +238,7 @@ export class Game {
             if (this.manualMiningTimer >= (30 / this.currentMineMultiplier)) {
                 this.manualMiningTimer = 0;
                 this.resourceManager.addMetal(1);
-                this.soundManager.playMine(); // <--- Звук добычи
+                this.soundManager.playMine();
                 this.player.scale.set(1.1);
                 setTimeout(() => this.player.scale.set(1.0), 50);
             }
@@ -235,6 +280,7 @@ export class Game {
         }
     }
 
+    // Изменили логику спавна волн и ресурсов, чтобы учитывать новые размеры карты
     private spawnWave(count: number) {
         const spawnRadius = 800;
         for (let i = 0; i < count; i++) {
@@ -257,12 +303,20 @@ export class Game {
     }
     
     private generateResources() {
-        const gridSize = 40;
-        for (let i = 0; i < 20; i++) {
+        const gridSize = this.gridSize;
+        const tiles = this.mapWidthTiles;
+        // Генерируем больше ресурсов, так как карта теперь определенного размера
+        for (let i = 0; i < 40; i++) {
             const node = new ResourceNode(gridSize);
-            let rx = Math.floor(Math.random() * 100) * gridSize;
-            let ry = Math.floor(Math.random() * 100) * gridSize;
-            if (Math.abs(rx - 200) < 200 && Math.abs(ry - 200) < 200) continue; 
+            // Случайные координаты внутри границ
+            let rx = Math.floor(Math.random() * tiles) * gridSize;
+            let ry = Math.floor(Math.random() * tiles) * gridSize;
+            
+            // Не спавним слишком близко к центру (спавн игрока)
+            const centerX = this.mapSizePixel / 2;
+            const centerY = this.mapSizePixel / 2;
+            if (Math.abs(rx - centerX) < 200 && Math.abs(ry - centerY) < 200) continue; 
+            
             node.x = rx;
             node.y = ry;
             this.world.addChild(node);
@@ -271,16 +325,18 @@ export class Game {
     }
 
     private drawGrid() {
-        const gridSize = 40;
-        const mapSize = 100;
+        const gridSize = this.gridSize;
+        const tiles = this.mapWidthTiles;
         const color = 0x444444;
         const g = new Graphics();
-        for (let x = 0; x <= mapSize; x++) {
-            g.rect(x * gridSize, 0, 1, mapSize * gridSize); 
+        
+        // Рисуем сетку только внутри игровой зоны
+        for (let x = 0; x <= tiles; x++) {
+            g.rect(x * gridSize, 0, 1, tiles * gridSize); 
             g.fill(color);
         }
-        for (let y = 0; y <= mapSize; y++) {
-            g.rect(0, y * gridSize, mapSize * gridSize, 1);
+        for (let y = 0; y <= tiles; y++) {
+            g.rect(0, y * gridSize, tiles * gridSize, 1);
             g.fill(color);
         }
         this.world.addChild(g);
