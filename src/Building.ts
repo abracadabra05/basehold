@@ -1,28 +1,49 @@
 import { Container, Graphics, Ticker } from 'pixi.js';
 import type { ResourceManager } from './ResourceManager';
-import type { Enemy } from './Enemy'; // Импорт типа Enemy
+import type { Enemy } from './Enemy';
 
-// Добавляем 'turret'
 export type BuildingType = 'wall' | 'drill' | 'generator' | 'turret';
 
 export class Building extends Container {
     public buildingType: BuildingType;
     private resourceManager: ResourceManager | null = null;
+    
+    // Майнинг
     private isMining: boolean = false;
     private mineTimer: number = 0;
     private mineSpeed: number = 60; 
 
-    // Переменные для турели
+    // Бой
     private range: number = 200;
     private cooldown: number = 0;
-    private fireRate: number = 30; // Стреляем каждые 0.5 сек (30 тиков)
+    private fireRate: number = 30;
+
+    // Энергия
+    public energyConsumption: number = 0;
+    public energyProduction: number = 0;
 
     constructor(type: BuildingType, size: number) {
         super();
         this.buildingType = type;
 
+        // Настройка параметров энергии
+        switch (type) {
+            case 'wall':
+                // Стены не требуют энергии
+                break;
+            case 'drill':
+                this.energyConsumption = 5; // Потребляет 5
+                break;
+            case 'turret':
+                this.energyConsumption = 10; // Потребляет 10
+                break;
+            case 'generator':
+                this.energyProduction = 20; // Производит 20
+                break;
+        }
+
         const g = new Graphics();
-        
+        // ... (Код отрисовки оставим прежним, он не менялся) ...
         switch (type) {
             case 'wall':
                 g.rect(0, 0, size, size);
@@ -42,17 +63,15 @@ export class Building extends Container {
                 g.lineTo(size / 2, size - 5);
                 g.stroke({ width: 4, color: 0xffff00 });
                 break;
-            case 'turret': // Вид турели
+            case 'turret':
                 g.rect(0, 0, size, size);
-                g.fill(0x2ecc71); // Зеленый
+                g.fill(0x2ecc71); 
                 g.circle(size / 2, size / 2, size / 3);
-                g.fill(0x2c3e50); // Темная башня
-                // Дуло
+                g.fill(0x2c3e50);
                 g.rect(size / 2 - 2, 0, 4, size / 2);
                 g.fill(0x000000);
                 break;
         }
-
         this.addChild(g);
     }
 
@@ -61,33 +80,39 @@ export class Building extends Container {
         this.isMining = true;
     }
 
-    // Обновленный метод update с параметрами для боя
+    // Добавили параметр efficiency (0.0 - 1.0)
     public update(
         ticker: Ticker, 
         enemies: Enemy[], 
-        spawnProjectile: (x: number, y: number, tx: number, ty: number) => void
+        spawnProjectile: (x: number, y: number, tx: number, ty: number) => void,
+        efficiency: number // <--- НОВЫЙ ПАРАМЕТР
     ) {
-        // Логика бура
+        // Если энергии нет (efficiency = 0), здание не работает (кроме стен)
+        if (efficiency <= 0 && this.buildingType !== 'wall') return;
+
+        // ЛОГИКА БУРА
         if (this.isMining && this.resourceManager) {
-            this.mineTimer += ticker.deltaTime;
+            // Скорость зависит от эффективности. Если энергии мало — копаем медленно.
+            this.mineTimer += ticker.deltaTime * efficiency;
+
             if (this.mineTimer >= this.mineSpeed) {
                 this.mineTimer = 0;
                 this.resourceManager.addMetal(1);
+                
                 this.scale.set(1.1);
                 setTimeout(() => this.scale.set(1.0), 50);
             }
         }
 
-        // Логика турели
+        // ЛОГИКА ТУРЕЛИ
         if (this.buildingType === 'turret') {
             if (this.cooldown > 0) {
-                this.cooldown -= ticker.deltaTime;
+                // Перезарядка тоже замедляется при нехватке энергии
+                this.cooldown -= ticker.deltaTime * efficiency;
             } else {
-                // Ищем врага
                 const target = this.findTarget(enemies);
                 if (target) {
-                    // Стреляем!
-                    spawnProjectile(this.x + 20, this.y + 20, target.x, target.y); // +20 это центр (40/2)
+                    spawnProjectile(this.x + 20, this.y + 20, target.x, target.y);
                     this.cooldown = this.fireRate;
                 }
             }
@@ -95,14 +120,13 @@ export class Building extends Container {
     }
 
     private findTarget(enemies: Enemy[]): Enemy | null {
+        // (Тут код поиска цели без изменений)
         let closest: Enemy | null = null;
         let minDist = Infinity;
-
         for (const enemy of enemies) {
             const dx = enemy.x - this.x;
             const dy = enemy.y - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-
             if (dist <= this.range && dist < minDist) {
                 minDist = dist;
                 closest = enemy;
