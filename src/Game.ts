@@ -1,12 +1,14 @@
 import { Application, Container, Graphics } from 'pixi.js';
 import { Camera } from './Camera';
 import { Player } from './Player';
+import { BuildingSystem } from './BuildingSystem'; // <--- Добавили
 
 export class Game {
     private app: Application;
     public world: Container;
     private camera!: Camera;
     private player!: Player;
+    private buildingSystem!: BuildingSystem; // <--- Добавили
 
     constructor(app: Application) {
         this.app = app;
@@ -17,20 +19,20 @@ export class Game {
     public init() {
         this.drawGrid();
 
-        // 1. Создаем игрока и добавляем в мир
         this.player = new Player();
-        this.player.x = 200; // Стартовая позиция
+        this.player.x = 200;
         this.player.y = 200;
         this.world.addChild(this.player);
         
-        // 2. Создаем камеру
         this.camera = new Camera(this.world, this.app.screen);
         this.camera.follow(this.player);
 
-        // 3. Главный цикл
+        // Инициализируем систему строительства
+        this.buildingSystem = new BuildingSystem(this.app, this.world); // <--- Добавили
+
         this.app.ticker.add((ticker) => {
-            this.player.update(ticker); // Двигаем игрока
-            this.camera.update();       // Камера летит за игроком
+            this.player.update(ticker);
+            this.camera.update();
         });
     }
 
