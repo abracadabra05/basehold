@@ -1,25 +1,26 @@
+// ... импорты ...
 import { Application, Container, Graphics, FederatedPointerEvent, Ticker } from 'pixi.js';
 import { Building, type BuildingType } from './Building';
 import type { ResourceNode } from './ResourceNode';
 import type { ResourceManager } from './ResourceManager';
+import type { Enemy } from './Enemy'; // <--- Импорт
 
-// Определяем цены
 const BUILDING_COSTS: Record<BuildingType, number> = {
     'wall': 10,
     'drill': 50,
-    'generator': 100
+    'generator': 100,
+    'turret': 30 // <--- Цена турели
 };
 
 export class BuildingSystem {
+    // ... стандартные поля ...
     private world: Container;
     private app: Application;
     private ghost: Graphics;
     private gridSize: number = 40;
-    
     private buildings: Map<string, Building>; 
     private player: Container | null = null;
     private selectedType: BuildingType = 'wall';
-    
     private resources: ResourceNode[] = [];
     private resourceManager: ResourceManager | null = null;
 
@@ -27,14 +28,13 @@ export class BuildingSystem {
         this.app = app;
         this.world = world;
         this.buildings = new Map();
-
         this.ghost = new Graphics();
         this.ghost.rect(0, 0, this.gridSize, this.gridSize);
         this.world.addChild(this.ghost);
-
         this.initInput();
     }
 
+    // ... setResources, setBuildingType, setPlayer остаются такими же ...
     public setResources(resources: ResourceNode[], manager: ResourceManager) {
         this.resources = resources;
         this.resourceManager = manager;
@@ -42,24 +42,29 @@ export class BuildingSystem {
 
     public setBuildingType(type: BuildingType) {
         this.selectedType = type;
-        // При смене типа сразу обновляем вид призрака, чтобы не ждать движения мыши
-        // (но тут пока нет доступа к событию мыши, так что обновится при следующем движении)
     }
 
     public setPlayer(player: Container) {
         this.player = player;
     }
 
-    public update(ticker: Ticker) {
+    // ОБНОВЛЕННЫЙ МЕТОД UPDATE
+    // Теперь принимает список врагов и функцию спавна пуль
+    public update(
+        ticker: Ticker, 
+        enemies: Enemy[], 
+        spawnProjectile: (x: number, y: number, tx: number, ty: number) => void
+    ) {
         this.buildings.forEach(building => {
-            building.update(ticker);
+            building.update(ticker, enemies, spawnProjectile);
         });
     }
+
+    // ... initInput, updateGhost (добавить цвет турели), placeBuilding ...
 
     private initInput() {
         this.app.stage.eventMode = 'static';
         this.app.stage.hitArea = this.app.screen;
-
         this.app.stage.on('pointermove', (e) => { this.updateGhost(e); });
         this.app.stage.on('pointerdown', (e) => {
             if (e.button === 0) this.placeBuilding();
@@ -73,24 +78,22 @@ export class BuildingSystem {
         this.ghost.clear();
         this.ghost.rect(0, 0, this.gridSize, this.gridSize);
         
-        // Получаем цену
         const cost = BUILDING_COSTS[this.selectedType];
-        // Проверяем, хватает ли денег
         const canAfford = this.resourceManager ? this.resourceManager.hasMetal(cost) : false;
-        // Проверяем место
         const isPlaceable = this.canBuildAt(pos.x, pos.y);
 
         if (isPlaceable && canAfford) {
             let color = 0x00FF00;
             if (this.selectedType === 'drill') color = 0x3498db;
             if (this.selectedType === 'generator') color = 0xe67e22;
+            if (this.selectedType === 'turret') color = 0x2ecc71; // Зеленый для турели
             this.ghost.fill({ color: color, alpha: 0.5 });
         } else {
-            // Если нельзя построить или нет денег - красный
             this.ghost.fill({ color: 0xFF0000, alpha: 0.5 });
         }
     }
 
+    // ... getMouseGridPosition, canBuildAt ...
     private getMouseGridPosition(e: FederatedPointerEvent) {
         const localPos = this.world.toLocal(e.global);
         const snapX = Math.floor(localPos.x / this.gridSize) * this.gridSize;
@@ -101,15 +104,9 @@ export class BuildingSystem {
     private canBuildAt(x: number, y: number): boolean {
         const key = `${x},${y}`;
         if (this.buildings.has(key)) return false;
-
         if (this.player) {
             const buildRect = { x: x, y: y, w: this.gridSize, h: this.gridSize };
-            const playerRect = { 
-                x: this.player.x - 16, 
-                y: this.player.y - 16, 
-                w: 32, 
-                h: 32 
-            };
+            const playerRect = { x: this.player.x - 16, y: this.player.y - 16, w: 32, h: 32 };
             const overlap = (
                 buildRect.x < playerRect.x + playerRect.w &&
                 buildRect.x + buildRect.w > playerRect.x &&
@@ -124,21 +121,11 @@ export class BuildingSystem {
     private placeBuilding() {
         const x = this.ghost.x;
         const y = this.ghost.y;
-
-        // 1. Проверка места
         if (!this.canBuildAt(x, y)) return;
 
-        // 2. Проверка цены
         const cost = BUILDING_COSTS[this.selectedType];
-        if (this.resourceManager && !this.resourceManager.hasMetal(cost)) {
-            console.log("Недостаточно металла!");
-            return;
-        }
-
-        // 3. Списание средств
-        if (this.resourceManager) {
-            this.resourceManager.spendMetal(cost);
-        }
+        if (this.resourceManager && !this.resourceManager.hasMetal(cost)) return;
+        if (this.resourceManager) this.resourceManager.spendMetal(cost);
 
         const building = new Building(this.selectedType, this.gridSize);
         building.x = x;
@@ -146,9 +133,7 @@ export class BuildingSystem {
 
         if (this.selectedType === 'drill' && this.resourceManager) {
             const ore = this.resources.find(r => r.x === x && r.y === y);
-            if (ore) {
-                building.startMining(this.resourceManager);
-            }
+            if (ore) building.startMining(this.resourceManager);
         }
 
         this.world.addChild(building);

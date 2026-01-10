@@ -6,20 +6,22 @@ import { UIManager } from './UIManager';
 import { ResourceManager } from './ResourceManager';
 import { ResourceNode } from './ResourceNode';
 import { Enemy } from './Enemy';
-import { WaveManager } from './WaveManager'; // <--- Импорт
+import { WaveManager } from './WaveManager';
+import { Projectile } from './Projectile'; // <--- Импорт
 
 export class Game {
     private app: Application;
     public world: Container;
     private camera!: Camera;
-    public player!: Player; // <--- Public (нужен для определения позиции спавна)
+    public player!: Player;
     private buildingSystem!: BuildingSystem;
     private uiManager!: UIManager;
     public resourceManager!: ResourceManager;
     public resources: ResourceNode[] = [];
     public enemies: Enemy[] = [];
+    public projectiles: Projectile[] = []; // <--- Список пуль
     
-    private waveManager!: WaveManager; // <--- Менеджер волн
+    private waveManager!: WaveManager;
 
     constructor(app: Application) {
         this.app = app;
@@ -29,7 +31,6 @@ export class Game {
 
     public init() {
         this.drawGrid();
-
         this.resourceManager = new ResourceManager();
         this.resourceManager.addMetal(50); 
         this.generateResources();
@@ -50,40 +51,91 @@ export class Game {
         this.camera = new Camera(this.world, this.app.screen);
         this.camera.follow(this.player);
 
-        // --- Инициализация волн ---
         this.waveManager = new WaveManager((count) => {
             this.spawnWave(count);
         });
-        // --------------------------
 
         this.app.ticker.add((ticker) => {
             this.player.update(ticker);
             this.camera.update();
-            this.buildingSystem.update(ticker);
+            
+            // Обновляем здания и даем им возможность создавать пули
+            this.buildingSystem.update(ticker, this.enemies, (x, y, tx, ty) => {
+                this.spawnProjectile(x, y, tx, ty);
+            });
+
+            // Враги
             this.enemies.forEach(enemy => enemy.update(ticker));
             
-            // Обновляем таймер волны
+            // Волны
             this.waveManager.update(ticker);
+
+            // Пули
+            this.updateProjectiles(ticker);
+            
+            // Очистка мертвых врагов
+            this.cleanUp();
         });
     }
 
-    // Логика спавна группы врагов
-    private spawnWave(count: number) {
-        const spawnRadius = 800; // Спавним за пределами экрана (примерно)
+    private spawnProjectile(x: number, y: number, tx: number, ty: number) {
+        const p = new Projectile(x, y, tx, ty);
+        this.world.addChild(p);
+        this.projectiles.push(p);
+    }
 
+    private updateProjectiles(ticker: any) {
+        for (const p of this.projectiles) {
+            p.update(ticker);
+
+            // Проверка попаданий
+            for (const enemy of this.enemies) {
+                if (enemy.isDead) continue;
+                
+                const dx = p.x - enemy.x;
+                const dy = p.y - enemy.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                // Если попали (радиус врага ~12)
+                if (dist < 15) {
+                    enemy.takeDamage(p.damage);
+                    p.shouldDestroy = true;
+                    break; // Пуля удаляется после первого попадания
+                }
+            }
+        }
+    }
+
+    private cleanUp() {
+        // Удаляем мертвых врагов
+        for (let i = this.enemies.length - 1; i >= 0; i--) {
+            if (this.enemies[i].isDead) {
+                this.world.removeChild(this.enemies[i]);
+                this.enemies.splice(i, 1);
+            }
+        }
+
+        // Удаляем старые пули
+        for (let i = this.projectiles.length - 1; i >= 0; i--) {
+            if (this.projectiles[i].shouldDestroy) {
+                this.world.removeChild(this.projectiles[i]);
+                this.projectiles.splice(i, 1);
+            }
+        }
+    }
+
+    // ... spawnWave, spawnEnemy, generateResources, drawGrid ...
+    // (Оставь их как были)
+    private spawnWave(count: number) {
+        const spawnRadius = 800;
         for (let i = 0; i < count; i++) {
-            // Случайный угол
             const angle = Math.random() * Math.PI * 2;
-            
-            // Координаты вокруг игрока
             const x = this.player.x + Math.cos(angle) * spawnRadius;
             const y = this.player.y + Math.sin(angle) * spawnRadius;
-
             this.spawnEnemy(x, y);
         }
     }
 
-    // Сделали PUBLIC, чтобы можно было вызывать откуда угодно
     public spawnEnemy(x: number, y: number) {
         const enemy = new Enemy(
             this.player, 
@@ -91,11 +143,10 @@ export class Game {
         );
         enemy.x = x;
         enemy.y = y;
-        
         this.world.addChild(enemy);
         this.enemies.push(enemy);
     }
-
+    
     private generateResources() {
         const gridSize = 40;
         for (let i = 0; i < 20; i++) {

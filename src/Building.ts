@@ -1,14 +1,21 @@
 import { Container, Graphics, Ticker } from 'pixi.js';
-import type { ResourceManager } from './ResourceManager'; // Импортируем только тип
+import type { ResourceManager } from './ResourceManager';
+import type { Enemy } from './Enemy'; // Импорт типа Enemy
 
-export type BuildingType = 'wall' | 'drill' | 'generator';
+// Добавляем 'turret'
+export type BuildingType = 'wall' | 'drill' | 'generator' | 'turret';
 
 export class Building extends Container {
     public buildingType: BuildingType;
     private resourceManager: ResourceManager | null = null;
     private isMining: boolean = false;
     private mineTimer: number = 0;
-    private mineSpeed: number = 60; // Добываем раз в 60 тиков (примерно 1 сек при 60 FPS)
+    private mineSpeed: number = 60; 
+
+    // Переменные для турели
+    private range: number = 200;
+    private cooldown: number = 0;
+    private fireRate: number = 30; // Стреляем каждые 0.5 сек (30 тиков)
 
     constructor(type: BuildingType, size: number) {
         super();
@@ -35,31 +42,72 @@ export class Building extends Container {
                 g.lineTo(size / 2, size - 5);
                 g.stroke({ width: 4, color: 0xffff00 });
                 break;
+            case 'turret': // Вид турели
+                g.rect(0, 0, size, size);
+                g.fill(0x2ecc71); // Зеленый
+                g.circle(size / 2, size / 2, size / 3);
+                g.fill(0x2c3e50); // Темная башня
+                // Дуло
+                g.rect(size / 2 - 2, 0, 4, size / 2);
+                g.fill(0x000000);
+                break;
         }
 
         this.addChild(g);
     }
 
-    // Настраиваем бур: даем ему доступ к складу ресурсов
     public startMining(resourceManager: ResourceManager) {
         this.resourceManager = resourceManager;
         this.isMining = true;
     }
 
-    // Этот метод будет вызываться 60 раз в секунду
-    public update(ticker: Ticker) {
+    // Обновленный метод update с параметрами для боя
+    public update(
+        ticker: Ticker, 
+        enemies: Enemy[], 
+        spawnProjectile: (x: number, y: number, tx: number, ty: number) => void
+    ) {
+        // Логика бура
         if (this.isMining && this.resourceManager) {
-            // ticker.deltaTime обычно около 1.0
             this.mineTimer += ticker.deltaTime;
-
             if (this.mineTimer >= this.mineSpeed) {
                 this.mineTimer = 0;
-                this.resourceManager.addMetal(1); // +1 Металл
-                
-                // Визуальный эффект (дергаем бур)
+                this.resourceManager.addMetal(1);
                 this.scale.set(1.1);
                 setTimeout(() => this.scale.set(1.0), 50);
             }
         }
+
+        // Логика турели
+        if (this.buildingType === 'turret') {
+            if (this.cooldown > 0) {
+                this.cooldown -= ticker.deltaTime;
+            } else {
+                // Ищем врага
+                const target = this.findTarget(enemies);
+                if (target) {
+                    // Стреляем!
+                    spawnProjectile(this.x + 20, this.y + 20, target.x, target.y); // +20 это центр (40/2)
+                    this.cooldown = this.fireRate;
+                }
+            }
+        }
+    }
+
+    private findTarget(enemies: Enemy[]): Enemy | null {
+        let closest: Enemy | null = null;
+        let minDist = Infinity;
+
+        for (const enemy of enemies) {
+            const dx = enemy.x - this.x;
+            const dy = enemy.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist <= this.range && dist < minDist) {
+                minDist = dist;
+                closest = enemy;
+            }
+        }
+        return closest;
     }
 }
