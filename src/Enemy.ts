@@ -69,8 +69,22 @@ export class Enemy extends Container {
 
         if (this.attackTimer > 0) this.attackTimer -= ticker.deltaTime;
 
-        const dx = this.target.x - this.x;
-        const dy = this.target.y - this.y;
+        // --- ИСПРАВЛЕНИЕ НАЧАЛО ---
+        let targetX = this.target.x;
+        let targetY = this.target.y;
+
+        // Если у цели есть свойство 'buildingType' (значит это Здание),
+        // смещаем точку прицеливания в центр клетки (40 / 2 = 20).
+        // Используем 'in' для безопасной проверки свойства в JS/TS
+        if ('buildingType' in this.target) {
+            targetX += 20;
+            targetY += 20;
+        }
+        
+        const dx = targetX - this.x;
+        const dy = targetY - this.y;
+        // --- ИСПРАВЛЕНИЕ КОНЕЦ ---
+
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist < 5) return;
