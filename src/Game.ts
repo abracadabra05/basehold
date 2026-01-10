@@ -19,17 +19,16 @@ export class Game {
     public init() {
         this.drawGrid();
 
-        // Сначала создаем систему строительства
         this.buildingSystem = new BuildingSystem(this.app, this.world);
 
-        // Потом создаем игрока и передаем ему функцию проверки из buildingSystem
-        // .bind(this.buildingSystem) важно, чтобы 'this' внутри функции указывал на систему, а не на игрока
         this.player = new Player(this.buildingSystem.isOccupied.bind(this.buildingSystem));
-        
         this.player.x = 200;
         this.player.y = 200;
         this.world.addChild(this.player);
         
+        // ВАЖНО: Передаем игрока в систему строительства
+        this.buildingSystem.setPlayer(this.player);
+
         this.camera = new Camera(this.world, this.app.screen);
         this.camera.follow(this.player);
 
