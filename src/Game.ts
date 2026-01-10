@@ -248,7 +248,7 @@ export class Game {
     public spawnEnemy(x: number, y: number) {
         const enemy = new Enemy(
             this.player, 
-            this.buildingSystem.isOccupied.bind(this.buildingSystem)
+            this.buildingSystem.getBuildingAt.bind(this.buildingSystem)
         );
         enemy.x = x;
         enemy.y = y;

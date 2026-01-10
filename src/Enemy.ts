@@ -1,15 +1,23 @@
 import { Container, Graphics, Ticker } from 'pixi.js';
+import type { Building } from './Building';
 
 export class Enemy extends Container {
     private body: Graphics;
     private target: Container; 
     private speed: number = 2; 
-    private checkCollision: (x: number, y: number) => boolean;
     
-    public hp: number = 3; // 3 попадания
+    // Функция теперь возвращает ЗДАНИЕ, если мы в него врезались, или null
+    private checkCollision: (x: number, y: number) => Building | null;
+    
+    public hp: number = 3; 
     public isDead: boolean = false;
+    
+    // Атака
+    private attackTimer: number = 0;
+    private attackSpeed: number = 60; // 1 удар в секунду
+    private damage: number = 5; // Урон по стенам
 
-    constructor(target: Container, checkCollision: (x: number, y: number) => boolean) {
+    constructor(target: Container, checkCollision: (x: number, y: number) => Building | null) {
         super();
         this.target = target;
         this.checkCollision = checkCollision;
@@ -22,12 +30,8 @@ export class Enemy extends Container {
 
     public takeDamage(amount: number) {
         this.hp -= amount;
-        
-        // Эффект мигания белым при попадании
         this.body.tint = 0xFFFFFF;
-        setTimeout(() => { this.body.tint = 0xFFFFFF; /* Сброс тинта сложнее в v8, пока оставим так или упростим */ }, 50);
-        // В Pixi v8 tint работает немного иначе, но пока оставим простую логику:
-        // Если HP <= 0, ставим флаг смерти
+        setTimeout(() => { this.body.tint = 0xFFFFFF; }, 50); 
         if (this.hp <= 0) {
             this.isDead = true;
         }
@@ -35,6 +39,9 @@ export class Enemy extends Container {
 
     public update(ticker: Ticker) {
         if (!this.target) return;
+
+        // Если есть кулдаун атаки - уменьшаем его
+        if (this.attackTimer > 0) this.attackTimer -= ticker.deltaTime;
 
         const dx = this.target.x - this.x;
         const dy = this.target.y - this.y;
@@ -48,16 +55,38 @@ export class Enemy extends Container {
         const moveX = vx * this.speed * ticker.deltaTime;
         const moveY = vy * this.speed * ticker.deltaTime;
 
-        if (!this.isColliding(this.x + moveX, this.y)) {
+        // Проверяем коллизию по X
+        const buildingX = this.isColliding(this.x + moveX, this.y);
+        if (!buildingX) {
             this.x += moveX;
+        } else {
+            // Уперлись в здание по X - АТАКУЕМ!
+            this.attackBuilding(buildingX);
         }
 
-        if (!this.isColliding(this.x, this.y + moveY)) {
+        // Проверяем коллизию по Y
+        const buildingY = this.isColliding(this.x, this.y + moveY);
+        if (!buildingY) {
             this.y += moveY;
+        } else {
+            // Уперлись в здание по Y - АТАКУЕМ!
+            this.attackBuilding(buildingY);
         }
     }
 
-    private isColliding(newX: number, newY: number): boolean {
+    private attackBuilding(building: Building) {
+        if (this.attackTimer <= 0) {
+            building.takeDamage(this.damage);
+            this.attackTimer = this.attackSpeed;
+            
+            // Визуальный рывок при ударе
+            const originalScale = this.scale.x;
+            this.scale.set(originalScale * 1.2);
+            setTimeout(() => this.scale.set(originalScale), 100);
+        }
+    }
+
+    private isColliding(newX: number, newY: number): Building | null {
         return this.checkCollision(newX, newY);
     }
 }

@@ -8,6 +8,11 @@ export class Building extends Container {
     public buildingType: BuildingType;
     private resourceManager: ResourceManager | null = null;
     
+    // Статы
+    public hp: number;
+    public maxHp: number;
+    private hpBar: Graphics;
+
     // Майнинг
     private isMining: boolean = false;
     private mineTimer: number = 0;
@@ -22,33 +27,46 @@ export class Building extends Container {
     public energyConsumption: number = 0;
     public energyProduction: number = 0;
 
+    // Флаг для удаления
+    public isDestroyed: boolean = false;
+
     constructor(type: BuildingType, size: number) {
         super();
         this.buildingType = type;
 
-        // Настройка параметров энергии
+        // Настройка HP и Энергии
         switch (type) {
             case 'wall':
-                // Стены не требуют энергии
+                this.maxHp = 100; // Стена крепкая
+                this.energyConsumption = 0;
                 break;
             case 'drill':
-                this.energyConsumption = 5; // Потребляет 5
+                this.maxHp = 30; // Бур хрупкий
+                this.energyConsumption = 5; 
                 break;
             case 'turret':
-                this.energyConsumption = 10; // Потребляет 10
+                this.maxHp = 50; 
+                this.energyConsumption = 10; 
                 break;
             case 'generator':
-                this.energyProduction = 20; // Производит 20
+                this.maxHp = 20; // Генератор очень уязвим
+                this.energyProduction = 20; 
                 break;
+            default:
+                this.maxHp = 10;
         }
+        this.hp = this.maxHp;
 
+        // Графика здания
         const g = new Graphics();
-        // ... (Код отрисовки оставим прежним, он не менялся) ...
         switch (type) {
             case 'wall':
                 g.rect(0, 0, size, size);
                 g.fill(0x888888);
                 g.stroke({ width: 2, color: 0x000000 });
+                // Декор стены ("кирпичи")
+                g.rect(5, 5, 10, 5).fill(0x666666);
+                g.rect(20, 20, 10, 5).fill(0x666666);
                 break;
             case 'drill':
                 g.rect(0, 0, size, size);
@@ -73,6 +91,12 @@ export class Building extends Container {
                 break;
         }
         this.addChild(g);
+
+        // Полоска здоровья (изначально скрыта)
+        this.hpBar = new Graphics();
+        this.hpBar.y = -10; // Над зданием
+        this.hpBar.visible = false;
+        this.addChild(this.hpBar);
     }
 
     public startMining(resourceManager: ResourceManager) {
@@ -80,34 +104,57 @@ export class Building extends Container {
         this.isMining = true;
     }
 
-    // Добавили параметр efficiency (0.0 - 1.0)
+    public takeDamage(amount: number) {
+        this.hp -= amount;
+        this.updateHpBar();
+        
+        // Визуальный эффект получения урона (мигание красным)
+        this.tint = 0xFFaaaa;
+        setTimeout(() => this.tint = 0xFFFFFF, 50);
+
+        if (this.hp <= 0) {
+            this.isDestroyed = true;
+        }
+    }
+
+    private updateHpBar() {
+        if (this.hp < this.maxHp) {
+            this.hpBar.visible = true;
+            this.hpBar.clear();
+            
+            // Фон
+            this.hpBar.rect(0, 0, 40, 4);
+            this.hpBar.fill(0x000000);
+            
+            // Жизнь
+            const pct = Math.max(0, this.hp / this.maxHp);
+            const color = pct > 0.5 ? 0x00FF00 : pct > 0.25 ? 0xFFFF00 : 0xFF0000;
+            
+            this.hpBar.rect(0, 0, 40 * pct, 4);
+            this.hpBar.fill(color);
+        } else {
+            this.hpBar.visible = false;
+        }
+    }
+
     public update(
         ticker: Ticker, 
         enemies: Enemy[], 
         spawnProjectile: (x: number, y: number, tx: number, ty: number) => void,
-        efficiency: number // <--- НОВЫЙ ПАРАМЕТР
+        efficiency: number
     ) {
-        // Если энергии нет (efficiency = 0), здание не работает (кроме стен)
         if (efficiency <= 0 && this.buildingType !== 'wall') return;
 
-        // ЛОГИКА БУРА
         if (this.isMining && this.resourceManager) {
-            // Скорость зависит от эффективности. Если энергии мало — копаем медленно.
             this.mineTimer += ticker.deltaTime * efficiency;
-
             if (this.mineTimer >= this.mineSpeed) {
                 this.mineTimer = 0;
                 this.resourceManager.addMetal(1);
-                
-                this.scale.set(1.1);
-                setTimeout(() => this.scale.set(1.0), 50);
             }
         }
 
-        // ЛОГИКА ТУРЕЛИ
         if (this.buildingType === 'turret') {
             if (this.cooldown > 0) {
-                // Перезарядка тоже замедляется при нехватке энергии
                 this.cooldown -= ticker.deltaTime * efficiency;
             } else {
                 const target = this.findTarget(enemies);
@@ -120,7 +167,6 @@ export class Building extends Container {
     }
 
     private findTarget(enemies: Enemy[]): Enemy | null {
-        // (Тут код поиска цели без изменений)
         let closest: Enemy | null = null;
         let minDist = Infinity;
         for (const enemy of enemies) {
