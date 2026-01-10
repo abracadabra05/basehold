@@ -5,19 +5,21 @@ import { BuildingSystem } from './BuildingSystem';
 import { UIManager } from './UIManager';
 import { ResourceManager } from './ResourceManager';
 import { ResourceNode } from './ResourceNode';
-import { Enemy } from './Enemy'; // <--- Импорт
+import { Enemy } from './Enemy';
+import { WaveManager } from './WaveManager'; // <--- Импорт
 
 export class Game {
     private app: Application;
     public world: Container;
     private camera!: Camera;
-    private player!: Player;
+    public player!: Player; // <--- Public (нужен для определения позиции спавна)
     private buildingSystem!: BuildingSystem;
     private uiManager!: UIManager;
     public resourceManager!: ResourceManager;
     public resources: ResourceNode[] = [];
+    public enemies: Enemy[] = [];
     
-    public enemies: Enemy[] = []; // <--- Список врагов
+    private waveManager!: WaveManager; // <--- Менеджер волн
 
     constructor(app: Application) {
         this.app = app;
@@ -48,23 +50,41 @@ export class Game {
         this.camera = new Camera(this.world, this.app.screen);
         this.camera.follow(this.player);
 
-        // --- СПАВН ТЕСТОВОГО ВРАГА ---
-        this.spawnEnemy(600, 600);
-        // -----------------------------
+        // --- Инициализация волн ---
+        this.waveManager = new WaveManager((count) => {
+            this.spawnWave(count);
+        });
+        // --------------------------
 
         this.app.ticker.add((ticker) => {
             this.player.update(ticker);
             this.camera.update();
             this.buildingSystem.update(ticker);
-
-            // Обновляем всех врагов
             this.enemies.forEach(enemy => enemy.update(ticker));
+            
+            // Обновляем таймер волны
+            this.waveManager.update(ticker);
         });
     }
 
-    // Метод для создания врага
-    private spawnEnemy(x: number, y: number) {
-        // Создаем врага, даем ему цель (игрока) и функцию проверки стен
+    // Логика спавна группы врагов
+    private spawnWave(count: number) {
+        const spawnRadius = 800; // Спавним за пределами экрана (примерно)
+
+        for (let i = 0; i < count; i++) {
+            // Случайный угол
+            const angle = Math.random() * Math.PI * 2;
+            
+            // Координаты вокруг игрока
+            const x = this.player.x + Math.cos(angle) * spawnRadius;
+            const y = this.player.y + Math.sin(angle) * spawnRadius;
+
+            this.spawnEnemy(x, y);
+        }
+    }
+
+    // Сделали PUBLIC, чтобы можно было вызывать откуда угодно
+    public spawnEnemy(x: number, y: number) {
         const enemy = new Enemy(
             this.player, 
             this.buildingSystem.isOccupied.bind(this.buildingSystem)
@@ -82,9 +102,7 @@ export class Game {
             const node = new ResourceNode(gridSize);
             let rx = Math.floor(Math.random() * 100) * gridSize;
             let ry = Math.floor(Math.random() * 100) * gridSize;
-
             if (Math.abs(rx - 200) < 200 && Math.abs(ry - 200) < 200) continue; 
-            
             node.x = rx;
             node.y = ry;
             this.world.addChild(node);
