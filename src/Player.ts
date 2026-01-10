@@ -18,8 +18,20 @@ export class Player extends Container {
     }
 
     private initInput() {
-        window.addEventListener('keydown', (e) => { this.keys[e.code] = true; });
-        window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
+        // Нажатие
+        window.addEventListener('keydown', (e) => { 
+            this.keys[e.code] = true; 
+        });
+
+        // Отпускание
+        window.addEventListener('keyup', (e) => { 
+            this.keys[e.code] = false; 
+        });
+
+        // ФИКС: Сброс всех кнопок при потере фокуса (Alt+Tab или клик вне окна)
+        window.addEventListener('blur', () => {
+            this.keys = {}; 
+        });
     }
 
     public update(ticker: Ticker) {
