@@ -25,22 +25,23 @@ export class UIManager {
     }
 
     private createButtons() {
-        const types: { type: BuildingType, label: string }[] = [
-            { type: 'wall', label: '🧱 Wall' },
-            { type: 'drill', label: '⛏️ Drill' },
-            { type: 'generator', label: '⚡ Power' },
+        // Добавили поле cost для отображения
+        const types: { type: BuildingType, label: string, cost: number }[] = [
+            { type: 'wall', label: '🧱 Wall', cost: 10 },
+            { type: 'drill', label: '⛏️ Drill', cost: 50 },
+            { type: 'generator', label: '⚡ Power', cost: 100 },
         ];
 
         types.forEach(item => {
             const btn = document.createElement('button');
-            btn.innerText = item.label;
+            // Отображаем цену в скобках
+            btn.innerText = `${item.label} (${item.cost})`;
             btn.style.padding = '10px 20px';
             btn.style.fontSize = '16px';
             btn.style.cursor = 'pointer';
             
             btn.onclick = () => {
                 this.onSelect(item.type);
-                console.log('Selected:', item.type);
             };
 
             this.container.appendChild(btn);
