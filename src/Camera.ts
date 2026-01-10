@@ -1,37 +1,35 @@
-import { Container, Ticker } from 'pixi.js';
+import { Container } from 'pixi.js';
 
 export class Camera {
     private world: Container;
-    private keys: { [key: string]: boolean } = {}; // Храним состояние клавиш
-    private speed: number = 15; // Скорость камеры
+    private target: Container | null = null;
+    private appScreen: { width: number, height: number };
 
-    constructor(world: Container) {
+    constructor(world: Container, appScreen: { width: number, height: number }) {
         this.world = world;
-        this.initInput();
+        this.appScreen = appScreen;
     }
 
-    private initInput() {
-        // Слушаем нажатия клавиш
-        window.addEventListener('keydown', (e) => { this.keys[e.code] = true; });
-        window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
+    public follow(target: Container) {
+        this.target = target;
     }
 
-    public update(ticker: Ticker) {
-        // ticker.deltaTime помогает делать движение плавным независимо от FPS
-        const moveSpeed = this.speed * ticker.deltaTime;
+    public update() {
+        if (!this.target) return;
 
-        // Логика: Если идем ВПРАВО (D), мир сдвигается ВЛЕВО (минус X), и так далее.
-        if (this.keys['KeyW'] || this.keys['ArrowUp']) {
-            this.world.y += moveSpeed;
-        }
-        if (this.keys['KeyS'] || this.keys['ArrowDown']) {
-            this.world.y -= moveSpeed;
-        }
-        if (this.keys['KeyA'] || this.keys['ArrowLeft']) {
-            this.world.x += moveSpeed;
-        }
-        if (this.keys['KeyD'] || this.keys['ArrowRight']) {
-            this.world.x -= moveSpeed;
-        }
+        // Центр экрана
+        const screenCenterX = this.appScreen.width / 2;
+        const screenCenterY = this.appScreen.height / 2;
+
+        // Мы двигаем МИР в противоположную сторону от игрока, чтобы игрок казался в центре
+        // Формула: ПозицияМира = ЦентрЭкрана - ПозицияИгрока
+        this.world.x = screenCenterX - this.target.x;
+        this.world.y = screenCenterY - this.target.y;
+    }
+    
+    // Обновляем размеры, если окно браузера изменили
+    public resize(width: number, height: number) {
+        this.appScreen.width = width;
+        this.appScreen.height = height;
     }
 }
