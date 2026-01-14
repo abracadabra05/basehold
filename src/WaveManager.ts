@@ -5,8 +5,8 @@ export class WaveManager {
   private onOpenShopCallback: () => void; // Колбек для открытия магазина
 
   private waveTimer: number = 0;
-  private timeBetweenWaves: number = 240; // 10 секунд между волнами
-  private prepTime: number = 120; // 30 секунд (при 60 FPS) подготовки
+  private timeBetweenWaves: number = 600; // 10 секунд между волнами
+  private prepTime: number = 1800; // 30 секунд (при 60 FPS) подготовки
 
   public waveCount: number = 1;
   private uiElement: HTMLElement;
