@@ -123,10 +123,18 @@ export class Game {
                 this.player.tryShoot(worldPos.x, worldPos.y);
             }
             this.camera.update();
-            this.buildingSystem.update(ticker, this.enemies, (x, y, tx, ty) => {
-                this.spawnProjectile(x, y, tx, ty);
+            
+            // ОБНОВЛЕНИЕ: Принимаем damage от турели
+            this.buildingSystem.update(ticker, this.enemies, (x, y, tx, ty, damage) => {
+                this.spawnProjectile(x, y, tx, ty, damage);
+                
+                // Звук зависит от типа, но BuildingSystem не передает тип...
+                // Пока оставим playTurretShoot для всех, или можно сделать хак:
+                // if (damage > 5) playSniperShoot else if (damage < 1) playMinigun...
+                // Давай просто играть стандартный звук, чтобы не усложнять.
                 this.soundManager.playTurretShoot();
             });
+
             this.enemies.forEach(enemy => enemy.update(ticker));
             this.waveManager.update(ticker);
             this.updateProjectiles(ticker);
@@ -190,8 +198,17 @@ export class Game {
         this.enemies.push(enemy);
     }
     
-    private spawnProjectile(x: number, y: number, tx: number, ty: number) {
-        const p = new Projectile(x, y, tx, ty, this.currentDamage);
+    // Изменили аргумент damage на обязательный (или можно оставить currentDamage если не передан)
+    private spawnProjectile(x: number, y: number, tx: number, ty: number, damage?: number) {
+        // Если урон передан (от турели) - используем его. 
+        // Если нет (от игрока, если мы не поменяли player.tryShoot) - используем глобальный.
+        // Игрок у нас вызывает spawnProjectile через колбек в конструкторе Player:
+        // (x, y, tx, ty) => { this.spawnProjectile(x, y, tx, ty); ... }
+        // Там damage не передается, значит будет undefined.
+        
+        const dmg = damage !== undefined ? damage : this.currentDamage;
+        
+        const p = new Projectile(x, y, tx, ty, dmg);
         this.world.addChild(p);
         this.projectiles.push(p);
     }

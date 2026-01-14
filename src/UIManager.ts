@@ -8,7 +8,6 @@ export class UIManager {
     private container: HTMLDivElement;
     private buttons: Map<ToolType, HTMLButtonElement> = new Map(); // Храним ссылки на кнопки
     private isPaused: boolean = false;
-    private activeTool: ToolType | null = 'wall'; // По умолчанию стена
 
     constructor(onSelect: (type: ToolType) => void) {
         this.onSelect = onSelect;
@@ -49,10 +48,12 @@ export class UIManager {
             { type: 'drill', label: '⛏️ Drill', cost: 50 },
             { type: 'generator', label: '⚡ Power', cost: 100 },
             { type: 'turret', label: '🔫 Turret', cost: 30 },
-            { type: 'repair', label: '🔧 Repair', color: '#f1c40f' }, // Желтый
-            { type: 'demolish', label: '❌ Remove', color: '#e74c3c' }, // Красный
+            { type: 'sniper', label: '🎯 Sniper', cost: 75 }, // Новая
+            { type: 'minigun', label: '🌪️ Minigun', cost: 120 }, // Новая
+            { type: 'repair', label: '🔧 Repair', color: '#f1c40f' },
+            { type: 'demolish', label: '❌ Remove', color: '#e74c3c' },
         ];
-
+        
         items.forEach(item => {
             const btn = document.createElement('button');
             if (item.cost) {
@@ -98,6 +99,5 @@ export class UIManager {
             activeBtn.style.borderColor = '#ffffff';   // Белая обводка
             activeBtn.style.boxShadow = '0 0 10px rgba(255,255,255,0.5)'; // Свечение
         }
-        this.activeTool = type;
     }
 }

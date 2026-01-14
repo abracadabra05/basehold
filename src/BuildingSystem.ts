@@ -10,7 +10,9 @@ const BUILDING_COSTS: Record<BuildingType, number> = {
     'wall': 10,
     'drill': 50,
     'generator': 100,
-    'turret': 30,
+    'turret': 30,    // Обычная
+    'sniper': 75,    // Снайпер
+    'minigun': 120,  // Пулемет
     'core': 0
 };
 
@@ -57,7 +59,8 @@ export class BuildingSystem {
     public update(
         ticker: Ticker, 
         enemies: Enemy[], 
-        spawnProjectile: (x: number, y: number, tx: number, ty: number) => void
+        // ИЗМЕНЕНИЕ: Тип колбека обновлен
+        spawnProjectile: (x: number, y: number, tx: number, ty: number, damage: number) => void
     ) {
         let totalProduction = 10;
         let totalConsumption = 0;
@@ -150,6 +153,10 @@ export class BuildingSystem {
             if (type === 'drill') color = 0x3498db;
             if (type === 'generator') color = 0xe67e22;
             if (type === 'turret') color = 0x2ecc71; 
+            // НОВЫЕ ЦВЕТА
+            if (type === 'sniper') color = 0x555555; // Серый
+            if (type === 'minigun') color = 0x8e44ad; // Фиолетовый
+            
             this.ghost.fill({ color: color, alpha: 0.5 });
         } else {
             this.ghost.fill({ color: 0xFF0000, alpha: 0.5 });
