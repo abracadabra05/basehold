@@ -326,10 +326,13 @@ export class Game {
             p.update(ticker);
             for (const enemy of this.enemies) {
                 if (enemy.isDead) continue;
+                
                 const dx = p.x - enemy.x;
                 const dy = p.y - enemy.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < 15) {
+                
+                // ПРОВЕРКА: Здесь должно быть hitboxRadius
+                if (dist < enemy.hitboxRadius + 4) {
                     enemy.takeDamage(p.damage);
                     p.shouldDestroy = true;
                     break; 

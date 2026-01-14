@@ -48,8 +48,18 @@ export class Enemy extends Container {
                 this.body.rect(-16, -16, 32, 32).fill(0x8B0000); 
                 break;
             case 'boss': 
-                this.speed = 0.6; this.hp = 500; this.damage = 100; this.attackSpeed = 120; this.hitboxRadius = 45;
-                this.body.rect(-40, -40, 80, 80).fill(0x2c3e50).stroke({ width: 4, color: 0x9b59b6 });
+                this.speed = 0.6; 
+                this.hp = 500;    
+                this.damage = 100; 
+                this.attackSpeed = 120;
+                
+                // ИСПРАВЛЕНИЕ: Увеличили радиус с 45 до 60.
+                // Квадрат босса 80x80 (от центра 40). Диагональ ~56.
+                // Радиус 60 гарантированно покрывает весь спрайт босса.
+                this.hitboxRadius = 60; 
+                
+                this.body.rect(-40, -40, 80, 80).fill(0x2c3e50);
+                this.body.stroke({ width: 4, color: 0x9b59b6 });
                 break;
         }
         this.addChild(this.body);
