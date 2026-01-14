@@ -1,106 +1,90 @@
-import { Ticker } from "pixi.js";
+import { Ticker } from 'pixi.js';
 
 export class WaveManager {
-  private spawnCallback: (waveNum: number, count: number) => void;
-  private onOpenShopCallback: () => void; // Колбек для открытия магазина
+    private spawnCallback: (waveNum: number, count: number) => void;
+    private onOpenShopCallback: () => void;
+    
+    // ВРЕМЯ В МИЛЛИСЕКУНДАХ (ms)
+    private waveTimer: number = 0;
+    private timeBetweenWaves: number = 10000; // 10 секунд
+    private prepTime: number = 30000;         // 30 секунд
+    
+    public waveCount: number = 1;
+    private uiElement: HTMLElement;
+    
+    private isPaused: boolean = false;
+    private isPrepPhase: boolean = true;
 
-  private waveTimer: number = 0;
-  private timeBetweenWaves: number = 240; // 10 секунд между волнами
-  private prepTime: number = 120; // 30 секунд (при 60 FPS) подготовки
-
-  public waveCount: number = 1;
-  private uiElement: HTMLElement;
-
-  // Флаг паузы (пока магазин открыт)
-  private isPaused: boolean = false;
-  // Флаг подготовки
-  private isPrepPhase: boolean = true;
-
-  constructor(
-    spawnCallback: (waveNum: number, count: number) => void,
-    onOpenShopCallback: () => void,
-  ) {
-    this.spawnCallback = spawnCallback;
-    this.onOpenShopCallback = onOpenShopCallback;
-
-    this.uiElement = document.createElement("div");
-    this.uiElement.style.position = "absolute";
-    this.uiElement.style.top = "20px";
-    this.uiElement.style.right = "20px";
-    this.uiElement.style.color = "red";
-    this.uiElement.style.fontFamily = "Arial, sans-serif";
-    this.uiElement.style.fontSize = "24px";
-    this.uiElement.style.fontWeight = "bold";
-    this.uiElement.style.textShadow = "2px 2px 0 #000";
-    document.body.appendChild(this.uiElement);
-  }
-
-  public get isShopOpen(): boolean {
-    return this.isPaused;
-  }
-
-  public resume() {
-    this.isPaused = false;
-    // После закрытия магазина сразу запускаем следующую волну
-    this.startWave();
-  }
-
-  public update(ticker: Ticker) {
-    if (this.isPaused) return;
-
-    // Если фаза подготовки
-    if (this.isPrepPhase) {
-      this.prepTime -= ticker.deltaTime;
-      const timeLeft = Math.ceil(this.prepTime / 60);
-      this.uiElement.innerText = `🛡️ Prep Time: ${timeLeft}s`;
-      this.uiElement.style.color = "#3498db"; // Синий цвет
-
-      if (this.prepTime <= 0) {
-        this.isPrepPhase = false;
-        this.startWave();
-      }
-      return;
+    constructor(
+        spawnCallback: (waveNum: number, count: number) => void,
+        onOpenShopCallback: () => void
+    ) {
+        this.spawnCallback = spawnCallback;
+        this.onOpenShopCallback = onOpenShopCallback;
+        
+        this.uiElement = document.createElement('div');
+        this.uiElement.style.position = 'absolute';
+        this.uiElement.style.top = '20px';
+        this.uiElement.style.right = '20px';
+        this.uiElement.style.color = 'red';
+        this.uiElement.style.fontFamily = 'Arial, sans-serif';
+        this.uiElement.style.fontSize = '24px';
+        this.uiElement.style.fontWeight = 'bold';
+        this.uiElement.style.textShadow = '2px 2px 0 #000';
+        document.body.appendChild(this.uiElement);
     }
 
-    // Обычная фаза между волнами
-    this.waveTimer += ticker.deltaTime;
-    const timeLeft = Math.ceil((this.timeBetweenWaves - this.waveTimer) / 60);
-    this.uiElement.innerText = `💀 Wave ${this.waveCount} in: ${timeLeft}s`;
-    this.uiElement.style.color = "red";
+    public get isShopOpen(): boolean { return this.isPaused; }
 
-    if (this.waveTimer >= this.timeBetweenWaves) {
-      // ПРОВЕРКА МАГАЗИНА:
-      // Если следующая волна будет (5, 10, 15...), то ПЕРЕД ней открываем магазин
-      // (waveCount сейчас равен номеру следующей волны, т.к. увеличивается в конце startWave,
-      // но тут логичнее так: waveCount = 1 (идет 1), waveCount = 5 (идет 5).
-      // Давай сделаем так: После завершения 5-й волны? Нет, перед 6-й.
-      // Проще: если (waveCount - 1) % 5 === 0 && waveCount > 1...
-
-      // Давай проще: Магазин открывается ПЕРЕД 6, 11, 16 волной.
-      // То есть если (this.waveCount - 1) % 5 === 0 ? Нет.
-      // Если сейчас Wave 5 должна начаться, то таймер дотикал.
-      // Мы спавним Wave 5.
-
-      // Задача: "Магазин каждые 5 волн".
-      // Значит: 1, 2, 3, 4, 5 -> МАГАЗИН -> 6, 7...
-      // Значит, когда таймер дотикал для волны 6.
-      if (this.waveCount > 1 && (this.waveCount - 1) % 5 === 0) {
-        // Если мы тут, значит таймер дотикал для волны 6, 11 и т.д.
-        // Ставим паузу и открываем шоп
-        this.isPaused = true;
-        this.waveTimer = 0; // Сброс таймера
-        this.onOpenShopCallback();
-      } else {
+    public resume() {
+        this.isPaused = false;
         this.startWave();
-      }
     }
-  }
 
-  private startWave() {
-    this.waveTimer = 0;
-    const enemiesToSpawn = 3 + Math.floor(this.waveCount * 1.5);
-    console.log(`Wave ${this.waveCount} started!`);
-    this.spawnCallback(this.waveCount, enemiesToSpawn);
-    this.waveCount++;
-  }
+    public update(ticker: Ticker) {
+        if (this.isPaused) return;
+
+        // Используем deltaMS (прошедшее время в миллисекундах)
+        const dt = ticker.deltaMS; 
+
+        // Фаза подготовки
+        if (this.isPrepPhase) {
+            this.prepTime -= dt;
+            
+            // Делим на 1000, чтобы получить секунды
+            const timeLeft = Math.ceil(this.prepTime / 1000);
+            this.uiElement.innerText = `🛡️ Prep Time: ${Math.max(0, timeLeft)}s`;
+            this.uiElement.style.color = '#3498db';
+
+            if (this.prepTime <= 0) {
+                this.isPrepPhase = false;
+                this.startWave();
+            }
+            return;
+        }
+
+        // Фаза волны
+        this.waveTimer += dt;
+        const timeLeft = Math.ceil((this.timeBetweenWaves - this.waveTimer) / 1000);
+        this.uiElement.innerText = `💀 Wave ${this.waveCount} in: ${Math.max(0, timeLeft)}s`;
+        this.uiElement.style.color = 'red';
+
+        if (this.waveTimer >= this.timeBetweenWaves) {
+            if (this.waveCount > 1 && (this.waveCount - 1) % 5 === 0) {
+                this.isPaused = true;
+                this.waveTimer = 0; 
+                this.onOpenShopCallback();
+            } else {
+                this.startWave();
+            }
+        }
+    }
+
+    private startWave() {
+        this.waveTimer = 0;
+        const enemiesToSpawn = 3 + Math.floor(this.waveCount * 1.5);
+        console.log(`Wave ${this.waveCount} started!`);
+        this.spawnCallback(this.waveCount, enemiesToSpawn);
+        this.waveCount++;
+    }
 }
