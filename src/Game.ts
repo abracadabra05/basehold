@@ -176,6 +176,27 @@ export class Game {
     private spawnWave(waveNum: number, count: number) {
         if (!this.coreBuilding || this.coreBuilding.isDestroyed) return;
         const spawnRadius = 800;
+
+        // БОСС-ВОЛНА (Каждые 10 волн)
+        if (waveNum % 10 === 0) {
+            console.log("BOSS WAVE!");
+            // Спавним 1 Босса
+            const angle = Math.random() * Math.PI * 2;
+            const x = this.coreBuilding.x + Math.cos(angle) * spawnRadius;
+            const y = this.coreBuilding.y + Math.sin(angle) * spawnRadius;
+            this.spawnEnemy(x, y, 'boss');
+
+            // И немного свиты (мелких), чтобы не скучно было
+            for (let i = 0; i < 5; i++) {
+                const a = angle + (Math.random() - 0.5) * 0.5; // Рядом с боссом
+                const sx = this.coreBuilding.x + Math.cos(a) * spawnRadius;
+                const sy = this.coreBuilding.y + Math.sin(a) * spawnRadius;
+                this.spawnEnemy(sx, sy, 'fast');
+            }
+            return;
+        }
+
+        // ОБЫЧНАЯ ВОЛНА
         for (let i = 0; i < count; i++) {
             let type: EnemyType = 'basic';
             const rand = Math.random();
@@ -320,12 +341,27 @@ export class Game {
     private cleanUp() {
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             if (this.enemies[i].isDead) {
-                this.resourceManager.addBiomass(5); 
+                const enemy = this.enemies[i];
                 
-                // ВЗРЫВ КРОВИ
-                this.createExplosion(this.enemies[i].x, this.enemies[i].y, 0xAA0000, 15);
+                // Награда зависит от типа
+                let reward = 5;
+                let explosionColor = 0xAA0000;
+                let explosionSize = 15;
+
+                if (enemy.type === 'fast') reward = 3;
+                if (enemy.type === 'tank') reward = 15;
+                if (enemy.type === 'boss') {
+                    reward = 100;          // ДЖЕКПОТ
+                    explosionColor = 0x9b59b6; // Фиолетовый взрыв
+                    explosionSize = 50;    // ОГРОМНЫЙ
+                    
+                    // Звук смерти босса (можно добавить в SoundManager, но пока обычный)
+                }
+
+                this.resourceManager.addBiomass(reward); 
+                this.createExplosion(enemy.x, enemy.y, explosionColor, explosionSize);
                 
-                this.world.removeChild(this.enemies[i]);
+                this.world.removeChild(enemy);
                 this.enemies.splice(i, 1);
             }
         }

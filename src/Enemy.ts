@@ -1,8 +1,8 @@
 import { Container, Graphics, Ticker } from 'pixi.js';
 import type { Building } from './Building';
 
-// Определяем типы врагов
-export type EnemyType = 'basic' | 'fast' | 'tank';
+// Добавляем 'boss'
+export type EnemyType = 'basic' | 'fast' | 'tank' | 'boss';
 
 export class Enemy extends Container {
     private body: Graphics;
@@ -17,38 +17,46 @@ export class Enemy extends Container {
     private attackSpeed: number = 60; 
     private damage: number = 5; 
 
+    // Храним тип, чтобы знать награду при смерти
+    public type: EnemyType; 
+
     constructor(
         target: Container, 
         checkCollision: (x: number, y: number) => Building | null,
-        type: EnemyType = 'basic' // <--- Новый параметр
+        type: EnemyType = 'basic'
     ) {
         super();
         this.target = target;
         this.checkCollision = checkCollision;
+        this.type = type; // Запоминаем тип
 
         this.body = new Graphics();
         
-        // Настройка статов в зависимости от типа
         switch (type) {
             case 'basic':
-                this.speed = 2;
-                this.hp = 3;
-                this.damage = 5;
-                this.body.rect(-12, -12, 24, 24).fill(0xFF0000); // Красный
+                this.speed = 2; this.hp = 3; this.damage = 5;
+                this.body.rect(-12, -12, 24, 24).fill(0xFF0000); 
                 break;
 
             case 'fast':
-                this.speed = 3.5; // Очень быстрый
-                this.hp = 1;      // Умирает с 1 удара
-                this.damage = 2;  // Слабо бьет
-                this.body.rect(-8, -8, 16, 16).fill(0xF1C40F); // Желтый, маленький
+                this.speed = 3.5; this.hp = 1; this.damage = 2;
+                this.body.rect(-8, -8, 16, 16).fill(0xF1C40F); 
                 break;
 
             case 'tank':
-                this.speed = 1.0; // Медленный
-                this.hp = 15;     // Живучий
-                this.damage = 20; // Сносит стены (у стены 100 HP, снесет за 5 сек)
-                this.body.rect(-16, -16, 32, 32).fill(0x8B0000); // Темно-бордовый, большой
+                this.speed = 1.0; this.hp = 15; this.damage = 20;
+                this.body.rect(-16, -16, 32, 32).fill(0x8B0000); 
+                break;
+
+            case 'boss': // <--- ТИТАН
+                this.speed = 0.6; // Очень медленный
+                this.hp = 500;    // Рейд-босс
+                this.damage = 100; // Ваншотает стены
+                this.attackSpeed = 120; // Бьет раз в 2 секунды (медленно замахивается)
+                
+                // Визуал: Огромный черный квадрат с фиолетовой аурой
+                this.body.rect(-40, -40, 80, 80).fill(0x2c3e50);
+                this.body.stroke({ width: 4, color: 0x9b59b6 }); // Фиолетовая обводка
                 break;
         }
         
@@ -83,31 +91,21 @@ export class Enemy extends Container {
         
         const dx = targetX - this.x;
         const dy = targetY - this.y;
-        // --- ИСПРАВЛЕНИЕ КОНЕЦ ---
-
         const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist < 5) return;
+        // Для босса дистанция атаки больше, так как он большой
+        const attackRange = this.type === 'boss' ? 50 : 5;
+        if (dist < attackRange) return;
 
         const vx = (dx / dist);
         const vy = (dy / dist);
-
         const moveX = vx * this.speed * ticker.deltaTime;
         const moveY = vy * this.speed * ticker.deltaTime;
 
         const buildingX = this.isColliding(this.x + moveX, this.y);
-        if (!buildingX) {
-            this.x += moveX;
-        } else {
-            this.attackBuilding(buildingX);
-        }
+        if (!buildingX) this.x += moveX; else this.attackBuilding(buildingX);
 
         const buildingY = this.isColliding(this.x, this.y + moveY);
-        if (!buildingY) {
-            this.y += moveY;
-        } else {
-            this.attackBuilding(buildingY);
-        }
+        if (!buildingY) this.y += moveY; else this.attackBuilding(buildingY);
     }
 
     private attackBuilding(building: Building) {
