@@ -1,0 +1,163 @@
+import { FederatedPointerEvent, Container, Rectangle } from 'pixi.js';
+import { VirtualJoystick } from './VirtualJoystick';
+
+export class InputSystem {
+    private stage: Container;
+    
+    public isRightMouseDown: boolean = false;
+    public mousePosition: { x: number, y: number } = { x: 0, y: 0 };
+    
+    private keys: { [key: string]: boolean } = {};
+
+    private leftJoystick!: VirtualJoystick;
+    private rightJoystick!: VirtualJoystick;
+    public isMobile: boolean = false;
+    
+    public onSpacePressed?: () => void;
+    public onToggleBuildMode?: () => void; 
+
+    constructor(stage: Container) {
+        this.stage = stage;
+    }
+
+    public init(screenRect: Rectangle) {
+        this.checkMobile();
+        this.createMobileControls();
+
+        window.oncontextmenu = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        };
+
+        this.stage.eventMode = 'static';
+        this.stage.hitArea = screenRect;
+
+        this.stage.on('globalmousemove', (e: FederatedPointerEvent) => { 
+            this.mousePosition = { x: e.global.x, y: e.global.y }; 
+        });
+        this.stage.on('pointermove', (e: FederatedPointerEvent) => { 
+            this.mousePosition = { x: e.global.x, y: e.global.y }; 
+        });
+
+        // --- GLOBAL WINDOW EVENTS ---
+        
+        window.addEventListener('mousedown', (e) => {
+            if (e.button === 2) this.isRightMouseDown = true;
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (e.button === 2) this.isRightMouseDown = false;
+        });
+
+        window.addEventListener('pointerdown', (e) => {
+            if (e.button === 2) this.isRightMouseDown = true;
+        });
+        
+        window.addEventListener('pointerup', (e) => {
+            if (e.button === 2) this.isRightMouseDown = false;
+        });
+
+        window.addEventListener('blur', () => {
+            this.isRightMouseDown = false;
+            this.keys = {};
+        });
+
+        // --- KEYBOARD ---
+        window.addEventListener('keydown', (e) => {
+            this.keys[e.code] = true;
+            if (e.code === 'Space') {
+                if (this.onSpacePressed) this.onSpacePressed();
+            }
+        });
+        window.addEventListener('keyup', (e) => {
+            this.keys[e.code] = false;
+        });
+    }
+
+    private checkMobile() {
+        this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        this.isMobile = this.isMobile || ('ontouchstart' in window);
+    }
+
+    private createMobileControls() {
+        if (!this.isMobile) return;
+
+        const uiLayer = document.createElement('div');
+        uiLayer.id = 'mobile-controls';
+        Object.assign(uiLayer.style, {
+            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+            pointerEvents: 'none', zIndex: 2000
+        });
+        document.body.appendChild(uiLayer);
+
+        const joyContainer = document.createElement('div');
+        Object.assign(joyContainer.style, {
+            position: 'absolute', bottom: 0, left: 0, width: '100%', height: '50%',
+            pointerEvents: 'auto'
+        });
+        uiLayer.appendChild(joyContainer);
+
+        this.leftJoystick = new VirtualJoystick(joyContainer, 'left');
+        this.leftJoystick.show();
+
+        this.rightJoystick = new VirtualJoystick(joyContainer, 'right');
+        this.rightJoystick.show();
+
+        const buildBtn = document.createElement('button');
+        buildBtn.innerText = 'Build';
+        Object.assign(buildBtn.style, {
+            position: 'absolute', top: '100px', right: '20px',
+            width: '60px', height: '60px',
+            background: 'rgba(0,0,0,0.5)', color: 'white',
+            border: '2px solid white', borderRadius: '50%', pointerEvents: 'auto',
+            fontSize: '12px', fontWeight: 'bold'
+        });
+        buildBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if(this.onToggleBuildMode) this.onToggleBuildMode();
+        });
+        uiLayer.appendChild(buildBtn);
+    }
+
+    public getMovementVector(): { x: number, y: number } {
+        const v = { x: 0, y: 0 };
+        
+        if (this.keys['KeyW'] || this.keys['ArrowUp']) v.y -= 1;
+        if (this.keys['KeyS'] || this.keys['ArrowDown']) v.y += 1;
+        if (this.keys['KeyA'] || this.keys['ArrowLeft']) v.x -= 1;
+        if (this.keys['KeyD'] || this.keys['ArrowRight']) v.x += 1;
+
+        if (this.isMobile && this.leftJoystick && this.leftJoystick.isActive) {
+            v.x = this.leftJoystick.value.x;
+            v.y = this.leftJoystick.value.y;
+        }
+
+        if (!this.leftJoystick?.isActive && (v.x !== 0 || v.y !== 0)) {
+            const len = Math.sqrt(v.x * v.x + v.y * v.y);
+            v.x /= len;
+            v.y /= len;
+        }
+
+        return v;
+    }
+
+    public getAimVector(): { x: number, y: number } | null {
+        if (this.isMobile && this.rightJoystick && this.rightJoystick.isActive) {
+            return this.rightJoystick.value;
+        }
+        return null;
+    }
+
+    public isShooting(): boolean {
+        if (this.isMobile && this.rightJoystick) {
+            return this.rightJoystick.isActive && 
+                   (Math.abs(this.rightJoystick.value.x) > 0.3 || Math.abs(this.rightJoystick.value.y) > 0.3);
+        }
+        return this.isRightMouseDown;
+    }
+
+    public getMouseWorldPosition(worldContainer: Container): { x: number, y: number } {
+        return worldContainer.toLocal(this.mousePosition);
+    }
+}

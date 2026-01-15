@@ -33,14 +33,20 @@ export class SoundManager {
         if (this.isMuted) return;
         if (this.ctx.state === 'suspended') this.ctx.resume();
 
+        // PITCH VARIATION: +/- 10%
+        // Это делает звук "живым"
+        const variation = 1 + (Math.random() - 0.5) * 0.2;
+        const finalFreq = freq * variation;
+        const finalSlide = slideTo ? slideTo * variation : null;
+
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
 
         osc.type = type;
-        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        osc.frequency.setValueAtTime(finalFreq, this.ctx.currentTime);
         
-        if (slideTo) {
-            osc.frequency.exponentialRampToValueAtTime(slideTo, this.ctx.currentTime + duration);
+        if (finalSlide) {
+            osc.frequency.exponentialRampToValueAtTime(finalSlide, this.ctx.currentTime + duration);
         }
 
         // Огибающая громкости

@@ -1,7 +1,8 @@
 import { Container, Graphics, Ticker } from 'pixi.js';
 import type { Building } from './Building';
+import { GameConfig } from './GameConfig';
 
-export type EnemyType = 'basic' | 'fast' | 'tank' | 'boss';
+export type EnemyType = 'basic' | 'fast' | 'tank' | 'boss' | 'kamikaze' | 'shooter';
 
 export class Enemy extends Container {
     private body: Graphics;
@@ -12,7 +13,6 @@ export class Enemy extends Container {
     public hp: number = 3; 
     public isDead: boolean = false;
     
-    // НОВЫЕ ПУБЛИЧНЫЕ ПОЛЯ СКОРОСТИ (для упреждения)
     public vx: number = 0;
     public vy: number = 0;
 
@@ -21,6 +21,12 @@ export class Enemy extends Container {
     private damage: number = 5; 
     public type: EnemyType;
     public hitboxRadius: number = 15; 
+    
+    private attackRange: number = 5;
+
+    // Колбеки
+    public onShoot?: (x: number, y: number, tx: number, ty: number, damage: number) => void;
+    public onExplode?: (x: number, y: number, damage: number, radius: number) => void;
 
     constructor(
         target: Container, 
@@ -34,34 +40,41 @@ export class Enemy extends Container {
 
         this.body = new Graphics();
         
-        switch (type) {
-            case 'basic':
-                this.speed = 2; this.hp = 3; this.damage = 5; this.hitboxRadius = 15;
-                this.body.rect(-12, -12, 24, 24).fill(0xFF0000); 
-                break;
-            case 'fast':
-                this.speed = 3.5; this.hp = 1; this.damage = 2; this.hitboxRadius = 12;
-                this.body.rect(-8, -8, 16, 16).fill(0xF1C40F); 
-                break;
-            case 'tank':
-                this.speed = 1.0; this.hp = 15; this.damage = 20; this.hitboxRadius = 20;
-                this.body.rect(-16, -16, 32, 32).fill(0x8B0000); 
-                break;
-            case 'boss': 
-                this.speed = 0.6; 
-                this.hp = 500;    
-                this.damage = 100; 
-                this.attackSpeed = 120;
-                
-                // ИСПРАВЛЕНИЕ: Увеличили радиус с 45 до 60.
-                // Квадрат босса 80x80 (от центра 40). Диагональ ~56.
-                // Радиус 60 гарантированно покрывает весь спрайт босса.
-                this.hitboxRadius = 60; 
-                
-                this.body.rect(-40, -40, 80, 80).fill(0x2c3e50);
-                this.body.stroke({ width: 4, color: 0x9b59b6 });
-                break;
+        // Получаем конфиг для данного типа
+        const configKey = type.toUpperCase() as keyof typeof GameConfig.ENEMIES;
+        const stats = GameConfig.ENEMIES[configKey];
+
+        if (stats) {
+            this.speed = stats.speed;
+            this.hp = stats.hp;
+            this.damage = stats.damage;
+            this.hitboxRadius = stats.radius;
+            // attackRange берем из конфига если есть, иначе дефолт (5 для мили)
+            if ('attackRange' in stats) {
+                this.attackRange = (stats as any).attackRange;
+            } else {
+                this.attackRange = 5;
+            }
+            // attackSpeed пока хардкод или дефолт, можно добавить в конфиг позже
+             if (type === 'boss' || type === 'shooter') {
+                 this.attackSpeed = 120;
+             }
+             
+             // Рисуем тело
+             const color = stats.color;
+             if (type === 'boss') {
+                 this.body.rect(-40, -40, 80, 80).fill(color).stroke({ width: 4, color: 0x9b59b6 });
+             } else if (type === 'kamikaze') {
+                 this.body.circle(0, 0, stats.radius).fill(color);
+             } else if (type === 'shooter') {
+                 this.body.moveTo(0, -15).lineTo(10, 10).lineTo(-10, 10).fill(color);
+             } else {
+                 // Basic, Fast, Tank - прямоугольники
+                 const s = stats.radius * 2; // примерно под размер радиуса
+                 this.body.rect(-stats.radius, -stats.radius, s, s).fill(color);
+             }
         }
+        
         this.addChild(this.body);
     }
     
@@ -76,50 +89,83 @@ export class Enemy extends Container {
         if (!this.target) return;
         if (this.attackTimer > 0) this.attackTimer -= ticker.deltaTime;
 
+        if (this.type === 'kamikaze') {
+            this.body.scale.set(1 + Math.sin(Date.now() / 100) * 0.2);
+        }
+
         let targetX = this.target.x;
         let targetY = this.target.y;
+        
         if ('buildingType' in this.target) { targetX += 20; targetY += 20; }
         
         const dx = targetX - this.x;
         const dy = targetY - this.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
-        const attackRange = this.type === 'boss' ? 50 : 5;
-        
-        // Если дошли до атаки - стоим
-        if (dist < attackRange) {
+        // ЛОГИКА АТАКИ
+        if (dist < this.attackRange) {
             this.vx = 0;
             this.vy = 0;
-            return;
+            
+            if (this.type === 'shooter') {
+                if (this.attackTimer <= 0) {
+                    if (this.onShoot) {
+                        this.onShoot(this.x, this.y, targetX, targetY, this.damage);
+                    }
+                    this.attackTimer = this.attackSpeed;
+                }
+                return;
+            }
+            // Boss и другие милишники идут таранить, кроме момента самого удара
         }
 
         const dirX = dx / dist;
         const dirY = dy / dist;
 
-        // Обновляем текущую скорость (с учетом времени кадра)
-        // Но для предсказания нам нужен вектор скорости за 1 тик
         this.vx = dirX * this.speed;
         this.vy = dirY * this.speed;
 
         const moveX = this.vx * ticker.deltaTime;
         const moveY = this.vy * ticker.deltaTime;
 
-        const buildingX = this.isColliding(this.x + moveX, this.y);
-        if (!buildingX) this.x += moveX; 
-        else this.attackBuilding(buildingX);
+        const checkDist = this.hitboxRadius + 5;
+        const checkX = this.x + moveX + (dirX * checkDist);
+        const checkY = this.y + moveY + (dirY * checkDist);
 
-        const buildingY = this.isColliding(this.x, this.y + moveY);
-        if (!buildingY) this.y += moveY; 
-        else this.attackBuilding(buildingY);
+        const buildingX = this.isColliding(checkX, this.y); 
+        if (!buildingX) {
+             this.x += moveX; 
+        } else {
+             this.attackBuilding(buildingX);
+        }
+
+        const buildingY = this.isColliding(this.x, checkY);
+        if (!buildingY) {
+             this.y += moveY; 
+        } else {
+             this.attackBuilding(buildingY);
+        }
     }
 
     private attackBuilding(building: Building) {
-        // Когда атакуем - мы стоим на месте
         this.vx = 0; 
         this.vy = 0;
         
+        if (this.type === 'kamikaze') {
+            if (this.onExplode) {
+                this.onExplode(this.x, this.y, this.damage, 100); 
+            }
+            this.isDead = true; 
+            return;
+        }
+
         if (this.attackTimer <= 0) {
             building.takeDamage(this.damage);
+            
+            if (building.thornsDamage > 0) {
+                this.takeDamage(building.thornsDamage);
+            }
+
             this.attackTimer = this.attackSpeed;
             const originalScale = this.scale.x;
             this.scale.set(originalScale * 1.1); 

@@ -5,14 +5,17 @@ import type { ResourceManager } from './ResourceManager';
 import type { Enemy } from './Enemy';
 import type { SoundManager } from './SoundManager';
 import type { ToolType } from './UIManager';
+import type { Rock } from './Rock';
 
 const BUILDING_COSTS: Record<BuildingType, number> = {
     'wall': 10,
     'drill': 50,
     'generator': 100,
-    'turret': 30,    // Обычная
-    'sniper': 75,    // Снайпер
-    'minigun': 120,  // Пулемет
+    'turret': 30,    
+    'sniper': 75,    
+    'minigun': 120,
+    'battery': 150, // <--- Дорого, но полезно
+    'laser': 200,   // <--- Очень дорого
     'core': 0
 };
 
@@ -26,10 +29,16 @@ export class BuildingSystem {
     private player: Container | null = null;
     private selectedTool: ToolType = 'wall';
     private resources: ResourceNode[] = [];
+    private rocks: Rock[] = [];
     private resourceManager: ResourceManager | null = null;
     private isDragging: boolean = false;
     private soundManager: SoundManager | null = null;
     private isPaused: boolean = false;
+
+    // Параметры базы
+    private regenAmount: number = 0;
+    private regenTimer: number = 0;
+    private thornsDamage: number = 0;
 
     // Публичный колбек для эффектов
     public onBuildingDestroyed?: (x: number, y: number) => void;
@@ -45,9 +54,17 @@ export class BuildingSystem {
     }
 
     public setSoundManager(sm: SoundManager) { this.soundManager = sm; }
+    public setRegenAmount(amount: number) { this.regenAmount = amount; }
+    public setThornsDamage(damage: number) { 
+        this.thornsDamage = damage; 
+        this.buildings.forEach(b => b.thornsDamage = damage);
+    }
     public setResources(resources: ResourceNode[], manager: ResourceManager) {
         this.resources = resources;
         this.resourceManager = manager;
+    }
+    public setRocks(rocks: Rock[]) {
+        this.rocks = rocks;
     }
     public setTool(tool: ToolType) { this.selectedTool = tool; }
     public setPlayer(player: Container) { this.player = player; }
@@ -59,27 +76,50 @@ export class BuildingSystem {
     public update(
         ticker: Ticker, 
         enemies: Enemy[], 
-        // ИЗМЕНЕНИЕ: Тип колбека обновлен
         spawnProjectile: (x: number, y: number, tx: number, ty: number, damage: number) => void
     ) {
-        let totalProduction = 10;
+        let totalProduction = 0;
         let totalConsumption = 0;
+        let totalCapacity = 0; // <--- ЕМКОСТЬ
+
         this.buildings.forEach(b => {
             totalProduction += b.energyProduction;
             totalConsumption += b.energyConsumption;
+            totalCapacity += b.energyCapacity;
         });
         
-        // Защита от деления на ноль, если потребление 0
         let efficiency = 1.0;
+        // Если потребление выше производства, проверяем батарею
         if (totalConsumption > totalProduction) {
-            efficiency = totalProduction / totalConsumption;
+            // Если батарея пуста (isBlackout), эффективность падает
+            if (this.resourceManager && this.resourceManager.isBlackout) {
+                efficiency = totalProduction / totalConsumption;
+            } else {
+                // Если батарея есть, работаем на 100%, но тратим заряд (это делает ResourceManager.updateBattery)
+                efficiency = 1.0;
+            }
         }
 
-        if (this.resourceManager) this.resourceManager.updateEnergy(totalProduction, totalConsumption);
+        // Обновляем статистику и батарею
+        if (this.resourceManager) {
+            this.resourceManager.setEnergyStats(totalProduction, totalConsumption, totalCapacity);
+            // deltaMS в секундах
+            this.resourceManager.updateBattery(ticker.deltaMS / 1000);
+        }
+
+        // Регенерация только если есть энергия (efficiency > 0.5)
+        if (this.regenAmount > 0 && efficiency > 0.5) {
+            this.regenTimer += ticker.deltaTime;
+            if (this.regenTimer >= 60) {
+                this.regenTimer = 0;
+                this.buildings.forEach(b => {
+                    if (b.hp < b.maxHp) b.repair(this.regenAmount);
+                });
+            }
+        }
 
         this.buildings.forEach((building, key) => {
             if (building.isDestroyed) {
-                // Вызываем эффект ПЕРЕД удалением
                 if (this.onBuildingDestroyed) {
                     this.onBuildingDestroyed(building.x, building.y);
                 }
@@ -97,6 +137,25 @@ export class BuildingSystem {
         const gridX = Math.floor(worldX / this.gridSize) * this.gridSize;
         const gridY = Math.floor(worldY / this.gridSize) * this.gridSize;
         return this.buildings.get(`${gridX},${gridY}`) || null;
+    }
+
+    public getBuildingInfoAt(worldX: number, worldY: number) {
+        const b = this.getBuildingAt(worldX, worldY);
+        if (!b) return null;
+
+        let energyStr = '';
+        if (b.energyProduction > 0) energyStr = `+${b.energyProduction}`;
+        else if (b.energyConsumption > 0) energyStr = `-${b.energyConsumption}`;
+        
+        if (b.energyCapacity > 0) energyStr += ` [Cap: ${b.energyCapacity}]`;
+
+        return {
+            name: b.buildingType,
+            hp: b.hp,
+            maxHp: b.maxHp,
+            damage: (['turret', 'sniper', 'minigun', 'laser'].includes(b.buildingType)) ? b.damage : undefined,
+            energy: energyStr || undefined
+        };
     }
 
     public isOccupied(worldX: number, worldY: number): boolean {
@@ -153,9 +212,10 @@ export class BuildingSystem {
             if (type === 'drill') color = 0x3498db;
             if (type === 'generator') color = 0xe67e22;
             if (type === 'turret') color = 0x2ecc71; 
-            // НОВЫЕ ЦВЕТА
-            if (type === 'sniper') color = 0x555555; // Серый
-            if (type === 'minigun') color = 0x8e44ad; // Фиолетовый
+            if (type === 'sniper') color = 0x555555; 
+            if (type === 'minigun') color = 0x8e44ad; 
+            if (type === 'battery') color = 0x2ecc71;
+            if (type === 'laser') color = 0xe74c3c;
             
             this.ghost.fill({ color: color, alpha: 0.5 });
         } else {
@@ -189,11 +249,10 @@ export class BuildingSystem {
 
         if (this.selectedTool === 'demolish') {
             const building = this.getBuildingAt(x, y);
-            if (building && building.buildingType !== 'core') { // Нельзя сносить ядро
+            if (building && building.buildingType !== 'core') { 
                 const originalCost = BUILDING_COSTS[building.buildingType];
                 this.resourceManager?.addMetal(Math.floor(originalCost * 0.5));
                 
-                // Эффект сноса
                 if (this.onBuildingDestroyed) this.onBuildingDestroyed(building.x, building.y);
 
                 this.world.removeChild(building);
@@ -209,6 +268,24 @@ export class BuildingSystem {
     private canBuildAt(x: number, y: number): boolean {
         const key = `${x},${y}`;
         if (this.buildings.has(key)) return false;
+
+        const cx = x + this.gridSize / 2;
+        const cy = y + this.gridSize / 2;
+        for (const rock of this.rocks) {
+            const dx = cx - rock.x;
+            const dy = cy - rock.y;
+            if (dx*dx + dy*dy < (20 + rock.radius) ** 2) return false;
+        }
+
+        const hasResource = this.resources.some(r => r.x === x && r.y === y);
+        const type = this.selectedTool as BuildingType;
+
+        if (hasResource) {
+            if (type !== 'drill') return false;
+        } else {
+            if (type === 'drill') return false;
+        }
+
         if (this.player) {
             const buildRect = { x: x, y: y, w: this.gridSize, h: this.gridSize };
             const playerRect = { x: this.player.x - 16, y: this.player.y - 16, w: 32, h: 32 };
@@ -229,6 +306,7 @@ export class BuildingSystem {
         const building = new Building(type, this.gridSize);
         building.x = x;
         building.y = y;
+        building.thornsDamage = this.thornsDamage; 
         if (type === 'drill' && this.resourceManager) {
             const ore = this.resources.find(r => r.x === x && r.y === y);
             if (ore) building.startMining(this.resourceManager);
@@ -242,8 +320,13 @@ export class BuildingSystem {
         const building = new Building('core', this.gridSize);
         building.x = x;
         building.y = y;
+        building.thornsDamage = this.thornsDamage;
         this.world.addChild(building);
         this.buildings.set(`${x},${y}`, building);
         return building;
+    }
+
+    public get activeBuildings(): Building[] {
+        return Array.from(this.buildings.values());
     }
 }

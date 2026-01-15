@@ -1,12 +1,42 @@
-body, html {
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
   margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background-color: #1a1a1a; /* Тёмный фон */
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+  overflow: hidden; /* Предотвращаем скролл на мобилках */
+  touch-action: none; /* Отключаем зум и свайпы браузера */
 }
 
 canvas {
   display: block;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Эффект нажатия для мобильных кнопок */
+button:active {
+  transform: scale(0.95);
+}
+
+.active {
+  /* Класс для активной кнопки в тулбаре */
+  /* Стили задаются динамически в JS, но можно дублировать здесь */
 }
