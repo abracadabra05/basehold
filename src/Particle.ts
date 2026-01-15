@@ -1,4 +1,4 @@
-import { Container, Graphics, Ticker } from 'pixi.js';
+import { Container, Graphics, Ticker } from "pixi.js";
 
 export type ParticleType = 'explosion' | 'shell';
 

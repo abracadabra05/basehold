@@ -146,6 +146,7 @@ export class Enemy extends Container {
              this.attackBuilding(buildingY);
         }
     }
+  }
 
     private attackBuilding(building: Building) {
         this.vx = 0; 

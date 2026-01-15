@@ -1,4 +1,4 @@
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics } from "pixi.js";
 
 export class ResourceNode extends Container {
     public resourceType: string = 'metal';

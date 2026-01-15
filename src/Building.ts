@@ -68,9 +68,23 @@ export class Building extends Container {
                 this.damage = 25;   
                 break;
 
-            default: this.maxHp = 10;
-        }
-        this.hp = this.maxHp;
+    switch (type) {
+      case "wall":
+        this.maxHp = 100;
+        this.energyConsumption = 0;
+        break;
+      case "drill":
+        this.maxHp = 30;
+        this.energyConsumption = 5;
+        break;
+      case "generator":
+        this.maxHp = 20;
+        this.energyProduction = 20;
+        break;
+      case "core":
+        this.maxHp = 500;
+        this.energyProduction = 50;
+        break;
 
         // 1. БАЗА
         const baseG = new Graphics();
@@ -270,6 +284,7 @@ export class Building extends Container {
                 }
             }
         }
+      }
     }
 
     private findTarget(enemies: Enemy[]): Enemy | null {

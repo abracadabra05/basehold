@@ -47,9 +47,10 @@ export class UpgradeManager {
         this.container.style.display = 'flex';
     }
 
-    public hide() {
-        this.container.style.display = 'none';
-    }
+  // Метод для установки действия при закрытии
+  public setOnClose(callback: () => void) {
+    this.onCloseCallback = callback;
+  }
 
     private initStyles() {
         Object.assign(this.container.style, {
@@ -199,9 +200,20 @@ export class UpgradeManager {
             }
         };
 
+    btn.onclick = () => {
+      const cost = 50 * getLevel();
+      if (this.resourceManager.spendBiomass(cost)) {
+        onBuy();
         updateText();
-        wrapper.appendChild(info);
-        wrapper.appendChild(btn);
-        parent.appendChild(wrapper);
-    }
+      } else {
+        btn.style.background = "red";
+        setTimeout(() => (btn.style.background = "#8e44ad"), 200);
+      }
+    };
+
+    updateText();
+    wrapper.appendChild(info);
+    wrapper.appendChild(btn);
+    parent.appendChild(wrapper);
+  }
 }

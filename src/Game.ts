@@ -283,6 +283,7 @@ export class Game {
             }
         });
     }
+  }
 
     public spawnFloatingText(x: number, y: number, text: string, color: string = '#ffffff', size: number = 16) {
         const ft = new FloatingText(x, y, text, color, size);
@@ -305,7 +306,9 @@ export class Game {
         for (let i = 0; i < count; i++) {
             this.createParticle(x, y, color, 'explosion');
         }
+      }
     }
+  }
 
     private updateParticles(ticker: Ticker) {
         for (let i = this.particles.length - 1; i >= 0; i--) {
@@ -379,12 +382,17 @@ export class Game {
                 else type = 'basic'; 
             }
 
-            const angle = Math.random() * Math.PI * 2;
-            const x = this.coreBuilding.x + Math.cos(angle) * spawnRadius;
-            const y = this.coreBuilding.y + Math.sin(angle) * spawnRadius;
-            this.spawnEnemy(x, y, type);
-        }
+        this.world.removeChild(enemy);
+        this.enemies.splice(i, 1);
+      }
     }
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      if (this.projectiles[i].shouldDestroy) {
+        this.world.removeChild(this.projectiles[i]);
+        this.projectiles.splice(i, 1);
+      }
+    }
+  }
 
     public spawnEnemy(x: number, y: number, type: EnemyType) {
         const target = (this.coreBuilding && !this.coreBuilding.isDestroyed) ? this.coreBuilding : this.player;

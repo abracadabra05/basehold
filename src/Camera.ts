@@ -1,9 +1,9 @@
 import { Container, Ticker } from 'pixi.js';
 
 export class Camera {
-    private world: Container;
-    private target: Container | null = null;
-    private appScreen: { width: number, height: number };
+  private world: Container;
+  private target: Container | null = null;
+  private appScreen: { width: number; height: number };
 
     // Параметры тряски
     private shakeTimer: number = 0;
@@ -14,9 +14,9 @@ export class Camera {
         this.appScreen = appScreen;
     }
 
-    public follow(target: Container) {
-        this.target = target;
-    }
+  public follow(target: Container) {
+    this.target = target;
+  }
 
     // Метод запуска тряски
     // intensity: сила (например, 5 - слабо, 20 - сильно)

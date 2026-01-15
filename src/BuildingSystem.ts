@@ -43,14 +43,60 @@ export class BuildingSystem {
     // Публичный колбек для эффектов
     public onBuildingDestroyed?: (x: number, y: number) => void;
 
-    constructor(app: Application, world: Container) {
-        this.app = app;
-        this.world = world;
-        this.buildings = new Map();
-        this.ghost = new Graphics();
-        this.ghost.rect(0, 0, this.gridSize, this.gridSize);
-        this.world.addChild(this.ghost);
-        this.initInput();
+  // Публичный колбек для эффектов
+  public onBuildingDestroyed?: (x: number, y: number) => void;
+
+  constructor(app: Application, world: Container) {
+    this.app = app;
+    this.world = world;
+    this.buildings = new Map();
+    this.ghost = new Graphics();
+    this.ghost.rect(0, 0, this.gridSize, this.gridSize);
+    this.world.addChild(this.ghost);
+    this.initInput();
+  }
+
+  public setSoundManager(sm: SoundManager) {
+    this.soundManager = sm;
+  }
+  public setResources(resources: ResourceNode[], manager: ResourceManager) {
+    this.resources = resources;
+    this.resourceManager = manager;
+  }
+  public setTool(tool: ToolType) {
+    this.selectedTool = tool;
+  }
+  public setPlayer(player: Container) {
+    this.player = player;
+  }
+  public setPaused(paused: boolean) {
+    this.isPaused = paused;
+    this.ghost.visible = !paused;
+  }
+
+  public update(
+    ticker: Ticker,
+    enemies: Enemy[],
+    // ИЗМЕНЕНИЕ: Тип колбека обновлен
+    spawnProjectile: (
+      x: number,
+      y: number,
+      tx: number,
+      ty: number,
+      damage: number,
+    ) => void,
+  ) {
+    let totalProduction = 10;
+    let totalConsumption = 0;
+    this.buildings.forEach((b) => {
+      totalProduction += b.energyProduction;
+      totalConsumption += b.energyConsumption;
+    });
+
+    // Защита от деления на ноль, если потребление 0
+    let efficiency = 1.0;
+    if (totalConsumption > totalProduction) {
+      efficiency = totalProduction / totalConsumption;
     }
 
     public setSoundManager(sm: SoundManager) { this.soundManager = sm; }
@@ -133,11 +179,12 @@ export class BuildingSystem {
         });
     }
 
-    public getBuildingAt(worldX: number, worldY: number): Building | null {
-        const gridX = Math.floor(worldX / this.gridSize) * this.gridSize;
-        const gridY = Math.floor(worldY / this.gridSize) * this.gridSize;
-        return this.buildings.get(`${gridX},${gridY}`) || null;
-    }
+    const type = this.selectedTool as BuildingType;
+    const cost = BUILDING_COSTS[type] || 0;
+    const canAfford = this.resourceManager
+      ? this.resourceManager.hasMetal(cost)
+      : false;
+    const isPlaceable = this.canBuildAt(pos.x, pos.y);
 
     public getBuildingInfoAt(worldX: number, worldY: number) {
         const b = this.getBuildingAt(worldX, worldY);
@@ -181,9 +228,11 @@ export class BuildingSystem {
         this.app.stage.on('pointerupoutside', () => { this.isDragging = false; });
     }
 
-    private updateGhost(e: FederatedPointerEvent) {
-        if (this.isPaused) { this.ghost.visible = false; return; }
-        this.ghost.visible = true;
+      this.ghost.fill({ color: color, alpha: 0.5 });
+    } else {
+      this.ghost.fill({ color: 0xff0000, alpha: 0.5 });
+    }
+  }
 
         const pos = this.getMouseGridPosition(e);
         this.ghost.x = pos.x;
@@ -221,18 +270,30 @@ export class BuildingSystem {
         } else {
             this.ghost.fill({ color: 0xFF0000, alpha: 0.5 });
         }
+      }
+      return;
     }
 
-    private getMouseGridPosition(e: FederatedPointerEvent) {
-        const localPos = this.world.toLocal(e.global);
-        const snapX = Math.floor(localPos.x / this.gridSize) * this.gridSize;
-        const snapY = Math.floor(localPos.y / this.gridSize) * this.gridSize;
-        return { x: snapX, y: snapY };
+    if (this.selectedTool === "demolish") {
+      const building = this.getBuildingAt(x, y);
+      if (building && building.buildingType !== "core") {
+        // Нельзя сносить ядро
+        const originalCost = BUILDING_COSTS[building.buildingType];
+        this.resourceManager?.addMetal(Math.floor(originalCost * 0.5));
+
+        // Эффект сноса
+        if (this.onBuildingDestroyed)
+          this.onBuildingDestroyed(building.x, building.y);
+
+        this.world.removeChild(building);
+        this.buildings.delete(`${x},${y}`);
+        this.soundManager?.playMine();
+      }
+      return;
     }
 
-    private handleAction() {
-        const x = this.ghost.x;
-        const y = this.ghost.y;
+    this.placeBuilding(x, y);
+  }
 
         if (this.selectedTool === 'repair') {
             const building = this.getBuildingAt(x, y);
@@ -264,6 +325,8 @@ export class BuildingSystem {
 
         this.placeBuilding(x, y);
     }
+    return true;
+  }
 
     private canBuildAt(x: number, y: number): boolean {
         const key = `${x},${y}`;
@@ -294,6 +357,10 @@ export class BuildingSystem {
         }
         return true;
     }
+    this.soundManager?.playBuild();
+    this.world.addChild(building);
+    this.buildings.set(`${x},${y}`, building);
+  }
 
     private placeBuilding(x: number, y: number) {
         if (!this.canBuildAt(x, y)) return;

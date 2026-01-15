@@ -27,11 +27,14 @@ export class ResourceManager {
         document.body.appendChild(this.uiElement);
         this.updateUI();
     }
+    return false;
+  }
 
     public setLanguage(lang: Language) {
         this.lang = lang;
         this.updateUI();
     }
+  }
 
     private t(key: string): string {
         return (Translations[this.lang] as any)[key] || key;

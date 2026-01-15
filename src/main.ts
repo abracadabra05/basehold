@@ -1,9 +1,9 @@
-import { Application } from 'pixi.js';
-import './style.css';
-import { Game } from './Game';
+import { Application } from "pixi.js";
+import "./style.css";
+import { Game } from "./Game";
 
 (async () => {
-    const app = new Application();
+  const app = new Application();
 
     await app.init({
         background: '#1a1a1a',
@@ -14,10 +14,9 @@ import { Game } from './Game';
         resolution: window.devicePixelRatio || 1, // Высокое разрешение для Retina/4k экранов
     });
 
-    document.body.appendChild(app.canvas);
+  document.body.appendChild(app.canvas);
 
-    // Инициализируем игру
-    const game = new Game(app);
-    game.init();
-
+  // Инициализируем игру
+  const game = new Game(app);
+  game.init();
 })();

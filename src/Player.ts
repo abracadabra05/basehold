@@ -1,4 +1,4 @@
-import { Container, Graphics, Ticker } from 'pixi.js';
+import { Container, Graphics, Ticker } from "pixi.js";
 
 export class Player extends Container {
     private baseSpeed: number = 5; 
@@ -12,12 +12,12 @@ export class Player extends Container {
     private checkCollision: (x: number, y: number) => boolean;
     private onShoot: (x: number, y: number, tx: number, ty: number) => void;
 
-    public maxHp: number = 10;
-    public hp: number = 10;
-    private invulnerableTimer: number = 0;
-    private invulnerableTime: number = 60; 
-    private fireCooldown: number = 0;
-    private fireRate: number = 10;
+  public maxHp: number = 10;
+  public hp: number = 10;
+  private invulnerableTimer: number = 0;
+  private invulnerableTime: number = 60;
+  private fireCooldown: number = 0;
+  private fireRate: number = 10;
 
     public get rotationAngle(): number {
         return this.bodyContainer.rotation;
@@ -64,6 +64,7 @@ export class Player extends Container {
         const angle = Math.atan2(targetY - this.y, targetX - this.x);
         this.bodyContainer.rotation = angle;
     }
+  }
 
     public tryShoot(targetX: number, targetY: number) {
         if (this.fireCooldown <= 0) {

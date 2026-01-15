@@ -1,4 +1,4 @@
-import { Container, Graphics, Ticker } from 'pixi.js';
+import { Container, Graphics, Ticker } from "pixi.js";
 
 export class Projectile extends Container {
     private graphics: Graphics;
