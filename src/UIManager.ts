@@ -318,17 +318,23 @@ export class UIManager {
         const tool = this.items.find(i => i.type.toLowerCase() === data.name.toLowerCase());
         if (tool) displayName = this.t(tool.key);
 
-        let html = `<div style="border-bottom: 1px solid #555; padding-bottom: 4px; margin-bottom: 6px;">
-            <b style="color: #3498db; font-size: 14px; text-transform: uppercase;">${displayName}</b>
+        let html = `<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+            <b style="color: #3498db; font-size: 12px; text-transform: uppercase;">${displayName}</b>
+            <span style="font-size: 10px; color: #aaa;">${Math.floor(data.hp)}/${data.maxHp}</span>
         </div>`;
+        
         const hpPct = (data.hp / data.maxHp) * 100;
-        html += `<div style="width: 100%; height: 4px; background: #222; margin-bottom: 6px;">
-            <div style="width: ${hpPct}%; height: 100%; background: #2ecc71;"></div>
+        const hpColor = hpPct > 50 ? '#2ecc71' : hpPct > 25 ? '#f1c40f' : '#e74c3c';
+        
+        html += `<div style="width: 100%; height: 3px; background: #222; margin-bottom: 6px; border-radius: 1px;">
+            <div style="width: ${hpPct}%; height: 100%; background: ${hpColor}; border-radius: 1px;"></div>
         </div>`;
-        html += `<div style="font-size: 11px; line-height: 1.4;">`;
-        if (data.damage) html += `<span style="color: #aaa">${this.t('upg_dmg')}:</span> <span style="color: #e74c3c">${data.damage}</span><br>`;
-        if (data.energy) html += `<span style="color: #aaa">${this.t('tool_power')}:</span> <span style="color: #f1c40f">${data.energy}</span>`;
+        
+        html += `<div style="display: flex; gap: 8px; font-size: 10px;">`;
+        if (data.damage) html += `<span>⚔️ <span style="color: #e74c3c">${data.damage}</span></span>`;
+        if (data.energy) html += `<span>⚡ <span style="color: #f1c40f">${data.energy}</span></span>`;
         html += `</div>`;
+        
         this.infoPanel.innerHTML = html;
     }
 
@@ -408,14 +414,16 @@ export class UIManager {
     }
 
     private initInfoStyles() {
-        this.infoPanel.style.position = 'absolute';
-        this.infoPanel.style.top = '80px'; 
+        this.infoPanel.style.position = 'fixed';
+        this.infoPanel.style.bottom = '140px'; // Было 80px
         this.infoPanel.style.left = '50%';
         this.infoPanel.style.transform = 'translateX(-50%)';
         this.applyPanelStyle(this.infoPanel);
-        this.infoPanel.style.padding = '10px';
+        this.infoPanel.style.padding = '8px 12px';
         this.infoPanel.style.display = 'none';
-        this.infoPanel.style.minWidth = '160px';
+        this.infoPanel.style.minWidth = '120px';
+        this.infoPanel.style.background = 'rgba(10, 10, 10, 0.5)'; // Было 0.8
+        this.infoPanel.style.backdropFilter = 'blur(6px)'; // Чуть больше блюра для читаемости
         this.infoPanel.style.zIndex = '1000';
     }
 

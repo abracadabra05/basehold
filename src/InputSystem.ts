@@ -40,6 +40,10 @@ export class InputSystem {
             this.mousePosition = { x: e.global.x, y: e.global.y }; 
         });
 
+        window.addEventListener('mousemove', (e) => {
+            this.mousePosition = { x: e.clientX, y: e.clientY };
+        });
+
         // --- GLOBAL WINDOW EVENTS ---
         
         window.addEventListener('mousedown', (e) => {

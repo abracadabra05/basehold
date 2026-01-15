@@ -255,6 +255,10 @@ export class Game {
             
             this.uiManager.updateTime(this.lightingSystem.cycleProgress);
 
+            const worldMouse = this.inputSystem.getMouseWorldPosition(this.world);
+            const info = this.buildingSystem.getBuildingInfoAt(worldMouse.x, worldMouse.y);
+            this.uiManager.showBuildingInfo(info);
+
             this.uiManager.updateHUD(
                 { hp: this.player.hp, maxHp: this.player.maxHp },
                 (this.coreBuilding && !this.coreBuilding.isDestroyed) ? { hp: this.coreBuilding.hp, maxHp: this.coreBuilding.maxHp } : null
@@ -504,6 +508,11 @@ export class Game {
             const dx = this.player.x - (res.x + halfGrid);
             const dy = this.player.y - (res.y + halfGrid);
             if (Math.sqrt(dx * dx + dy * dy) < 60) {
+                // ПРОВЕРКА: Если на ресурсе уже стоит здание (бур или что-то еще), пропускаем
+                if (this.buildingSystem.getBuildingAt(res.x, res.y)) {
+                    continue; 
+                }
+
                 onResource = true;
                 this.manualMiningTimer += ticker.deltaTime;
                 if (this.manualMiningTimer >= 30 / this.currentMineMultiplier) {
@@ -530,8 +539,11 @@ export class Game {
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const enemy = this.enemies[i];
             if (enemy.isDead) {
-                if (Math.random() < 0.4) {
-                    const drop = new DropItem(enemy.x, enemy.y, 1);
+                // Шанс дропа повышен до 70% (было 40%)
+                if (Math.random() < 0.7) {
+                    // Берем награду из конфига врага, если есть, иначе дефолт
+                    const reward = GameConfig.ENEMIES[enemy.type.toUpperCase() as keyof typeof GameConfig.ENEMIES]?.reward || 5;
+                    const drop = new DropItem(enemy.x, enemy.y, reward);
                     this.world.addChild(drop);
                     this.dropItems.push(drop);
                 }

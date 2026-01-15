@@ -49,23 +49,23 @@ export class Building extends Container {
         this.sortableChildren = true;
 
         switch (type) {
-            case 'wall': this.maxHp = 100; this.energyConsumption = 0; break;
-            case 'drill': this.maxHp = 30; this.energyConsumption = 5; break;
-            case 'generator': this.maxHp = 20; this.energyProduction = 20; break;
-            case 'core': this.maxHp = 500; this.energyProduction = 50; this.energyCapacity = 1000; break; 
+            case 'wall': this.maxHp = 200; this.energyConsumption = 0; break; // HP 100 -> 200
+            case 'drill': this.maxHp = 50; this.energyConsumption = 5; break;
+            case 'generator': this.maxHp = 40; this.energyProduction = 20; break;
+            case 'core': this.maxHp = 1000; this.energyProduction = 50; this.energyCapacity = 1000; break; // HP 500 -> 1000
             
-            case 'battery': this.maxHp = 50; this.energyCapacity = 2000; break; 
+            case 'battery': this.maxHp = 100; this.energyCapacity = 2000; break; 
             
-            case 'turret': this.maxHp = 50; this.energyConsumption = 10; this.range = 200; this.fireRate = 30; this.damage = 1; break;
-            case 'sniper': this.maxHp = 40; this.energyConsumption = 15; this.range = 400; this.fireRate = 120; this.damage = 10; break;
-            case 'minigun': this.maxHp = 60; this.energyConsumption = 20; this.range = 150; this.fireRate = 5; this.damage = 0.5; break;
+            case 'turret': this.maxHp = 100; this.energyConsumption = 10; this.range = 250; this.fireRate = 30; this.damage = 3; break; // Dmg 1 -> 3, Range 200 -> 250
+            case 'sniper': this.maxHp = 60; this.energyConsumption = 15; this.range = 500; this.fireRate = 120; this.damage = 30; break; // Dmg 10 -> 30, Range 400 -> 500
+            case 'minigun': this.maxHp = 150; this.energyConsumption = 20; this.range = 200; this.fireRate = 4; this.damage = 1.5; break; // Dmg 0.5 -> 1.5
             
             case 'laser': 
-                this.maxHp = 40; 
+                this.maxHp = 80; 
                 this.energyConsumption = 5; 
-                this.range = 250; 
+                this.range = 300; 
                 this.fireRate = 60; 
-                this.damage = 25;   
+                this.damage = 50; // Dmg 25 -> 50
                 break;
         }
         this.hp = this.maxHp;
