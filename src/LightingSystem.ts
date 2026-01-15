@@ -4,8 +4,8 @@ export class LightingSystem {
     public darknessOverlay: Container;
     
     // Параметры цикла
-    private time: number = 0.0; // СТАРТ УТРОМ
-    private dayDuration: number = 60000; 
+    private time: number = 0.0; // 0.0 - это начало дня (светло)
+    private dayDuration: number = 120000; // 2 минуты (было 60000)
     
     private nightColor: number = 0x050510; 
     public currentAlpha: number = 0; 

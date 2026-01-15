@@ -93,6 +93,10 @@ export class UpgradeManager {
             this.moveSpeedLevel++;
             if (this.onUpgrade) this.onUpgrade('speed');
         });
+        this.createUpgradeBtn(playerContent, this.t('upg_mine'), () => this.mineSpeedLevel, () => {
+            this.mineSpeedLevel++;
+            if (this.onUpgrade) this.onUpgrade('mine');
+        });
         this.createUpgradeBtn(playerContent, this.t('upg_magnet'), () => this.magnetLevel, () => {
             this.magnetLevel++;
             if (this.onUpgrade) this.onUpgrade('magnet');
@@ -103,10 +107,6 @@ export class UpgradeManager {
         baseContent.style.flexDirection = 'column';
         baseContent.style.gap = '8px';
 
-        this.createUpgradeBtn(baseContent, this.t('upg_mine'), () => this.mineSpeedLevel, () => {
-            this.mineSpeedLevel++;
-            if (this.onUpgrade) this.onUpgrade('mine');
-        });
         this.createUpgradeBtn(baseContent, this.t('upg_regen'), () => this.regenLevel, () => {
             this.regenLevel++;
             if (this.onUpgrade) this.onUpgrade('regen');
