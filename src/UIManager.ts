@@ -352,16 +352,22 @@ export class UIManager {
         this.hudTime.style.position = 'absolute';
         this.hudTime.style.bottom = '20px'; 
         this.hudTime.style.right = '20px';
-        this.hudTime.style.width = '44px';
-        this.hudTime.style.height = '44px';
+        this.hudTime.style.width = '50px';
+        this.hudTime.style.height = '50px';
         this.applyPanelStyle(this.hudTime);
         this.hudTime.style.borderRadius = '50%';
-        this.hudTime.style.overflow = 'hidden';
+        this.hudTime.style.overflow = 'hidden'; // Маска
+        this.hudTime.style.border = '2px solid #555';
+        this.hudTime.style.background = 'linear-gradient(to bottom, #87CEEB 0%, #2c3e50 100%)'; // Небо
+
         this.hudTime.innerHTML = `
             <div id="hud-time-sky" style="width: 100%; height: 100%; position: relative; transition: transform 0.1s linear;">
-                <div style="position: absolute; top: 4px; left: 50%; transform: translateX(-50%); font-size: 16px;">☀️</div>
-                <div style="position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); font-size: 16px;">🌙</div>
+                <!-- Солнце и Луна разнесены по вертикали на 40px от центра -->
+                <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); font-size: 20px;">☀️</div>
+                <div style="position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); font-size: 20px;">🌙</div>
             </div>
+            <!-- Горизонт (полоска снизу, чтобы скрыть "подземную" часть) -->
+            <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 40%; background: #222; z-index: 2;"></div>
         `;
     }
 

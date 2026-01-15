@@ -156,11 +156,11 @@ export class Game {
                     if (type === 'magnet') this.magnetRadius += 100;
                 };
         
-                this.waveManager = new WaveManager(
-                    this.resourceManager,
-                    (waveNum: number, count: number) => { 
-                        if (!this.isGameOver && this.isGameStarted) {
-                            this.spawnWave(waveNum, count); 
+                        this.waveManager = new WaveManager(
+                            this.resourceManager,
+                            this.uiManager, // Добавлено
+                            (waveNum: number, count: number) => { 
+                                if (!this.isGameOver && this.isGameStarted) {                            this.spawnWave(waveNum, count); 
                             this.uiManager.updateWave(waveNum);
                         }
                     },
@@ -415,6 +415,9 @@ export class Game {
         if (waveNum % GameConfig.WAVES.BOSS_WAVE_INTERVAL === 0) {
             this.spawnFloatingText(this.player.x, this.player.y - 100, "☠️ BOSS INCOMING ☠️", '#e74c3c', 30);
             this.soundManager.playError(); // Звук тревоги
+            
+            // Ставим паузу волн
+            this.waveManager.isBossActive = true;
             
             const angle = Math.random() * Math.PI * 2;
             this.spawnEnemy(this.coreBuilding.x + Math.cos(angle) * spawnRadius, this.coreBuilding.y + Math.sin(angle) * spawnRadius, 'boss');
@@ -674,8 +677,9 @@ export class Game {
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const enemy = this.enemies[i];
             if (enemy.isDead) {
-                // Если это босс, то выпадать будет Data Core гарантированно
+                // Если это босс
                 if (enemy.type === 'boss') {
+                    this.waveManager.isBossActive = false; // Снимаем паузу
                     const drop = new DropItem(enemy.x, enemy.y, 0, 'data_core');
                     this.world.addChild(drop);
                     this.dropItems.push(drop);

@@ -57,6 +57,12 @@ export const Translations: Record<Language, any> = {
         shop_subtitle: 'Тратьте биомассу на развитие технологий',
         shop_close: 'Закрыть',
         
+        // Wave statuses
+        wave_prep: 'ДО СЛЕДУЮЩЕЙ ВОЛНЫ',
+        wave_active: 'ВОЛНА',
+        wave_shop: 'МАГАЗИН',
+        wave_boss: 'БИТВА С БОССОМ',
+        
         // Perks
         perk_title: 'Выберите Усиление',
         perk_double_shot: 'Мульти-выстрел',
@@ -127,6 +133,12 @@ export const Translations: Record<Language, any> = {
         shop_title: 'Research & Upgrades',
         shop_subtitle: 'Spend biomass to upgrade systems',
         shop_close: 'Close',
+
+        // Wave statuses
+        wave_prep: 'NEXT WAVE IN',
+        wave_active: 'WAVE',
+        wave_shop: 'SHOPPING',
+        wave_boss: 'BOSS FIGHT',
 
         // Perks
         perk_title: 'Choose an Upgrade',
