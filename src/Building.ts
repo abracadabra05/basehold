@@ -96,9 +96,19 @@ export class Building extends Container {
             
             case 'core': 
                 baseG.roundRect(0, 0, size, size, 8).fill(0x2c3e50).stroke({ width: 2, color: 0x00FFFF });
+                
+                // Внутреннее свечение
                 baseG.circle(cx, cy, size / 2.5).fill({ color: 0x00FFFF, alpha: 0.2 });
                 baseG.circle(cx, cy, size / 3).stroke({ width: 2, color: 0x00FFFF });
                 baseG.circle(cx, cy, size / 4).fill(0xFFFFFF);
+                
+                // Внешнее свечение (Glow)
+                const glow = new Graphics();
+                glow.circle(cx, cy, size).fill({ color: 0x00FFFF, alpha: 0.15 });
+                glow.blendMode = 'add';
+                // Анимация пульсации будет в update
+                (this as any).glowEffect = glow; 
+                this.addChild(glow);
                 break;
             
             case 'turret': 
@@ -185,8 +195,26 @@ export class Building extends Container {
     public takeDamage(amount: number) { 
         this.hp -= amount; 
         this.updateHpBar(); 
+        
+        // Визуальный эффект повреждения
+        const pct = this.hp / this.maxHp;
+        if (pct < 0.5) {
+            // Затемняем здание при повреждении
+            const tintVal = Math.floor(255 * (0.5 + pct)); 
+            this.tint = (tintVal << 16) | (tintVal << 8) | tintVal;
+        }
+
         this.tint = 0xFFaaaa; 
-        setTimeout(() => this.tint = 0xFFFFFF, 50); 
+        setTimeout(() => {
+            const currentPct = this.hp / this.maxHp;
+            if (currentPct < 0.5) {
+                const tv = Math.floor(255 * (0.5 + currentPct));
+                this.tint = (tv << 16) | (tv << 8) | tv;
+            } else {
+                this.tint = 0xFFFFFF;
+            }
+        }, 50); 
+
         if (this.hp <= 0) this.isDestroyed = true; 
     }
     private updateHpBar() { if (this.hp < this.maxHp) { this.hpBar.visible = true; this.hpBar.clear(); this.hpBar.rect(-2, -2, 44, 8).fill({color:0x000000, alpha:0.8}); const pct = Math.max(0, this.hp / this.maxHp); const color = pct > 0.5 ? 0x00FF00 : pct > 0.25 ? 0xFFFF00 : 0xFF0000; this.hpBar.rect(0, 0, 40 * pct, 4).fill(color); } else { this.hpBar.visible = false; } }
@@ -197,6 +225,13 @@ export class Building extends Container {
         spawnProjectile: (x: number, y: number, tx: number, ty: number, damage: number) => void,
         efficiency: number
     ) {
+        // Анимация свечения ядра
+        if ((this as any).glowEffect) {
+            const glow = (this as any).glowEffect as Graphics;
+            glow.alpha = 0.15 + Math.sin(Date.now() / 500) * 0.05;
+            glow.scale.set(1 + Math.sin(Date.now() / 500) * 0.1);
+        }
+
         if (this.buildingType === 'battery') return; 
         
         if (efficiency <= 0 && this.buildingType !== 'wall') return;

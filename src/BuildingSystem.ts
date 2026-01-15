@@ -6,6 +6,7 @@ import type { Enemy } from './Enemy';
 import type { SoundManager } from './SoundManager';
 import type { ToolType } from './UIManager';
 import type { Rock } from './Rock';
+import { GameConfig } from './GameConfig';
 
 const BUILDING_COSTS: Record<BuildingType, number> = {
     'wall': 10,
@@ -190,6 +191,7 @@ export class BuildingSystem {
         this.ghost.x = pos.x;
         this.ghost.y = pos.y;
         this.ghost.clear();
+        this.ghost.removeChildren(); // Убираем старый радиус
         this.ghost.rect(0, 0, this.gridSize, this.gridSize);
         
         if (this.selectedTool === 'repair') {
@@ -219,6 +221,16 @@ export class BuildingSystem {
             if (type === 'laser') color = 0xe74c3c;
             
             this.ghost.fill({ color: color, alpha: 0.5 });
+
+            // РИСУЕМ РАДИУС
+            const stats = (GameConfig.BUILDINGS as any)[type];
+            if (stats && stats.range) {
+                const rangeG = new Graphics();
+                rangeG.circle(this.gridSize / 2, this.gridSize / 2, stats.range);
+                rangeG.fill({ color: color, alpha: 0.1 });
+                rangeG.stroke({ width: 1, color: color, alpha: 0.3 });
+                this.ghost.addChild(rangeG);
+            }
         } else {
             this.ghost.fill({ color: 0xFF0000, alpha: 0.5 });
         }

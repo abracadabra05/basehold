@@ -37,10 +37,13 @@ export class Projectile extends Container {
         this.shouldDestroy = false;
         this.visible = true;
 
-        // Цвет
+        const color = isEnemy ? 0x00FF00 : 0xFFFF00;
+
         this.graphics.clear();
-        this.graphics.circle(0, 0, 4);
-        this.graphics.fill(isEnemy ? 0x00FF00 : 0xFFFF00);
+        
+        // Glow (Свечение)
+        this.graphics.circle(0, 0, 8).fill({ color: color, alpha: 0.3 }); // Гало
+        this.graphics.circle(0, 0, 4).fill(0xFFFFFF); // Ядро белое для контраста
         
         // Очищаем старый трейл
         this.trail.clear();
