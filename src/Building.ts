@@ -208,20 +208,21 @@ export class Building extends Container {
         // Поднимаем поврежденное здание наверх, чтобы HP бар был виден
         this.zIndex = 100; 
         
-        // Визуальный эффект повреждения
-        const pct = this.hp / this.maxHp;
-        if (pct < 0.5) {
-            // Затемняем здание при повреждении
-            const tintVal = Math.floor(255 * (0.5 + pct)); 
-            this.tint = (tintVal << 16) | (tintVal << 8) | tintVal;
-        }
-
+        // Визуальный эффект повреждения (красный тинт при ударе)
         this.tint = 0xFFaaaa; 
+
+        // Через 50мс возвращаем цвет в зависимости от здоровья
         setTimeout(() => {
-            const currentPct = this.hp / this.maxHp;
-            if (currentPct < 0.5) {
-                const tv = Math.floor(255 * (0.5 + currentPct));
-                this.tint = (tv << 16) | (tv << 8) | tv;
+            const pct = Math.max(0, this.hp / this.maxHp);
+            if (pct < 0.5) {
+                // Затемняем здание (серое)
+                // Безопасный способ: используем RGB значения
+                const val = Math.floor(255 * (0.5 + pct));
+                // Собираем цвет: R=val, G=val, B=val
+                // (val << 16) + (val << 8) + val
+                // Но лучше использовать Color.shared
+                const color = (val * 65536) + (val * 256) + val;
+                this.tint = color;
             } else {
                 this.tint = 0xFFFFFF;
             }

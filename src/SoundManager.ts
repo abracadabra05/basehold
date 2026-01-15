@@ -2,30 +2,39 @@ export class SoundManager {
     private ctx: AudioContext;
     private masterGain: GainNode;
     private compressor: DynamicsCompressorNode;
+    private filter: BiquadFilterNode; // Фильтр для мягкости
     private isMuted: boolean = false;
     
     // Таймеры для предотвращения наложения звуков
     private lastSoundTime: Map<string, number> = new Map();
-    private minInterval: number = 0.03; // Минимум 30мс между любыми звуками
+    private minInterval: number = 0.03; 
 
     constructor() {
         // @ts-ignore
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
         this.ctx = new AudioContextClass();
 
-        // 1. Компрессор - "прижимает" звук, если он становится слишком громким
+        // 1. Фильтр (Lowpass) - срезает резкие верха
+        this.filter = this.ctx.createBiquadFilter();
+        this.filter.type = 'lowpass';
+        this.filter.frequency.value = 3000; // Срезаем все что выше 3кГц (звон)
+        this.filter.Q.value = 0.5; // Мягкий спад
+
+        // 2. Компрессор
         this.compressor = this.ctx.createDynamicsCompressor();
-        this.compressor.threshold.value = -15; // Раньше начинаем сжимать
+        this.compressor.threshold.value = -15; 
         this.compressor.knee.value = 30;
         this.compressor.ratio.value = 12; 
-        this.compressor.attack.value = 0.003; // Быстрая реакция на пик
+        this.compressor.attack.value = 0.003; 
         this.compressor.release.value = 0.25;
 
-        // 2. Главная громкость
+        // 3. Главная громкость
         this.masterGain = this.ctx.createGain();
         this.masterGain.gain.value = 0.3;
 
-        this.masterGain.connect(this.compressor);
+        // Цепь: MasterGain -> Filter -> Compressor -> Destination
+        this.masterGain.connect(this.filter);
+        this.filter.connect(this.compressor);
         this.compressor.connect(this.ctx.destination);
     }
 
@@ -80,19 +89,19 @@ export class SoundManager {
     }
 
     public playShoot() { 
-        this.playTone(600, "square", 0.1, 0.25, 100, 'shoot'); 
+        this.playTone(600, "triangle", 0.1, 0.25, 100, 'shoot'); // Было square
     }
     
     public playTurretShoot() { 
-        this.playTone(400, "square", 0.1, 0.15, 50, 'shoot'); 
+        this.playTone(400, "triangle", 0.1, 0.15, 50, 'shoot'); // Было square
     }
     
     public playHit() {
-        this.playTone(150, "sawtooth", 0.1, 0.1, 50, 'hit');
+        this.playTone(150, "sawtooth", 0.1, 0.1, 50, 'hit'); // Оставим пилу для удара, но фильтр ее смягчит
     }
 
     public playEnemyHit() {
-        this.playTone(80, "sawtooth", 0.1, 0.15, 40, 'hit');
+        this.playTone(80, "square", 0.1, 0.15, 40, 'hit'); // Было sawtooth
     }
 
     public playBuild() {
@@ -110,6 +119,10 @@ export class SoundManager {
     
     public playExplosion() {
         this.playTone(100, "sawtooth", 0.3, 0.2, 20, 'explosion');
+    }
+
+    public playHeartbeat() {
+        this.playTone(60, "sine", 0.15, 0.5, 40, 'ui'); // Низкий глухой звук
     }
 
     public playGameOver() {

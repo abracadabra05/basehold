@@ -22,10 +22,29 @@ export class DropItem extends Container {
         if (this.type === 'data_core') {
             this.graphics.circle(0, 0, 12).fill({ color: 0x3498db, alpha: 0.3 });
             this.graphics.circle(0, 0, 6).fill(0x3498db).stroke({ width: 2, color: 0xFFFFFF });
-            // Анимация свечения в будущем
         } else {
             this.graphics.circle(0, 0, 6).fill(0x2ecc71); 
             this.graphics.circle(0, 0, 3).fill(0x27ae60);
+        }
+    }
+
+    public update(ticker: Ticker, playerX: number, playerY: number, magnetRadius: number) {
+        // Анимация (пульсация)
+        if (this.type === 'data_core') {
+            this.scale.set(1 + Math.sin(Date.now() / 200) * 0.1);
+        } else {
+            this.scale.set(1 + Math.sin(Date.now() / 500) * 0.05);
+        }
+
+        // Магнит
+        const dx = playerX - this.x;
+        const dy = playerY - this.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < magnetRadius) {
+            const speed = 5 + (magnetRadius - dist) * 0.05; // Чем ближе, тем быстрее
+            this.x += (dx / dist) * speed * ticker.deltaTime;
+            this.y += (dy / dist) * speed * ticker.deltaTime;
         }
     }
 }

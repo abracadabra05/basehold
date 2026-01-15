@@ -14,7 +14,7 @@ export const GameConfig = {
         SHOOTER: { speed: 1.5, hp: 15, damage: 15, radius: 15, color: 0x2ecc71, reward: 15, attackRange: 250 }, // Dmg: 5->15
     },
     WAVES: {
-        SPAWN_RADIUS: 800,
+        SPAWN_RADIUS: 1500, // Увеличил с 800 до 1500 (за пределы экрана/границ)
         BOSS_WAVE_INTERVAL: 10,
         PATTERNS: {
             // [waveNum]: { type: EnemyType, countMultiplier: number, message: string }

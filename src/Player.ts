@@ -99,8 +99,9 @@ export class Player extends Container {
             if (!this.isColliding(this.x + moveX, this.y)) this.x += moveX;
             if (!this.isColliding(this.x, this.y + moveY)) this.y += moveY;
             
-            this.x = Math.max(0, Math.min(this.mapSize, this.x));
-            this.y = Math.max(0, Math.min(this.mapSize, this.y));
+            // Убрали ограничение карты, чтобы игрок мог уйти в Пустоту
+            // this.x = Math.max(0, Math.min(this.mapSize, this.x));
+            // this.y = Math.max(0, Math.min(this.mapSize, this.y));
         }
     }
 

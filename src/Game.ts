@@ -54,6 +54,7 @@ export class Game {
     private particlePool!: ObjectPool<Particle>;
     
     private coreBuilding!: Building; 
+    private voidOverlay!: Graphics; // Оверлей для урона
 
     private manualMiningTimer: number = 0;
     private isGameOver: boolean = false;
@@ -64,6 +65,7 @@ export class Game {
     private mapWidthTiles = GameConfig.GAME.MAP_WIDTH_TILES; 
     private mapSizePixel = 0; 
     private voidDamageTimer: number = 0;
+    private lowHpTimer: number = 0;
     
     private magnetRadius: number = 0;
 
@@ -194,6 +196,12 @@ export class Game {
         this.app.stage.sortableChildren = true;
         this.app.stage.addChild(this.lightingSystem.darknessOverlay);
 
+        this.voidOverlay = new Graphics();
+        this.voidOverlay.rect(0, 0, this.app.screen.width, this.app.screen.height).fill({ color: 0xFF0000, alpha: 0 });
+        this.voidOverlay.zIndex = 10000; // Поверх всего
+        this.voidOverlay.visible = false;
+        this.app.stage.addChild(this.voidOverlay);
+
         this.app.ticker.add((ticker) => {
             if (!this.isGameStarted) return;
             if (this.isGameOver || this.waveManager.isShopOpen) return;
@@ -238,6 +246,23 @@ export class Game {
             this.handleManualMining(ticker);
             this.checkPlayerHit();
             this.checkVoidDamage(ticker);
+            
+            // Эффект низкого здоровья (< 30%)
+            if (this.player.hp < this.player.maxHp * 0.3 && this.player.hp > 0) {
+                this.lowHpTimer += ticker.deltaTime;
+                if (this.lowHpTimer >= 60) { // ~1 сек
+                    this.lowHpTimer = 0;
+                    this.soundManager.playHeartbeat();
+                    // Красная вспышка (используем тот же voidOverlay, если он не занят, или лучше создать отдельный?)
+                    // Если игрок в пустоте, voidOverlay уже мигает. Если нет - используем его для сердцебиения.
+                    if (!this.voidOverlay.visible) {
+                        this.voidOverlay.clear().rect(0, 0, this.app.screen.width, this.app.screen.height).fill({ color: 0xFF0000, alpha: 0.2 });
+                        this.voidOverlay.visible = true;
+                        setTimeout(() => { if (!this.voidOverlay.visible) return; this.voidOverlay.visible = false; }, 200);
+                    }
+                }
+            }
+
             this.updateParticles(ticker);
             this.updateDrops(ticker); 
             this.updateFloatingTexts(ticker); 
@@ -532,34 +557,82 @@ export class Game {
     private checkVoidDamage(ticker: Ticker) {
         const x = this.player.x;
         const y = this.player.y;
-        if (x < 0 || x > this.mapSizePixel || y < 0 || y > this.mapSizePixel) {
+        const margin = 50; // Допуск, чтобы сразу не било на границе
+        
+        const isOut = x < -margin || x > this.mapSizePixel + margin || y < -margin || y > this.mapSizePixel + margin;
+
+        if (isOut) {
             this.voidDamageTimer += ticker.deltaTime;
-            if (this.voidDamageTimer >= 10) {
+            // Пульсация красного экрана
+            const alpha = 0.3 + Math.sin(Date.now() / 200) * 0.2;
+            this.voidOverlay.clear().rect(0, 0, this.app.screen.width, this.app.screen.height).fill({ color: 0xFF0000, alpha: alpha });
+            this.voidOverlay.visible = true;
+
+            if (this.voidDamageTimer >= 30) { // Каждые 0.5 сек (при 60fps)
                 this.voidDamageTimer = 0;
                 this.player.takeDamage(5);
-                this.spawnFloatingText(this.player.x, this.player.y - 20, this.t('void_damage'), '#ff0000');
+                this.spawnFloatingText(this.player.x, this.player.y - 20, this.t('void_damage'), '#ff0000', 20);
+                this.soundManager.playHit(); // Звук удара
+                this.camera.shake(5, 0.2);
             }
+        } else {
+            this.voidOverlay.visible = false;
+            this.voidDamageTimer = 0;
         }
     }
 
-    private gameOver() {
+    // reasonCore: true если взорвалось ядро
+    private gameOver(reasonCore: boolean = false) {
         if (this.isGameOver) return;
         this.isGameOver = true;
 
-        // Взрыв игрока
-        this.createExplosion(this.player.x, this.player.y, 0xffaa00, 40);
-        this.createExplosion(this.player.x, this.player.y, 0xff0000, 20);
+        if (reasonCore) {
+            // Эпичный взрыв ядра
+            this.soundManager.playExplosion();
+            this.camera.shake(30, 2.0); // Долгая мощная тряска
+            
+            // Серия взрывов по спирали
+            let delay = 0;
+            for (let i = 0; i < 20; i++) {
+                setTimeout(() => {
+                    if (!this.coreBuilding) return;
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = Math.random() * 300;
+                    this.createExplosion(this.coreBuilding.x + Math.cos(angle) * dist, this.coreBuilding.y + Math.sin(angle) * dist, 0x00FFFF, 30);
+                    this.soundManager.playExplosion();
+                }, delay);
+                delay += 100;
+            }
+            
+            // Уничтожение всего живого
+            setTimeout(() => {
+                this.enemies.forEach(e => {
+                    this.createExplosion(e.x, e.y, 0xFF0000, 10);
+                    this.world.removeChild(e);
+                });
+                this.enemies = [];
+                this.buildingSystem.activeBuildings.forEach(b => {
+                    if (b !== this.coreBuilding) {
+                        this.createExplosion(b.x, b.y, 0x555555, 10);
+                        this.world.removeChild(b);
+                    }
+                });
+                if (this.coreBuilding) this.coreBuilding.visible = false;
+            }, 1000);
+
+        } else {
+            // Смерть игрока
+            this.createExplosion(this.player.x, this.player.y, 0xffaa00, 40);
+            this.createExplosion(this.player.x, this.player.y, 0xff0000, 20);
+            this.camera.shake(15, 0.5);
+            this.player.visible = false;
+        }
         
-        // Тряска камеры
-        this.camera.shake(15, 0.5);
-        
-        this.player.visible = false;
         this.soundManager.playGameOver();
         
-        // Небольшая задержка перед меню для эффекта
         setTimeout(() => {
             this.uiManager.showGameOver();
-        }, 1000);
+        }, 2500); 
     }
 
     private handleManualMining(ticker: Ticker) {
