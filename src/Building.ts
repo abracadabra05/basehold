@@ -67,24 +67,8 @@ export class Building extends Container {
                 this.fireRate = 60; 
                 this.damage = 25;   
                 break;
-
-    switch (type) {
-      case "wall":
-        this.maxHp = 100;
-        this.energyConsumption = 0;
-        break;
-      case "drill":
-        this.maxHp = 30;
-        this.energyConsumption = 5;
-        break;
-      case "generator":
-        this.maxHp = 20;
-        this.energyProduction = 20;
-        break;
-      case "core":
-        this.maxHp = 500;
-        this.energyProduction = 50;
-        break;
+        }
+        this.hp = this.maxHp;
 
         // 1. БАЗА
         const baseG = new Graphics();
@@ -198,7 +182,13 @@ export class Building extends Container {
 
     public repair(amount: number) { this.hp += amount; if (this.hp > this.maxHp) this.hp = this.maxHp; this.tint = 0x00FF00; setTimeout(() => this.tint = 0xFFFFFF, 100); this.updateHpBar(); }
     public startMining(resourceManager: ResourceManager) { this.resourceManager = resourceManager; this.isMining = true; }
-    public takeDamage(amount: number) { this.hp -= amount; this.updateHpBar(); this.tint = 0xFFaaaa; setTimeout(() => this.tint = 0xFFFFFF, 50); if (this.hp <= 0) this.isDestroyed = true; }
+    public takeDamage(amount: number) { 
+        this.hp -= amount; 
+        this.updateHpBar(); 
+        this.tint = 0xFFaaaa; 
+        setTimeout(() => this.tint = 0xFFFFFF, 50); 
+        if (this.hp <= 0) this.isDestroyed = true; 
+    }
     private updateHpBar() { if (this.hp < this.maxHp) { this.hpBar.visible = true; this.hpBar.clear(); this.hpBar.rect(-2, -2, 44, 8).fill({color:0x000000, alpha:0.8}); const pct = Math.max(0, this.hp / this.maxHp); const color = pct > 0.5 ? 0x00FF00 : pct > 0.25 ? 0xFFFF00 : 0xFF0000; this.hpBar.rect(0, 0, 40 * pct, 4).fill(color); } else { this.hpBar.visible = false; } }
 
     public update(
@@ -284,7 +274,6 @@ export class Building extends Container {
                 }
             }
         }
-      }
     }
 
     private findTarget(enemies: Enemy[]): Enemy | null {

@@ -7,6 +7,7 @@ export type EnemyType = 'basic' | 'fast' | 'tank' | 'boss' | 'kamikaze' | 'shoot
 export class Enemy extends Container {
     private body: Graphics;
     private target: Container; 
+    private player: Container; // Добавили поле
     private speed: number = 2; 
     private checkCollision: (x: number, y: number) => Building | null;
     
@@ -27,14 +28,17 @@ export class Enemy extends Container {
     // Колбеки
     public onShoot?: (x: number, y: number, tx: number, ty: number, damage: number) => void;
     public onExplode?: (x: number, y: number, damage: number, radius: number) => void;
+    public onHit?: () => void;
 
     constructor(
         target: Container, 
+        player: Container, // Добавили аргумент
         checkCollision: (x: number, y: number) => Building | null,
         type: EnemyType = 'basic'
     ) {
         super();
         this.target = target;
+        this.player = player; // Сохранили
         this.checkCollision = checkCollision;
         this.type = type;
 
@@ -134,19 +138,24 @@ export class Enemy extends Container {
 
         const buildingX = this.isColliding(checkX, this.y); 
         if (!buildingX) {
-             this.x += moveX; 
+             const distToPlayer = Math.sqrt(Math.pow(checkX - this.player.x, 2) + Math.pow(this.y - this.player.y, 2));
+             if (distToPlayer > 25 || this.type === 'boss') {
+                this.x += moveX; 
+             }
         } else {
              this.attackBuilding(buildingX);
         }
 
         const buildingY = this.isColliding(this.x, checkY);
         if (!buildingY) {
-             this.y += moveY; 
+             const distToPlayer = Math.sqrt(Math.pow(this.x - this.player.x, 2) + Math.pow(checkY - this.player.y, 2));
+             if (distToPlayer > 25 || this.type === 'boss') {
+                this.y += moveY; 
+             }
         } else {
              this.attackBuilding(buildingY);
         }
     }
-  }
 
     private attackBuilding(building: Building) {
         this.vx = 0; 
@@ -162,6 +171,7 @@ export class Enemy extends Container {
 
         if (this.attackTimer <= 0) {
             building.takeDamage(this.damage);
+            if (this.onHit) this.onHit(); // Триггерим звук и тряску
             
             if (building.thornsDamage > 0) {
                 this.takeDamage(building.thornsDamage);

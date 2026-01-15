@@ -14,8 +14,8 @@ const BUILDING_COSTS: Record<BuildingType, number> = {
     'turret': 30,    
     'sniper': 75,    
     'minigun': 120,
-    'battery': 150, // <--- Дорого, но полезно
-    'laser': 200,   // <--- Очень дорого
+    'battery': 150, 
+    'laser': 200,   
     'core': 0
 };
 
@@ -35,68 +35,20 @@ export class BuildingSystem {
     private soundManager: SoundManager | null = null;
     private isPaused: boolean = false;
 
-    // Параметры базы
     private regenAmount: number = 0;
     private regenTimer: number = 0;
     private thornsDamage: number = 0;
 
-    // Публичный колбек для эффектов
     public onBuildingDestroyed?: (x: number, y: number) => void;
 
-  // Публичный колбек для эффектов
-  public onBuildingDestroyed?: (x: number, y: number) => void;
-
-  constructor(app: Application, world: Container) {
-    this.app = app;
-    this.world = world;
-    this.buildings = new Map();
-    this.ghost = new Graphics();
-    this.ghost.rect(0, 0, this.gridSize, this.gridSize);
-    this.world.addChild(this.ghost);
-    this.initInput();
-  }
-
-  public setSoundManager(sm: SoundManager) {
-    this.soundManager = sm;
-  }
-  public setResources(resources: ResourceNode[], manager: ResourceManager) {
-    this.resources = resources;
-    this.resourceManager = manager;
-  }
-  public setTool(tool: ToolType) {
-    this.selectedTool = tool;
-  }
-  public setPlayer(player: Container) {
-    this.player = player;
-  }
-  public setPaused(paused: boolean) {
-    this.isPaused = paused;
-    this.ghost.visible = !paused;
-  }
-
-  public update(
-    ticker: Ticker,
-    enemies: Enemy[],
-    // ИЗМЕНЕНИЕ: Тип колбека обновлен
-    spawnProjectile: (
-      x: number,
-      y: number,
-      tx: number,
-      ty: number,
-      damage: number,
-    ) => void,
-  ) {
-    let totalProduction = 10;
-    let totalConsumption = 0;
-    this.buildings.forEach((b) => {
-      totalProduction += b.energyProduction;
-      totalConsumption += b.energyConsumption;
-    });
-
-    // Защита от деления на ноль, если потребление 0
-    let efficiency = 1.0;
-    if (totalConsumption > totalProduction) {
-      efficiency = totalProduction / totalConsumption;
+    constructor(app: Application, world: Container) {
+        this.app = app;
+        this.world = world;
+        this.buildings = new Map();
+        this.ghost = new Graphics();
+        this.ghost.rect(0, 0, this.gridSize, this.gridSize);
+        this.world.addChild(this.ghost);
+        this.initInput();
     }
 
     public setSoundManager(sm: SoundManager) { this.soundManager = sm; }
@@ -126,7 +78,7 @@ export class BuildingSystem {
     ) {
         let totalProduction = 0;
         let totalConsumption = 0;
-        let totalCapacity = 0; // <--- ЕМКОСТЬ
+        let totalCapacity = 0;
 
         this.buildings.forEach(b => {
             totalProduction += b.energyProduction;
@@ -135,25 +87,19 @@ export class BuildingSystem {
         });
         
         let efficiency = 1.0;
-        // Если потребление выше производства, проверяем батарею
         if (totalConsumption > totalProduction) {
-            // Если батарея пуста (isBlackout), эффективность падает
             if (this.resourceManager && this.resourceManager.isBlackout) {
                 efficiency = totalProduction / totalConsumption;
             } else {
-                // Если батарея есть, работаем на 100%, но тратим заряд (это делает ResourceManager.updateBattery)
                 efficiency = 1.0;
             }
         }
 
-        // Обновляем статистику и батарею
         if (this.resourceManager) {
             this.resourceManager.setEnergyStats(totalProduction, totalConsumption, totalCapacity);
-            // deltaMS в секундах
             this.resourceManager.updateBattery(ticker.deltaMS / 1000);
         }
 
-        // Регенерация только если есть энергия (efficiency > 0.5)
         if (this.regenAmount > 0 && efficiency > 0.5) {
             this.regenTimer += ticker.deltaTime;
             if (this.regenTimer >= 60) {
@@ -179,13 +125,6 @@ export class BuildingSystem {
         });
     }
 
-    const type = this.selectedTool as BuildingType;
-    const cost = BUILDING_COSTS[type] || 0;
-    const canAfford = this.resourceManager
-      ? this.resourceManager.hasMetal(cost)
-      : false;
-    const isPlaceable = this.canBuildAt(pos.x, pos.y);
-
     public getBuildingInfoAt(worldX: number, worldY: number) {
         const b = this.getBuildingAt(worldX, worldY);
         if (!b) return null;
@@ -206,7 +145,25 @@ export class BuildingSystem {
     }
 
     public isOccupied(worldX: number, worldY: number): boolean {
-        return this.getBuildingAt(worldX, worldY) !== null;
+        for (const b of this.buildings.values()) {
+            if (worldX >= b.x && worldX <= b.x + this.gridSize &&
+                worldY >= b.y && worldY <= b.y + this.gridSize) {
+                return true;
+            }
+        }
+        
+        for (const rock of this.rocks) {
+            const dx = worldX - rock.x;
+            const dy = worldY - rock.y;
+            if (dx * dx + dy * dy < (rock.radius + 5) ** 2) return true;
+        }
+        return false;
+    }
+
+    public getBuildingAt(x: number, y: number): Building | null {
+        const gx = Math.floor(x / this.gridSize) * this.gridSize;
+        const gy = Math.floor(y / this.gridSize) * this.gridSize;
+        return this.buildings.get(`${gx},${gy}`) || null;
     }
     
     private initInput() {
@@ -228,12 +185,7 @@ export class BuildingSystem {
         this.app.stage.on('pointerupoutside', () => { this.isDragging = false; });
     }
 
-      this.ghost.fill({ color: color, alpha: 0.5 });
-    } else {
-      this.ghost.fill({ color: 0xff0000, alpha: 0.5 });
-    }
-  }
-
+    private updateGhost(e: FederatedPointerEvent) {
         const pos = this.getMouseGridPosition(e);
         this.ghost.x = pos.x;
         this.ghost.y = pos.y;
@@ -270,31 +222,10 @@ export class BuildingSystem {
         } else {
             this.ghost.fill({ color: 0xFF0000, alpha: 0.5 });
         }
-      }
-      return;
     }
 
-    if (this.selectedTool === "demolish") {
-      const building = this.getBuildingAt(x, y);
-      if (building && building.buildingType !== "core") {
-        // Нельзя сносить ядро
-        const originalCost = BUILDING_COSTS[building.buildingType];
-        this.resourceManager?.addMetal(Math.floor(originalCost * 0.5));
-
-        // Эффект сноса
-        if (this.onBuildingDestroyed)
-          this.onBuildingDestroyed(building.x, building.y);
-
-        this.world.removeChild(building);
-        this.buildings.delete(`${x},${y}`);
-        this.soundManager?.playMine();
-      }
-      return;
-    }
-
-    this.placeBuilding(x, y);
-  }
-
+    private handleAction() {
+        const { x, y } = this.ghost;
         if (this.selectedTool === 'repair') {
             const building = this.getBuildingAt(x, y);
             if (building && building.hp < building.maxHp) {
@@ -325,11 +256,12 @@ export class BuildingSystem {
 
         this.placeBuilding(x, y);
     }
-    return true;
-  }
 
     private canBuildAt(x: number, y: number): boolean {
-        const key = `${x},${y}`;
+        const gx = Math.floor(x / this.gridSize) * this.gridSize;
+        const gy = Math.floor(y / this.gridSize) * this.gridSize;
+        const key = `${gx},${gy}`;
+        
         if (this.buildings.has(key)) return false;
 
         const cx = x + this.gridSize / 2;
@@ -350,50 +282,61 @@ export class BuildingSystem {
         }
 
         if (this.player) {
-            const buildRect = { x: x, y: y, w: this.gridSize, h: this.gridSize };
+            const buildRect = { x: gx, y: gy, w: this.gridSize, h: this.gridSize };
             const playerRect = { x: this.player.x - 16, y: this.player.y - 16, w: 32, h: 32 };
             const overlap = (buildRect.x < playerRect.x + playerRect.w && buildRect.x + buildRect.w > playerRect.x && buildRect.y < playerRect.y + playerRect.h && buildRect.y + buildRect.h > playerRect.y);
             if (overlap) return false;
         }
         return true;
     }
-    this.soundManager?.playBuild();
-    this.world.addChild(building);
-    this.buildings.set(`${x},${y}`, building);
-  }
 
     private placeBuilding(x: number, y: number) {
         if (!this.canBuildAt(x, y)) return;
-        const type = this.selectedTool as BuildingType;
-        const cost = BUILDING_COSTS[type];
+        const type = this.selectedTool;
+        if (type === 'repair' || type === 'demolish') return;
+
+        const cost = BUILDING_COSTS[type as BuildingType];
         
         if (this.resourceManager && !this.resourceManager.hasMetal(cost)) return;
         if (this.resourceManager) this.resourceManager.spendMetal(cost);
 
+        const gx = Math.floor(x / this.gridSize) * this.gridSize;
+        const gy = Math.floor(y / this.gridSize) * this.gridSize;
+
         const building = new Building(type, this.gridSize);
-        building.x = x;
-        building.y = y;
+        building.x = gx;
+        building.y = gy;
         building.thornsDamage = this.thornsDamage; 
         if (type === 'drill' && this.resourceManager) {
-            const ore = this.resources.find(r => r.x === x && r.y === y);
+            const ore = this.resources.find(r => r.x === gx && r.y === gy);
             if (ore) building.startMining(this.resourceManager);
         }
         this.soundManager?.playBuild();
         this.world.addChild(building);
-        this.buildings.set(`${x},${y}`, building);
+        this.buildings.set(`${gx},${gy}`, building);
     }
 
     public spawnCore(x: number, y: number) {
+        const gx = Math.floor(x / this.gridSize) * this.gridSize;
+        const gy = Math.floor(y / this.gridSize) * this.gridSize;
         const building = new Building('core', this.gridSize);
-        building.x = x;
-        building.y = y;
+        building.x = gx;
+        building.y = gy;
         building.thornsDamage = this.thornsDamage;
         this.world.addChild(building);
-        this.buildings.set(`${x},${y}`, building);
+        this.buildings.set(`${gx},${gy}`, building);
         return building;
     }
 
     public get activeBuildings(): Building[] {
         return Array.from(this.buildings.values());
+    }
+
+    private getMouseGridPosition(e: FederatedPointerEvent) {
+        const worldPos = this.world.toLocal(e.global);
+        return {
+            x: Math.floor(worldPos.x / this.gridSize) * this.gridSize,
+            y: Math.floor(worldPos.y / this.gridSize) * this.gridSize
+        };
     }
 }

@@ -1,7 +1,7 @@
 import { Translations, type Language } from './Localization';
 
 export class ResourceManager {
-    private metal: number = 0;
+    private metal: number = 100;
     private biomass: number = 0;
     
     private energyProduced: number = 0;
@@ -27,14 +27,11 @@ export class ResourceManager {
         document.body.appendChild(this.uiElement);
         this.updateUI();
     }
-    return false;
-  }
 
     public setLanguage(lang: Language) {
         this.lang = lang;
         this.updateUI();
     }
-  }
 
     private t(key: string): string {
         return (Translations[this.lang] as any)[key] || key;

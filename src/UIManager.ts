@@ -31,6 +31,7 @@ export class UIManager {
     private showTutorialFlag: boolean = true;
 
     public onStartGame?: (skipTutorial: boolean) => void;
+    public onLanguageChange?: (lang: Language) => void;
     
     private items: ToolItem[] = [
         { type: 'wall', key: 'tool_wall', icon: '🧱', cost: 10 },
@@ -88,6 +89,10 @@ export class UIManager {
         else this.lang = 'en';
     }
 
+    public init() {
+        this.showGameHUD();
+    }
+
     public showGameHUD() {
         document.body.appendChild(this.container);
         document.body.appendChild(this.infoPanel);
@@ -95,6 +100,51 @@ export class UIManager {
         document.body.appendChild(this.hudCore);
         document.body.appendChild(this.hudTime);
         this.updateWave(1);
+    }
+
+    public hideMenu() {
+        this.mainMenu.style.display = 'none';
+    }
+
+    public showGameOver() {
+        const overlay = document.createElement('div');
+        Object.assign(overlay.style, {
+            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+            background: 'rgba(0,0,0,0.7)', zIndex: 10001,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            color: 'white', fontFamily: "'Segoe UI', sans-serif",
+            backdropFilter: 'blur(10px)', // Размытие фона
+            opacity: '0', transition: 'opacity 1s ease-in'
+        });
+        
+        overlay.innerHTML = `
+            <div style="text-align: center; transform: translateY(-20px);">
+                <h1 style="font-size: 80px; color: #e74c3c; margin: 0 0 40px 0; text-transform: uppercase; letter-spacing: 15px; font-weight: 900; text-shadow: 0 0 30px rgba(231, 76, 60, 0.5);">${this.t('game_over')}</h1>
+                <button id="restart-btn" style="padding: 18px 60px; font-size: 20px; cursor: pointer; background: transparent; color: #3498db; border: 2px solid #3498db; border-radius: 4px; text-transform: uppercase; letter-spacing: 4px; font-weight: bold; transition: all 0.3s;">${this.t('restart')}</button>
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+        
+        // Плавное появление
+        setTimeout(() => overlay.style.opacity = '1', 10);
+
+        const btn = overlay.querySelector('#restart-btn') as HTMLButtonElement;
+        btn.onmouseenter = () => {
+            btn.style.background = '#3498db';
+            btn.style.color = 'white';
+            btn.style.boxShadow = '0 0 20px rgba(52, 152, 219, 0.5)';
+        };
+        btn.onmouseleave = () => {
+            btn.style.background = 'transparent';
+            btn.style.color = '#3498db';
+            btn.style.boxShadow = 'none';
+        };
+        btn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.location.reload();
+        };
     }
 
     public showTutorial(onComplete: () => void) {
@@ -210,6 +260,7 @@ export class UIManager {
         this.createButtons(); 
         this.initCoreHUD(); 
         this.initPlayerHUD();
+        if (this.onLanguageChange) this.onLanguageChange(this.lang);
     }
 
     public setPaused(paused: boolean) {
@@ -288,6 +339,7 @@ export class UIManager {
         el.style.color = 'white';
         el.style.fontFamily = "'Segoe UI', sans-serif";
         el.style.pointerEvents = 'none';
+        el.style.zIndex = '1000';
     }
 
     private initTimeHUD() {
@@ -313,7 +365,7 @@ export class UIManager {
             position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)',
             display: 'flex', alignItems: 'center', gap: '10px',
             padding: '8px 15px', background: 'rgba(0,0,0,0.5)', borderRadius: '4px',
-            border: 'none', boxShadow: 'none'
+            border: 'none', boxShadow: 'none', zIndex: '1000'
         });
         this.hudCore.innerHTML = `
             <span style="font-weight: bold; color: #00FFFF; font-size: 14px; white-space: nowrap;">${this.t('hud_core_short')}</span>
@@ -330,6 +382,7 @@ export class UIManager {
         this.hudPlayer.style.width = '180px';
         this.applyPanelStyle(this.hudPlayer);
         this.hudPlayer.style.padding = '10px';
+        this.hudPlayer.style.zIndex = '1000';
         this.hudPlayer.innerHTML = `
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 11px; color: #aaa; font-weight: bold;">
                 <span>${this.t('hud_hp')}</span>
@@ -348,9 +401,10 @@ export class UIManager {
         this.container.style.transform = 'translateX(-50%)';
         this.container.style.display = 'flex';
         this.container.style.gap = '6px';
-        this.container.style.padding = '6px';
+        this.container.style.padding = '10px';
         this.applyPanelStyle(this.container);
         this.container.style.pointerEvents = 'auto'; 
+        this.container.style.zIndex = '1001';
     }
 
     private initInfoStyles() {
@@ -362,6 +416,7 @@ export class UIManager {
         this.infoPanel.style.padding = '10px';
         this.infoPanel.style.display = 'none';
         this.infoPanel.style.minWidth = '160px';
+        this.infoPanel.style.zIndex = '1000';
     }
 
     private createButtons() {

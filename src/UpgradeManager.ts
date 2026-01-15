@@ -15,20 +15,14 @@ export class UpgradeManager {
     public magnetLevel: number = 0;
     public thornsLevel: number = 0;
 
-    public onDamageUpgrade?: (val: number) => void;
-    public onMineSpeedUpgrade?: (val: number) => void;
-    public onMoveSpeedUpgrade?: (val: number) => void;
-    public onRegenUpgrade?: (val: number) => void;
-    public onMagnetUpgrade?: (val: number) => void;
-    public onThornsUpgrade?: (val: number) => void;
+    public onUpgrade?: (type: string) => void;
 
-    constructor(resourceManager: ResourceManager, uiManager: UIManager) {
+    constructor(uiManager: UIManager, resourceManager: ResourceManager) {
         this.resourceManager = resourceManager;
         this.uiManager = uiManager;
         
         this.container = document.createElement('div');
         this.initStyles();
-        // UI creation deferred to show() to pick up correct language
         this.hide();
         document.body.appendChild(this.container);
     }
@@ -43,14 +37,13 @@ export class UpgradeManager {
     }
 
     public show() {
-        this.createUI(); // Re-create UI every time to ensure language is fresh
+        this.createUI();
         this.container.style.display = 'flex';
     }
 
-  // Метод для установки действия при закрытии
-  public setOnClose(callback: () => void) {
-    this.onCloseCallback = callback;
-  }
+    public hide() {
+        this.container.style.display = 'none';
+    }
 
     private initStyles() {
         Object.assign(this.container.style, {
@@ -94,16 +87,15 @@ export class UpgradeManager {
         
         this.createUpgradeBtn(playerContent, this.t('upg_dmg'), () => this.damageLevel, () => {
             this.damageLevel++;
-            if (this.onDamageUpgrade) this.onDamageUpgrade(this.damageLevel);
+            if (this.onUpgrade) this.onUpgrade('damage');
         });
         this.createUpgradeBtn(playerContent, this.t('upg_speed'), () => this.moveSpeedLevel, () => {
             this.moveSpeedLevel++;
-            if (this.onMoveSpeedUpgrade) this.onMoveSpeedUpgrade(1 + (this.moveSpeedLevel - 1) * 0.1);
+            if (this.onUpgrade) this.onUpgrade('speed');
         });
         this.createUpgradeBtn(playerContent, this.t('upg_magnet'), () => this.magnetLevel, () => {
             this.magnetLevel++;
-            const radius = this.magnetLevel * 50 + 50; 
-            if (this.onMagnetUpgrade) this.onMagnetUpgrade(radius);
+            if (this.onUpgrade) this.onUpgrade('magnet');
         });
 
         const baseContent = document.createElement('div');
@@ -113,15 +105,15 @@ export class UpgradeManager {
 
         this.createUpgradeBtn(baseContent, this.t('upg_mine'), () => this.mineSpeedLevel, () => {
             this.mineSpeedLevel++;
-            if (this.onMineSpeedUpgrade) this.onMineSpeedUpgrade(1 + (this.mineSpeedLevel - 1) * 0.2);
+            if (this.onUpgrade) this.onUpgrade('mine');
         });
         this.createUpgradeBtn(baseContent, this.t('upg_regen'), () => this.regenLevel, () => {
             this.regenLevel++;
-            if (this.onRegenUpgrade) this.onRegenUpgrade(this.regenLevel);
+            if (this.onUpgrade) this.onUpgrade('regen');
         });
         this.createUpgradeBtn(baseContent, this.t('upg_thorns'), () => this.thornsLevel, () => {
             this.thornsLevel++;
-            if (this.onThornsUpgrade) this.onThornsUpgrade(this.thornsLevel * 5);
+            if (this.onUpgrade) this.onUpgrade('thorns');
         });
 
         contentContainer.appendChild(playerContent);
@@ -130,10 +122,12 @@ export class UpgradeManager {
         playerTabBtn.onclick = () => {
             playerContent.style.display = 'flex'; baseContent.style.display = 'none';
             playerTabBtn.style.borderBottom = '2px solid #9b59b6'; baseTabBtn.style.borderBottom = 'none';
+            playerTabBtn.style.color = 'white'; baseTabBtn.style.color = '#555';
         };
         baseTabBtn.onclick = () => {
             playerContent.style.display = 'none'; baseContent.style.display = 'flex';
             baseTabBtn.style.borderBottom = '2px solid #9b59b6'; playerTabBtn.style.borderBottom = 'none';
+            baseTabBtn.style.color = 'white'; playerTabBtn.style.color = '#555';
         };
 
         const closeBtn = document.createElement('button');
@@ -200,20 +194,9 @@ export class UpgradeManager {
             }
         };
 
-    btn.onclick = () => {
-      const cost = 50 * getLevel();
-      if (this.resourceManager.spendBiomass(cost)) {
-        onBuy();
         updateText();
-      } else {
-        btn.style.background = "red";
-        setTimeout(() => (btn.style.background = "#8e44ad"), 200);
-      }
-    };
-
-    updateText();
-    wrapper.appendChild(info);
-    wrapper.appendChild(btn);
-    parent.appendChild(wrapper);
-  }
+        wrapper.appendChild(info);
+        wrapper.appendChild(btn);
+        parent.appendChild(wrapper);
+    }
 }

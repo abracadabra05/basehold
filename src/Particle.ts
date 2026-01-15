@@ -1,6 +1,6 @@
 import { Container, Graphics, Ticker } from "pixi.js";
 
-export type ParticleType = 'explosion' | 'shell';
+export type ParticleType = 'explosion' | 'shell' | 'spark';
 
 export class Particle extends Container {
     private graphics: Graphics;
@@ -30,15 +30,15 @@ export class Particle extends Container {
 
         this.graphics.clear();
 
-        if (type === 'explosion') {
-            this.lifeTime = 30 + Math.random() * 20;
+        if (type === 'explosion' || type === 'spark') {
+            this.lifeTime = (type === 'spark' ? 10 : 30) + Math.random() * 20;
             this.maxLifeTime = this.lifeTime;
             
-            const size = 3 + Math.random() * 5;
+            const size = (type === 'spark' ? 2 : 3) + Math.random() * 5;
             this.graphics.rect(-size/2, -size/2, size, size).fill(color);
             
             const angle = Math.random() * Math.PI * 2;
-            const speed = 2 + Math.random() * 4;
+            const speed = (type === 'spark' ? 4 : 2) + Math.random() * 4;
             this.vx = Math.cos(angle) * speed;
             this.vy = Math.sin(angle) * speed;
             this.rotationSpeed = 0;

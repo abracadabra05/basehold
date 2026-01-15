@@ -1,23 +1,47 @@
 import { Container, Graphics, Ticker } from "pixi.js";
+import { GameConfig } from "./GameConfig";
 
 export class Player extends Container {
-    private baseSpeed: number = 5; 
-    public speedMultiplier: number = 1.0;
-
-    // Графика
-    private bodyContainer: Container; // Вращающаяся часть
+    public moveSpeed: number = GameConfig.PLAYER.BASE_SPEED;
+    public maxHp: number = GameConfig.PLAYER.START_HP;
+    public hp: number = GameConfig.PLAYER.START_HP;
+    public damage: number = 1;
+    
+    private bodyContainer: Container;
     private bodyGraphics: Graphics;
-    private hpBar: Graphics; // Неподвижная часть
+    private hpBar: Graphics;
+    
+    private mapSize: number;
+    private invulnerableTimer: number = 0;
+    private invulnerableTime: number = 60;
+    private fireCooldown: number = 0;
+    public fireRate: number = 10;
+    
+    public onShoot?: (x: number, y: number, tx: number, ty: number) => void;
+    public checkCollision?: (x: number, y: number) => boolean;
 
-    private checkCollision: (x: number, y: number) => boolean;
-    private onShoot: (x: number, y: number, tx: number, ty: number) => void;
+    constructor(mapSize: number) {
+        super();
+        this.mapSize = mapSize;
+        
+        this.bodyContainer = new Container();
+        this.addChild(this.bodyContainer);
 
-  public maxHp: number = 10;
-  public hp: number = 10;
-  private invulnerableTimer: number = 0;
-  private invulnerableTime: number = 60;
-  private fireCooldown: number = 0;
-  private fireRate: number = 10;
+        this.bodyGraphics = new Graphics();
+        this.bodyGraphics.circle(0, 0, 16).fill(0xFFD700); 
+        this.bodyGraphics.stroke({ width: 2, color: 0xDAA520 }); 
+        this.bodyGraphics.rect(10, -6, 18, 12).fill(0x333333); 
+        this.bodyGraphics.stroke({ width: 1, color: 0x000000 });
+        this.bodyContainer.addChild(this.bodyGraphics);
+
+        this.hpBar = new Graphics();
+        this.hpBar.y = -30; 
+        this.addChild(this.hpBar);
+        this.updateHpBar();
+        
+        this.x = mapSize / 2;
+        this.y = mapSize / 2;
+    }
 
     public get rotationAngle(): number {
         return this.bodyContainer.rotation;
@@ -27,56 +51,22 @@ export class Player extends Container {
         this.bodyContainer.rotation = val;
     }
 
-    constructor(
-        checkCollision: (x: number, y: number) => boolean,
-        onShoot: (x: number, y: number, tx: number, ty: number) => void
-    ) {
-        super();
-        this.checkCollision = checkCollision;
-        this.onShoot = onShoot;
-        
-        // 1. Создаем контейнер для тела, который будем вращать
-        this.bodyContainer = new Container();
-        this.addChild(this.bodyContainer);
-
-        // 2. Рисуем тело в этом контейнере
-        this.bodyGraphics = new Graphics();
-        
-        // КРУГЛОЕ ТЕЛО (Радиус 16)
-        this.bodyGraphics.circle(0, 0, 16).fill(0xFFD700); 
-        this.bodyGraphics.stroke({ width: 2, color: 0xDAA520 }); 
-
-        // ПУШКА (Сдвинута вперед)
-        this.bodyGraphics.rect(10, -6, 18, 12).fill(0x333333); 
-        this.bodyGraphics.stroke({ width: 1, color: 0x000000 });
-
-        this.bodyContainer.addChild(this.bodyGraphics);
-
-        // 3. Полоска HP (Добавляем в this, а не в bodyContainer, чтобы не вращалась)
-        this.hpBar = new Graphics();
-        this.hpBar.y = -30; 
-        this.addChild(this.hpBar);
-        this.updateHpBar();
-    }
-
     public lookAt(targetX: number, targetY: number) {
-        // Вращаем ТОЛЬКО контейнер тела
         const angle = Math.atan2(targetY - this.y, targetX - this.x);
         this.bodyContainer.rotation = angle;
     }
-  }
 
     public tryShoot(targetX: number, targetY: number) {
         if (this.fireCooldown <= 0) {
-            // Точка вылета пули (с учетом поворота)
             const angle = this.bodyContainer.rotation;
             const barrelLen = 25;
             const spawnX = this.x + Math.cos(angle) * barrelLen;
             const spawnY = this.y + Math.sin(angle) * barrelLen;
 
-            this.onShoot(spawnX, spawnY, targetX, targetY);
+            if (this.onShoot) {
+                this.onShoot(spawnX, spawnY, targetX, targetY);
+            }
             
-            // Отдача (визуальная)
             this.bodyGraphics.x = -5;
             this.fireCooldown = this.fireRate; 
         }
@@ -84,22 +74,20 @@ export class Player extends Container {
 
     public handleMovement(vector: {x: number, y: number}, deltaTime: number) {
         if (vector.x !== 0 || vector.y !== 0) {
-            const currentSpeed = this.baseSpeed * this.speedMultiplier;
+            const moveX = vector.x * this.moveSpeed * deltaTime;
+            const moveY = vector.y * this.moveSpeed * deltaTime;
 
-            // Вектор уже нормализован InputSystem
-            const moveX = vector.x * currentSpeed * deltaTime;
-            const moveY = vector.y * currentSpeed * deltaTime;
-
-            // Коллизия (проверяем по кругу)
             if (!this.isColliding(this.x + moveX, this.y)) this.x += moveX;
             if (!this.isColliding(this.x, this.y + moveY)) this.y += moveY;
+            
+            this.x = Math.max(0, Math.min(this.mapSize, this.x));
+            this.y = Math.max(0, Math.min(this.mapSize, this.y));
         }
     }
 
     public update(ticker: Ticker) {
         if (this.fireCooldown > 0) this.fireCooldown -= ticker.deltaTime;
 
-        // Плавное возвращение отдачи
         if (this.bodyGraphics.x < 0) {
             this.bodyGraphics.x += 0.5 * ticker.deltaTime;
             if (this.bodyGraphics.x > 0) this.bodyGraphics.x = 0;
@@ -111,8 +99,6 @@ export class Player extends Container {
         } else {
             this.alpha = 1.0;
         }
-        
-        // Movement logic moved to handleMovement called from Game.ts
     }
 
     public takeDamage(amount: number) {
@@ -125,29 +111,22 @@ export class Player extends Container {
     private updateHpBar() {
         this.hpBar.clear();
         this.hpBar.rect(-20, -4, 40, 6).fill(0x000000);
-        
         const pct = Math.max(0, this.hp / this.maxHp);
-        const width = 38 * pct; 
-        
-        let color = 0x2ecc71;
-        if (pct < 0.5) color = 0xf1c40f;
-        if (pct < 0.25) color = 0xe74c3c;
-
-        this.hpBar.rect(-19, -3, width, 4).fill(color);
+        const color = pct > 0.5 ? 0x2ecc71 : pct > 0.25 ? 0xf1c40f : 0xe74c3c;
+        this.hpBar.rect(-19, -3, 38 * pct, 4).fill(color);
     }
 
     private isColliding(newX: number, newY: number): boolean {
-        const r = 7; 
-        const d = r * 0.707;
-
-        return this.checkCollision(newX + r, newY) || 
-               this.checkCollision(newX - r, newY) || 
-               this.checkCollision(newX, newY + r) || 
-               this.checkCollision(newX, newY - r) || 
-               
-               this.checkCollision(newX + d, newY + d) || 
-               this.checkCollision(newX + d, newY - d) || 
-               this.checkCollision(newX - d, newY + d) || 
-               this.checkCollision(newX - d, newY - d);
+        if (!this.checkCollision) return false;
+        // Используем радиус 14 для коллизии игрока (чуть меньше визуального 16)
+        const r = 14; 
+        const steps = 8; // Проверяем 8 точек по кругу
+        for (let i = 0; i < steps; i++) {
+            const angle = (i / steps) * Math.PI * 2;
+            const px = newX + Math.cos(angle) * r;
+            const py = newY + Math.sin(angle) * r;
+            if (this.checkCollision(px, py)) return true;
+        }
+        return false;
     }
 }

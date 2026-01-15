@@ -54,7 +54,6 @@ export class Game {
     private manualMiningTimer: number = 0;
     private isGameOver: boolean = false;
     private isGameStarted: boolean = false; 
-    private currentDamage: number = 1;
     private currentMineMultiplier: number = 1;
     
     private gridSize = GameConfig.GAME.GRID_SIZE;
@@ -87,111 +86,102 @@ export class Game {
     }
 
     public init() {
+        // 1. Сначала базовые системы без зависимостей
         this.inputSystem = new InputSystem(this.app.stage);
         this.inputSystem.init(this.app.screen);
-        this.inputSystem.onSpacePressed = () => this.waveManager.skipWait();
-        this.inputSystem.onToggleBuildMode = () => {
-             this.buildingSystem.setTool('wall');
-        };
-
+        
         this.soundManager = new SoundManager();
         this.worldBoundary = new WorldBoundary(this.mapSizePixel);
         this.world.addChild(this.worldBoundary);
+        
+        // 2. Генерация мира
         this.drawGrid();
-        
-        this.resourceManager = new ResourceManager();
-        this.resourceManager.addMetal(100); 
         this.generateResources();
-        this.generateRocks(); 
+        this.generateRocks();
 
-        this.uiManager = new UIManager((tool) => { this.buildingSystem.setTool(tool); });
-
-        this.upgradeManager = new UpgradeManager(this.resourceManager, this.uiManager);
-        this.upgradeManager.onDamageUpgrade = (val) => { this.currentDamage = val; this.soundManager.playBuild(); };
-        this.upgradeManager.onMineSpeedUpgrade = (mul) => { this.currentMineMultiplier = mul; this.soundManager.playBuild(); };
-        this.upgradeManager.onMoveSpeedUpgrade = (mul) => { this.player.speedMultiplier = mul; this.soundManager.playBuild(); };
-        this.upgradeManager.onRegenUpgrade = (val) => { this.buildingSystem.setRegenAmount(val); this.soundManager.playBuild(); };
-        this.upgradeManager.onThornsUpgrade = (val) => { this.buildingSystem.setThornsDamage(val); this.soundManager.playBuild(); };
-        this.upgradeManager.onMagnetUpgrade = (val) => { this.magnetRadius = val; this.soundManager.playBuild(); };
-
-        this.upgradeManager.setOnClose(() => {
-            this.waveManager.resume();
-            this.uiManager.setPaused(false);
-            this.buildingSystem.setPaused(false);
-        });
-
-        this.buildingSystem = new BuildingSystem(this.app, this.world);
-        this.buildingSystem.setSoundManager(this.soundManager);
-        this.buildingSystem.setResources(this.resources, this.resourceManager);
-        this.buildingSystem.setRocks(this.rocks);
+        // 3. Системы управления ресурсами и UI
+                this.resourceManager = new ResourceManager();
+                this.uiManager = new UIManager((tool) => this.buildingSystem.setTool(tool));
+                this.uiManager.init();
+                this.uiManager.onLanguageChange = (lang) => this.resourceManager.setLanguage(lang);
+                this.resourceManager.setLanguage(this.uiManager.currentLang);
         
-        this.buildingSystem.onBuildingDestroyed = (x, y) => {
-            this.createExplosion(x, y, 0x888888, 20);
-            this.camera.shake(5, 0.2); 
-        };
-
-        this.uiManager.onStartGame = (skipTutorial) => {
-            // Update resource manager language
-            this.resourceManager.setLanguage(this.uiManager.currentLang);
-            
-            if (skipTutorial) {
-                this.isGameStarted = true;
-                this.uiManager.showGameHUD();
-            } else {
-                this.uiManager.showTutorial(() => {
-                    this.isGameStarted = true;
-                    this.uiManager.showGameHUD();
+                // 4. BuildingSystem (нужна для игрока и врагов)
+                this.buildingSystem = new BuildingSystem(this.app, this.world);
+                this.buildingSystem.setSoundManager(this.soundManager);
+                this.buildingSystem.setResources(this.resources, this.resourceManager);
+                this.buildingSystem.setRocks(this.rocks);
+                this.buildingSystem.onBuildingDestroyed = (x, y) => {
+                    this.createExplosion(x + 20, y + 20, 0x555555, 15);
+                };
+        
+                // 5. Игрок
+                this.player = new Player(this.mapSizePixel);
+                this.world.addChild(this.player);
+                this.player.onShoot = (sx, sy, tx, ty) => {
+                    this.spawnProjectile(sx, sy, tx, ty, this.player.damage);
+                    this.soundManager.playShoot(); // Добавил звук
+                    this.spawnShell(sx, sy);       // Добавил вылет гильзы
+                };
+                this.player.checkCollision = (x, y) => this.buildingSystem.isOccupied(x, y);
+                
+                // Ставим игрока рядом с центром
+                const coreGridX = Math.floor((this.mapSizePixel / 2) / 40) * 40;
+                const coreGridY = Math.floor((this.mapSizePixel / 2) / 40) * 40;
+                this.player.x = coreGridX + 20; 
+                this.player.y = coreGridY + 80;
+        
+                // 6. Камера и привязка игрока
+                this.camera = new Camera(this.world, this.app.screen);
+                this.camera.follow(this.player);
+                this.buildingSystem.setPlayer(this.player);
+        
+                // 7. Ядро
+                this.coreBuilding = this.buildingSystem.spawnCore(coreGridX, coreGridY);
+        
+                // 8. Магазин и волны
+                this.upgradeManager = new UpgradeManager(this.uiManager, this.resourceManager);
+                this.upgradeManager.onUpgrade = (type: string) => {
+                    if (type === 'damage') this.player.damage += 1;
+                    if (type === 'mine') this.currentMineMultiplier += 0.5;
+                    if (type === 'speed') this.player.moveSpeed += 0.5;
+                    if (type === 'regen') this.buildingSystem.setRegenAmount(1);
+                    if (type === 'thorns') this.buildingSystem.setThornsDamage(1);
+                    if (type === 'magnet') this.magnetRadius += 100;
+                };
+        
+                this.waveManager = new WaveManager(
+                    this.resourceManager,
+                    (waveNum: number, count: number) => { 
+                        if (!this.isGameOver && this.isGameStarted) {
+                            this.spawnWave(waveNum, count); 
+                            this.uiManager.updateWave(waveNum);
+                        }
+                    },
+                    () => { 
+                        this.soundManager.playBuild();
+                        this.upgradeManager.show();
+                        this.uiManager.setPaused(true);
+                        this.buildingSystem.setPaused(true);
+                    }
+                );
+                
+                this.upgradeManager.setOnClose(() => {
+                    this.uiManager.setPaused(false);
+                    this.buildingSystem.setPaused(false);
+                    this.waveManager.resume();
                 });
-            }
-        };
-
-        const checkCollision = (x: number, y: number): boolean => {
-            if (this.buildingSystem.isOccupied(x, y)) return true;
-            for (const rock of this.rocks) {
-                const dx = x - rock.x;
-                const dy = y - rock.y;
-                if (dx*dx + dy*dy < rock.radius * rock.radius) return true;
-            }
-            return false;
-        };
-
-        this.player = new Player(
-            checkCollision,
-            (x, y, tx, ty) => { 
-                this.spawnProjectile(x, y, tx, ty); 
-                this.soundManager.playShoot();
-                this.spawnShell(x, y); 
-            }
-        );
-        this.player.x = this.mapSizePixel / 2;
-        this.player.y = this.mapSizePixel / 2;
         
-        const coreX = Math.floor(this.player.x / 40) * 40;
-        const coreY = Math.floor(this.player.y / 40) * 40;
-        this.coreBuilding = this.buildingSystem.spawnCore(coreX, coreY);
-        this.player.x += 60;
-        this.world.addChild(this.player);
-        this.buildingSystem.setPlayer(this.player);
+                this.inputSystem.onSpacePressed = () => {
+                    if (this.waveManager) this.waveManager.skipWait();
+                };
+        
+                this.uiManager.onStartGame = (skipTutorial) => {
+            if (skipTutorial) this.startGame();
+            else this.uiManager.showTutorial(() => this.startGame());
+        };
 
-        this.camera = new Camera(this.world, this.app.screen);
-        this.camera.follow(this.player);
-
-        this.waveManager = new WaveManager(
-            this.resourceManager, 
-            (waveNum, count) => { 
-                if (!this.isGameOver && this.isGameStarted) {
-                    this.spawnWave(waveNum, count); 
-                    this.uiManager.updateWave(waveNum);
-                }
-            },
-            () => { 
-                this.soundManager.playBuild();
-                this.upgradeManager.show();
-                this.uiManager.setPaused(true);
-                this.buildingSystem.setPaused(true);
-            }
-        );
-
+        // 9. Освещение и основной цикл
         this.lightingSystem = new LightingSystem();
         this.lightingSystem.darknessOverlay.zIndex = 9999;
         this.app.stage.sortableChildren = true;
@@ -228,11 +218,6 @@ export class Game {
             this.camera.update(ticker);
             
             this.buildingSystem.update(ticker, this.enemies, (x, y, tx, ty, damage) => {
-                if (damage > 20) { 
-                    if (!this.resourceManager.consumeCharge(50)) {
-                    }
-                }
-                
                 this.spawnProjectile(x, y, tx, ty, damage);
                 this.soundManager.playTurretShoot();
                 this.spawnShell(x, y); 
@@ -257,7 +242,7 @@ export class Game {
 
             for (const b of this.buildingSystem.activeBuildings) {
                 const bPos = this.world.toGlobal({x: b.x + 20, y: b.y + 20});
-                if (['turret', 'sniper', 'minigun'].includes(b.buildingType)) {
+                if (['turret', 'sniper', 'minigun', 'laser'].includes(b.buildingType)) {
                     this.lightingSystem.renderLight(bPos.x, bPos.y, 450, b.rotationAngle, 0.8);
                 } else if (b.buildingType === 'laser') {
                     this.lightingSystem.renderLight(bPos.x, bPos.y, 600, b.rotationAngle, 0.3);
@@ -270,20 +255,21 @@ export class Game {
             
             this.uiManager.updateTime(this.lightingSystem.cycleProgress);
 
-            const info = this.buildingSystem.getBuildingInfoAt(worldPos.x, worldPos.y);
-            this.uiManager.showBuildingInfo(info);
-
             this.uiManager.updateHUD(
                 { hp: this.player.hp, maxHp: this.player.maxHp },
                 (this.coreBuilding && !this.coreBuilding.isDestroyed) ? { hp: this.coreBuilding.hp, maxHp: this.coreBuilding.maxHp } : null
             );
 
-            if (this.coreBuilding && this.coreBuilding.isDestroyed) {
+            if ((this.coreBuilding && this.coreBuilding.isDestroyed) || this.player.hp <= 0) {
                 this.gameOver();
             }
         });
     }
-  }
+
+    public startGame() {
+        this.isGameStarted = true;
+        this.uiManager.hideMenu();
+    }
 
     public spawnFloatingText(x: number, y: number, text: string, color: string = '#ffffff', size: number = 16) {
         const ft = new FloatingText(x, y, text, color, size);
@@ -306,9 +292,7 @@ export class Game {
         for (let i = 0; i < count; i++) {
             this.createParticle(x, y, color, 'explosion');
         }
-      }
     }
-  }
 
     private updateParticles(ticker: Ticker) {
         for (let i = this.particles.length - 1; i >= 0; i--) {
@@ -382,104 +366,81 @@ export class Game {
                 else type = 'basic'; 
             }
 
-        this.world.removeChild(enemy);
-        this.enemies.splice(i, 1);
-      }
+            const angle = Math.random() * Math.PI * 2;
+            this.spawnEnemy(
+                this.coreBuilding.x + Math.cos(angle) * spawnRadius,
+                this.coreBuilding.y + Math.sin(angle) * spawnRadius,
+                type
+            );
+        }
     }
-    for (let i = this.projectiles.length - 1; i >= 0; i--) {
-      if (this.projectiles[i].shouldDestroy) {
-        this.world.removeChild(this.projectiles[i]);
-        this.projectiles.splice(i, 1);
-      }
-    }
-  }
 
     public spawnEnemy(x: number, y: number, type: EnemyType) {
-        const target = (this.coreBuilding && !this.coreBuilding.isDestroyed) ? this.coreBuilding : this.player;
-        const enemy = new Enemy(target, this.buildingSystem.getBuildingAt.bind(this.buildingSystem), type);
-        enemy.x = x; enemy.y = y;
+        const enemy = new Enemy(this.coreBuilding, this.player, (ex, ey) => {
+            return this.buildingSystem.getBuildingAt(ex, ey);
+        }, type);
         
-        enemy.onShoot = (sx, sy, tx, ty, dmg) => {
-            this.spawnProjectile(sx, sy, tx, ty, dmg, true); 
-            this.soundManager.playShoot();
+        enemy.x = x;
+        enemy.y = y;
+        
+        enemy.onShoot = (sx, sy, tx, ty, dmg) => this.spawnProjectile(sx, sy, tx, ty, dmg, true);
+        enemy.onHit = () => {
+            this.soundManager.playEnemyHit();
+            this.camera.shake(3, 0.1); // Чуть меньше тряска для зданий
         };
-        
-        enemy.onExplode = (ex, ey, dmg, radius) => {
-            this.createExplosion(ex, ey, 0xFF4500, 20); 
-            this.camera.shake(10, 0.5);
-            this.soundManager.playHit();
+        enemy.onExplode = (ex, ey, dmg, rad) => {
+            this.createExplosion(ex, ey, 0xffaa00, 20);
+            this.soundManager.playExplosion();
             
-            const pdx = this.player.x - ex;
-            const pdy = this.player.y - ey;
-            if (pdx*pdx + pdy*pdy < radius*radius) {
-                this.player.takeDamage(dmg);
-            }
+            const dx = this.player.x - ex;
+            const dy = this.player.y - ey;
+            if (dx*dx + dy*dy < rad*rad) this.player.takeDamage(dmg);
             
-            for (const b of this.buildingSystem.activeBuildings) {
-                const bdx = (b.x + 20) - ex;
-                const bdy = (b.y + 20) - ey;
-                if (bdx*bdx + bdy*bdy < radius*radius) {
-                    b.takeDamage(dmg);
-                }
-            }
+            this.buildingSystem.activeBuildings.forEach(b => {
+                const bdx = b.x + 20 - ex;
+                const bdy = b.y + 20 - ey;
+                if (bdx*bdx + bdy*bdy < rad*rad) b.takeDamage(dmg);
+            });
         };
 
         this.world.addChild(enemy);
         this.enemies.push(enemy);
     }
-    
-    private spawnProjectile(x: number, y: number, tx: number, ty: number, damage?: number, isEnemy: boolean = false) {
-        const dmg = damage !== undefined ? damage : this.currentDamage;
+
+    public spawnProjectile(x: number, y: number, tx: number, ty: number, damage: number = 1, isEnemy: boolean = false) {
         const p = this.projectilePool.get();
-        p.init(x, y, tx, ty, dmg, isEnemy);
+        p.init(x, y, tx, ty, damage, isEnemy);
         this.world.addChild(p);
         this.projectiles.push(p);
     }
-    
+
     private updateProjectiles(ticker: Ticker) {
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const p = this.projectiles[i];
             p.update(ticker);
-            
-            let hit = false;
-            
+
             if (p.isEnemy) {
-                const pdx = p.x - this.player.x;
-                const pdy = p.y - this.player.y;
-                if (pdx*pdx + pdy*pdy < 15*15) { 
+                const dx = this.player.x - p.x;
+                const dy = this.player.y - p.y;
+                if (Math.sqrt(dx * dx + dy * dy) < 20) {
                     this.player.takeDamage(p.damage);
-                    hit = true;
-                    this.spawnFloatingText(this.player.x, this.player.y, `-${p.damage}`, '#FF0000');
+                    p.shouldDestroy = true;
                 }
-                else {
-                    const b = this.buildingSystem.getBuildingAt(p.x, p.y);
-                    if (b) {
-                        b.takeDamage(p.damage);
-                        hit = true;
-                        this.spawnFloatingText(b.x+20, b.y, `-${p.damage}`, '#FF0000');
-                    }
-                }
-            } 
-            else {
+            } else {
                 for (const enemy of this.enemies) {
-                    if (enemy.isDead) continue;
-                    const dx = p.x - enemy.x;
-                    const dy = p.y - enemy.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (dist < enemy.hitboxRadius + 4) {
+                    const dx = enemy.x - p.x;
+                    const dy = enemy.y - p.y;
+                    if (Math.sqrt(dx * dx + dy * dy) < enemy.hitboxRadius) {
                         enemy.takeDamage(p.damage);
-                        const isCrit = p.damage > 5;
-                        const color = isCrit ? '#e74c3c' : '#ffffff';
-                        const size = isCrit ? 24 : 14;
-                        this.spawnFloatingText(enemy.x, enemy.y, Math.floor(p.damage).toString(), color, size);
-                        hit = true;
-                        break; 
+                        this.spawnFloatingText(enemy.x, enemy.y - 20, Math.floor(p.damage).toString(), '#ffffff', 14);
+                        p.shouldDestroy = true;
+                        this.createParticle(p.x, p.y, 0xffffff, 'spark');
+                        break;
                     }
                 }
             }
 
-            if (hit || p.shouldDestroy) {
+            if (p.shouldDestroy) {
                 this.world.removeChild(p);
                 this.projectilePool.return(p);
                 this.projectiles.splice(i, 1);
@@ -492,12 +453,12 @@ export class Game {
             const dx = this.player.x - enemy.x;
             const dy = this.player.y - enemy.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 25) {
-                this.player.takeDamage(1);
-                this.soundManager.playHit();
-                this.spawnFloatingText(this.player.x, this.player.y, "-1", "#FF0000", 20);
-                this.camera.shake(10, 0.3);
-                if (this.player.hp <= 0) this.gameOver();
+            if (dist < 30) {
+                if (this.player.hp > 0) {
+                    this.player.takeDamage(1); 
+                    this.soundManager.playEnemyHit();
+                    this.camera.shake(5, 0.1); // Небольшая тряска
+                }
             }
         }
     }
@@ -505,108 +466,77 @@ export class Game {
     private checkVoidDamage(ticker: Ticker) {
         const x = this.player.x;
         const y = this.player.y;
-        if (x < 0 || y < 0 || x > this.mapSizePixel || y > this.mapSizePixel) {
+        if (x < 0 || x > this.mapSizePixel || y < 0 || y > this.mapSizePixel) {
             this.voidDamageTimer += ticker.deltaTime;
-            if (this.voidDamageTimer >= GameConfig.GAME.VOID_DAMAGE_INTERVAL) {
+            if (this.voidDamageTimer >= 10) {
                 this.voidDamageTimer = 0;
-                this.player.takeDamage(1);
-                this.soundManager.playHit();
-                this.spawnFloatingText(this.player.x, this.player.y, "-1", "#FF0000", 20);
-                this.camera.shake(5, 0.2);
-                if (this.player.hp <= 0) this.gameOver();
+                this.player.takeDamage(5);
+                this.spawnFloatingText(this.player.x, this.player.y - 20, this.t('void_damage'), '#ff0000');
             }
-        } else {
-            this.voidDamageTimer = 0;
         }
     }
 
     private gameOver() {
+        if (this.isGameOver) return;
         this.isGameOver = true;
+
+        // Взрыв игрока
+        this.createExplosion(this.player.x, this.player.y, 0xffaa00, 40);
+        this.createExplosion(this.player.x, this.player.y, 0xff0000, 20);
+        
+        // Тряска камеры
+        this.camera.shake(15, 0.5);
+        
+        this.player.visible = false;
         this.soundManager.playGameOver();
         
-        const overlay = document.createElement('div');
-        Object.assign(overlay.style, {
-            position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
-            background: 'rgba(5, 5, 10, 0.95)',
-            backdropFilter: 'blur(15px)',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            color: 'white', zIndex: '5000', fontFamily: "'Segoe UI', sans-serif"
-        });
-
-        const waves = Math.max(0, this.waveManager.waveCount - 1);
-
-        overlay.innerHTML = `
-            <h1 style="font-size: 100px; margin: 0; color: #ff4757; text-transform: uppercase; letter-spacing: 10px; font-weight: 900; text-shadow: 0 0 50px rgba(255, 71, 87, 0.5);">${this.t('game_over')}</h1>
-            <div style="font-size: 24px; color: #bdc3c7; margin: 20px 0 60px 0; text-transform: uppercase; letter-spacing: 4px; font-weight: 300;">
-                ${this.t('waves_survived')} <span style="color: #fff; font-weight: bold; font-size: 40px; text-shadow: 0 0 20px white;">${waves}</span>
-            </div>
-            <button id="restart-btn" style="
-                padding: 20px 80px; font-size: 20px; font-weight: 900; cursor: pointer; 
-                background: transparent; color: #ff4757; border: 3px solid #ff4757; 
-                border-radius: 6px; text-transform: uppercase; letter-spacing: 5px;
-                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            ">${this.t('restart')}</button>
-        `;
-
-        document.body.appendChild(overlay);
-        const btn = document.getElementById('restart-btn');
-        if (btn) {
-            btn.onclick = () => location.reload();
-            btn.onmouseenter = () => { btn.style.background = '#ff4757'; btn.style.color = '#fff'; btn.style.transform = 'scale(1.05)'; btn.style.boxShadow = '0 0 40px rgba(255, 71, 87, 0.6)'; };
-            btn.onmouseleave = () => { btn.style.background = 'transparent'; btn.style.color = '#ff4757'; btn.style.transform = 'scale(1)'; btn.style.boxShadow = 'none'; };
-        }
+        // Небольшая задержка перед меню для эффекта
+        setTimeout(() => {
+            this.uiManager.showGameOver();
+        }, 1000);
     }
 
     private handleManualMining(ticker: Ticker) {
         let onResource = false;
         const halfGrid = 20;
+        
         for (const res of this.resources) {
-            const resourceCenterX = res.x + halfGrid;
-            const resourceCenterY = res.y + halfGrid;
-            const dx = this.player.x - resourceCenterX;
-            const dy = this.player.y - resourceCenterY;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 30) {
-                if (!this.buildingSystem.isOccupied(res.x, res.y)) {
-                    onResource = true;
-                    break;
+            const dx = this.player.x - (res.x + halfGrid);
+            const dy = this.player.y - (res.y + halfGrid);
+            if (Math.sqrt(dx * dx + dy * dy) < 60) {
+                onResource = true;
+                this.manualMiningTimer += ticker.deltaTime;
+                if (this.manualMiningTimer >= 30 / this.currentMineMultiplier) {
+                    this.manualMiningTimer = 0;
+                    const amount = 1;
+                    this.resourceManager.addMetal(amount);
+                    this.soundManager.playMine();
+                    this.spawnFloatingText(res.x + 20, res.y, `+${amount}`, '#3498db', 14);
+                    
+                    this.createExplosion(this.player.x, this.player.y, 0xffff00, 5);
+                    this.player.scale.set(1.1);
+                    setTimeout(() => this.player.scale.set(1.0), 50);
                 }
+                break;
             }
         }
-        if (onResource) {
-            this.manualMiningTimer += ticker.deltaTime;
-            if (this.manualMiningTimer >= (30 / this.currentMineMultiplier)) {
-                this.manualMiningTimer = 0;
-                this.resourceManager.addMetal(1);
-                this.soundManager.playMine();
-                this.createExplosion(this.player.x, this.player.y, 0xFFFF00, 5);
-                this.spawnFloatingText(this.player.x, this.player.y - 30, "+1", "#FFFF00", 16);
-                this.player.scale.set(1.1);
-                setTimeout(() => this.player.scale.set(1.0), 50);
-            }
-        } else {
+        
+        if (!onResource) {
             this.manualMiningTimer = 0;
         }
     }
 
     private cleanUp() {
         for (let i = this.enemies.length - 1; i >= 0; i--) {
-            if (this.enemies[i].isDead) {
-                const enemy = this.enemies[i];
-                let reward = 5;
-                let explosionColor = 0xAA0000;
-                let explosionSize = 15;
-                const configKey = enemy.type.toUpperCase() as keyof typeof GameConfig.ENEMIES;
-                const stats = GameConfig.ENEMIES[configKey];
-                if (stats) reward = stats.reward;
-                if (enemy.type === 'tank') { this.camera.shake(5, 0.2); }
-                if (enemy.type === 'boss') {
-                    explosionColor = 0x9b59b6; explosionSize = 50; this.camera.shake(20, 1.0);
+            const enemy = this.enemies[i];
+            if (enemy.isDead) {
+                if (Math.random() < 0.4) {
+                    const drop = new DropItem(enemy.x, enemy.y, 1);
+                    this.world.addChild(drop);
+                    this.dropItems.push(drop);
                 }
-                const drop = new DropItem(enemy.x, enemy.y, reward);
-                this.world.addChild(drop);
-                this.dropItems.push(drop);
-                this.createExplosion(enemy.x, enemy.y, explosionColor, explosionSize);
+                this.createExplosion(enemy.x, enemy.y, 0xff0000, 10);
+                this.soundManager.playExplosion();
                 this.world.removeChild(enemy);
                 this.enemies.splice(i, 1);
             }
@@ -622,7 +552,9 @@ export class Game {
             let ry = Math.floor(Math.random() * tiles) * gridSize;
             const centerX = this.mapSizePixel / 2;
             const centerY = this.mapSizePixel / 2;
-            if (Math.abs(rx - centerX) < 200 && Math.abs(ry - centerY) < 200) continue;
+            if (Math.abs(rx - centerX) < 200 && Math.abs(ry - centerY) < 200) {
+                i--; continue;
+            }
             node.x = rx; node.y = ry;
             this.world.addChild(node);
             this.resources.push(node);
@@ -637,14 +569,18 @@ export class Game {
             let ry = Math.random() * this.mapSizePixel;
             const centerX = this.mapSizePixel / 2;
             const centerY = this.mapSizePixel / 2;
-            if (Math.abs(rx - centerX) < 300 && Math.abs(ry - centerY) < 300) continue;
+            if (Math.abs(rx - centerX) < 300 && Math.abs(ry - centerY) < 300) {
+                i--; continue;
+            }
             let overlap = false;
             for (const res of this.resources) {
                 if (Math.abs(res.x - rx) < 50 && Math.abs(res.y - ry) < 50) {
                     overlap = true; break;
                 }
             }
-            if (overlap) continue;
+            if (overlap) {
+                i--; continue;
+            }
             rock.x = rx; rock.y = ry;
             this.world.addChild(rock);
             this.rocks.push(rock);
@@ -656,8 +592,14 @@ export class Game {
         const tiles = this.mapWidthTiles;
         const color = 0x444444;
         const g = new Graphics();
-        for (let x = 0; x <= tiles; x++) { g.rect(x * gridSize, 0, 1, tiles * gridSize); g.fill(color); }
-        for (let y = 0; y <= tiles; y++) { g.rect(0, y * gridSize, tiles * gridSize, 1); g.fill(color); }
+        for (let x = 0; x <= tiles; x++) { 
+            g.rect(x * gridSize, 0, 1, tiles * gridSize); 
+            g.fill(color); 
+        }
+        for (let y = 0; y <= tiles; y++) { 
+            g.rect(0, y * gridSize, tiles * gridSize, 1); 
+            g.fill(color); 
+        }
         this.world.addChild(g);
     }
 }

@@ -1,121 +1,120 @@
 export class SoundManager {
-  private ctx: AudioContext;
-  private masterGain: GainNode;
-  private compressor: DynamicsCompressorNode;
-  private isMuted: boolean = false;
+    private ctx: AudioContext;
+    private masterGain: GainNode;
+    private compressor: DynamicsCompressorNode;
+    private isMuted: boolean = false;
+    
+    // Таймеры для предотвращения наложения звуков
+    private lastSoundTime: Map<string, number> = new Map();
+    private minInterval: number = 0.03; // Минимум 30мс между любыми звуками
 
-  // Для ограничения частоты звуков (чтобы не было каши)
-  private lastHitTime: number = 0;
+    constructor() {
+        // @ts-ignore
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        this.ctx = new AudioContextClass();
 
-  constructor() {
-    // @ts-ignore
-    const AudioContextClass =
-      window.AudioContext || (window as any).webkitAudioContext;
-    this.ctx = new AudioContextClass();
+        // 1. Компрессор - "прижимает" звук, если он становится слишком громким
+        this.compressor = this.ctx.createDynamicsCompressor();
+        this.compressor.threshold.value = -15; // Раньше начинаем сжимать
+        this.compressor.knee.value = 30;
+        this.compressor.ratio.value = 12; 
+        this.compressor.attack.value = 0.003; // Быстрая реакция на пик
+        this.compressor.release.value = 0.25;
 
-    // 1. Создаем компрессор (он будет "прижимать" громкие звуки)
-    this.compressor = this.ctx.createDynamicsCompressor();
-    this.compressor.threshold.value = -10; // Начинаем сжимать, если громче -10dB
-    this.compressor.knee.value = 40;
-    this.compressor.ratio.value = 12; // Сильное сжатие
-    this.compressor.attack.value = 0;
-    this.compressor.release.value = 0.25;
+        // 2. Главная громкость
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.3;
 
-    // 2. Главная громкость
-    this.masterGain = this.ctx.createGain();
-    this.masterGain.gain.value = 0.3;
-
-    // 3. Цепь: Звук -> MasterGain -> Compressor -> Динамики
-    this.masterGain.connect(this.compressor);
-    this.compressor.connect(this.ctx.destination);
-  }
-
-  private playTone(
-    freq: number,
-    type: OscillatorType,
-    duration: number,
-    volume: number = 0.1,
-    slideTo: number | null = null,
-  ) {
-    if (this.isMuted) return;
-    if (this.ctx.state === "suspended") this.ctx.resume();
-
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-
-    if (slideTo) {
-      osc.frequency.exponentialRampToValueAtTime(
-        slideTo,
-        this.ctx.currentTime + duration,
-      );
+        this.masterGain.connect(this.compressor);
+        this.compressor.connect(this.ctx.destination);
     }
 
-    // Огибающая громкости
-    gain.gain.setValueAtTime(volume, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.001,
-      this.ctx.currentTime + duration,
-    );
+    private playTone(
+        freq: number,
+        type: OscillatorType,
+        duration: number,
+        volume: number = 0.1,
+        slideTo: number | null = null,
+        category: string = 'default'
+    ) {
+        if (this.isMuted) return;
+        if (this.ctx.state === "suspended") this.ctx.resume();
 
-        // PITCH VARIATION: +/- 10%
-        // Это делает звук "живым"
-        const variation = 1 + (Math.random() - 0.5) * 0.2;
-        const finalFreq = freq * variation;
-        const finalSlide = slideTo ? slideTo * variation : null;
+        const now = this.ctx.currentTime;
+        
+        // --- ЛОГИКА ЗАЩИТЫ ОТ НАЛОЖЕНИЯ ---
+        // Проверяем интервал для конкретной категории
+        const lastTime = this.lastSoundTime.get(category) || 0;
+        let interval = this.minInterval;
+        
+        // Индивидуальные интервалы для категорий
+        if (category === 'hit') interval = 0.1; // Удары не чаще 100мс
+        if (category === 'shoot') interval = 0.05; // Выстрелы не чаще 50мс
+        if (category === 'explosion') interval = 0.2; // Взрывы не чаще 200мс
+
+        if (now - lastTime < interval) return;
+        this.lastSoundTime.set(category, now);
 
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
 
         osc.type = type;
-        osc.frequency.setValueAtTime(finalFreq, this.ctx.currentTime);
-        
-        if (finalSlide) {
-            osc.frequency.exponentialRampToValueAtTime(finalSlide, this.ctx.currentTime + duration);
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+
+        if (slideTo) {
+            osc.frequency.exponentialRampToValueAtTime(
+                slideTo,
+                this.ctx.currentTime + duration
+            );
         }
 
-  // --- ЗВУКОВЫЕ ПРЕСЕТЫ ---
+        // Плавное затухание, чтобы не было щелчков
+        gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
 
-  public playShoot() {
-    // Сделали тише: volume = 0.08 (было 0.3)
-    this.playTone(600, "square", 0.1, 0.08, 100);
-  }
+        osc.connect(gain);
+        gain.connect(this.masterGain);
 
-  public playTurretShoot() {
-    // Турели тоже тише
-    this.playTone(400, "square", 0.1, 0.05, 50);
-  }
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    }
 
-  public playHit() {
-    // ЗАЩИТА ОТ ПЕРЕГРУЗА:
-    // Если с прошлого звука прошло меньше 100мс, не играем новый
-    const now = this.ctx.currentTime;
-    if (now - this.lastHitTime < 0.1) return;
-    this.lastHitTime = now;
+    public playShoot() { 
+        this.playTone(600, "square", 0.1, 0.25, 100, 'shoot'); 
+    }
+    
+    public playTurretShoot() { 
+        this.playTone(400, "square", 0.1, 0.15, 50, 'shoot'); 
+    }
+    
+    public playHit() {
+        this.playTone(150, "sawtooth", 0.1, 0.1, 50, 'hit');
+    }
 
-    // Тише и ниже
-    this.playTone(150, "sawtooth", 0.1, 0.1, 50);
-  }
+    public playEnemyHit() {
+        this.playTone(80, "sawtooth", 0.1, 0.15, 40, 'hit');
+    }
 
-  public playBuild() {
-    this.playTone(800, "sine", 0.15, 0.1);
-    setTimeout(() => this.playTone(1200, "sine", 0.2, 0.1), 50);
-  }
+    public playBuild() {
+        this.playTone(800, "sine", 0.15, 0.1, null, 'ui');
+        setTimeout(() => this.playTone(1200, "sine", 0.2, 0.1, null, 'ui'), 50);
+    }
 
-  public playMine() {
-    // Очень тихо
-    this.playTone(100, "triangle", 0.05, 0.05);
-  }
+    public playMine() { 
+        this.playTone(100, "triangle", 0.05, 0.05, null, 'mine'); 
+    }
+    
+    public playError() { 
+        this.playTone(150, "sawtooth", 0.2, 0.1, 100, 'ui'); 
+    }
+    
+    public playExplosion() {
+        this.playTone(100, "sawtooth", 0.3, 0.2, 20, 'explosion');
+    }
 
-  public playError() {
-    this.playTone(150, "sawtooth", 0.2, 0.1, 100);
-  }
-
-  public playGameOver() {
-    this.playTone(300, "triangle", 0.5, 0.2, 200);
-    setTimeout(() => this.playTone(250, "triangle", 0.5, 0.2, 150), 400);
-    setTimeout(() => this.playTone(200, "triangle", 1.0, 0.2, 50), 800);
-  }
+    public playGameOver() {
+        this.playTone(300, "triangle", 0.5, 0.2, 200, 'ui');
+        setTimeout(() => this.playTone(250, "triangle", 0.5, 0.2, 150, 'ui'), 400);
+        setTimeout(() => this.playTone(200, "triangle", 1.0, 0.2, 50, 'ui'), 800);
+    }
 }
