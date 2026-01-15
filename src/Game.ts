@@ -21,11 +21,13 @@ import { GameConfig } from './GameConfig';
 import { InputSystem } from './InputSystem';
 import { ObjectPool } from './ObjectPool';
 import { Translations } from './Localization';
+import { MiniMap } from './MiniMap';
 
 export class Game {
     private app: Application;
     public world: Container;
     private camera!: Camera;
+    private miniMap!: MiniMap; // Добавлено
     public player!: Player;
     private buildingSystem!: BuildingSystem;
     private uiManager!: UIManager;
@@ -181,7 +183,9 @@ export class Game {
             else this.uiManager.showTutorial(() => this.startGame());
         };
 
-        // 9. Освещение и основной цикл
+        // 9. Освещение, Миникарта и основной цикл
+        this.miniMap = new MiniMap(this.app, this.mapSizePixel);
+        
         this.lightingSystem = new LightingSystem();
         this.lightingSystem.darknessOverlay.zIndex = 9999;
         this.app.stage.sortableChildren = true;
@@ -216,6 +220,7 @@ export class Game {
             }
             
             this.camera.update(ticker);
+            this.miniMap.update(this.player, this.enemies, this.resources, this.buildingSystem);
             
             this.buildingSystem.update(ticker, this.enemies, (x, y, tx, ty, damage) => {
                 this.spawnProjectile(x, y, tx, ty, damage);

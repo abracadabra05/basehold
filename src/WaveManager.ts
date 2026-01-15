@@ -33,7 +33,7 @@ export class WaveManager {
         this.container = document.createElement('div');
         this.container.style.position = 'absolute';
         this.container.style.top = '20px';
-        this.container.style.right = '20px';
+        this.container.style.right = '190px'; // Было 20px, сдвигаем левее миникарты (150px + отступы)
         this.container.style.padding = '12px 15px';
         this.container.style.background = 'rgba(20, 20, 20, 0.9)';
         this.container.style.border = '1px solid #444';

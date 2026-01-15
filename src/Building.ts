@@ -190,11 +190,23 @@ export class Building extends Container {
         this.addChild(this.hpBar);
     }
 
-    public repair(amount: number) { this.hp += amount; if (this.hp > this.maxHp) this.hp = this.maxHp; this.tint = 0x00FF00; setTimeout(() => this.tint = 0xFFFFFF, 100); this.updateHpBar(); }
+    public repair(amount: number) { 
+        this.hp += amount; 
+        if (this.hp > this.maxHp) {
+            this.hp = this.maxHp;
+            this.zIndex = 0; // Возвращаем обычный слой
+        }
+        this.tint = 0x00FF00; 
+        setTimeout(() => this.tint = 0xFFFFFF, 100); 
+        this.updateHpBar(); 
+    }
     public startMining(resourceManager: ResourceManager) { this.resourceManager = resourceManager; this.isMining = true; }
     public takeDamage(amount: number) { 
         this.hp -= amount; 
         this.updateHpBar(); 
+        
+        // Поднимаем поврежденное здание наверх, чтобы HP бар был виден
+        this.zIndex = 100; 
         
         // Визуальный эффект повреждения
         const pct = this.hp / this.maxHp;
