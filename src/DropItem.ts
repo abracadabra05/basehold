@@ -3,53 +3,29 @@ import { Container, Graphics, Ticker } from 'pixi.js';
 export class DropItem extends Container {
     private graphics: Graphics;
     public value: number;
-    public isMagnetized: boolean = false;
-    public speed: number = 0;
-    public acceleration: number = 0.5;
+    public type: 'biomass' | 'data_core'; // Добавлено
 
-    constructor(x: number, y: number, value: number) {
+    constructor(x: number, y: number, value: number, type: 'biomass' | 'data_core' = 'biomass') {
         super();
         this.x = x;
         this.y = y;
         this.value = value;
+        this.type = type;
 
         this.graphics = new Graphics();
-        // Рисуем маленькую сферу
-        this.graphics.circle(0, 0, 5).fill(0x9b59b6); // Фиолетовый (Biomass)
-        this.graphics.stroke({ width: 1, color: 0xFFFFFF });
         this.addChild(this.graphics);
+        this.draw();
     }
 
-    public update(ticker: Ticker, playerX: number, playerY: number, magnetRadius: number) {
-        if (this.isMagnetized) {
-            // Летим к игроку
-            const dx = playerX - this.x;
-            const dy = playerY - this.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            
-            if (dist < 10) return; // Готов к подбору
-
-            this.speed += this.acceleration * ticker.deltaTime;
-            // Ограничим скорость
-            if (this.speed > 15) this.speed = 15;
-
-            const vx = (dx / dist) * this.speed * ticker.deltaTime;
-            const vy = (dy / dist) * this.speed * ticker.deltaTime;
-
-            this.x += vx;
-            this.y += vy;
+    private draw() {
+        this.graphics.clear();
+        if (this.type === 'data_core') {
+            this.graphics.circle(0, 0, 12).fill({ color: 0x3498db, alpha: 0.3 });
+            this.graphics.circle(0, 0, 6).fill(0x3498db).stroke({ width: 2, color: 0xFFFFFF });
+            // Анимация свечения в будущем
         } else {
-            // Проверяем, не попали ли в радиус магнита
-            const dx = playerX - this.x;
-            const dy = playerY - this.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist < magnetRadius) {
-                this.isMagnetized = true;
-            }
+            this.graphics.circle(0, 0, 6).fill(0x2ecc71); 
+            this.graphics.circle(0, 0, 3).fill(0x27ae60);
         }
-        
-        // Легкая анимация пульсации
-        this.graphics.scale.set(1 + Math.sin(Date.now() / 200) * 0.1);
     }
 }

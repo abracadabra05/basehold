@@ -22,12 +22,14 @@ import { InputSystem } from './InputSystem';
 import { ObjectPool } from './ObjectPool';
 import { Translations } from './Localization';
 import { MiniMap } from './MiniMap';
+import { PerkManager } from './PerkManager';
 
 export class Game {
     private app: Application;
     public world: Container;
     private camera!: Camera;
-    private miniMap!: MiniMap; // Добавлено
+    private miniMap!: MiniMap;
+    private perkManager!: PerkManager; // Добавлено // Добавлено
     public player!: Player;
     private buildingSystem!: BuildingSystem;
     private uiManager!: UIManager;
@@ -185,6 +187,7 @@ export class Game {
 
         // 9. Освещение, Миникарта и основной цикл
         this.miniMap = new MiniMap(this.app, this.mapSizePixel);
+        this.perkManager = new PerkManager(this.uiManager); // Добавлено
         
         this.lightingSystem = new LightingSystem();
         this.lightingSystem.darknessOverlay.zIndex = 9999;
@@ -275,6 +278,30 @@ export class Game {
         });
     }
 
+    private applyPerk(perkId: string) {
+        this.spawnFloatingText(this.player.x, this.player.y - 50, "PERK ACTIVATED!", '#3498db', 20);
+        this.soundManager.playBuild();
+
+        switch (perkId) {
+            case 'double_shot':
+                this.player.bulletsPerShot += 1;
+                break;
+            case 'vampirism':
+                this.player.vampirism += 0.1; // 10% шанс восстановить 1 HP
+                break;
+            case 'faster_reload':
+                this.player.fireRate = Math.max(2, this.player.fireRate * 0.7);
+                break;
+            case 'shield_core':
+                this.player.hasShield = true;
+                // Можно добавить визуальный щит позже
+                break;
+            case 'auto_repair':
+                this.buildingSystem.setRegenAmount(2);
+                break;
+        }
+    }
+
     public startGame() {
         this.isGameStarted = true;
         this.uiManager.hideMenu();
@@ -338,9 +365,17 @@ export class Game {
             const dist = Math.sqrt(dx * dx + dy * dy);
 
             if (dist < 20) { 
-                this.resourceManager.addBiomass(drop.value);
-                this.soundManager.playMine(); 
-                this.spawnFloatingText(drop.x, drop.y, `+${drop.value}`, '#9b59b6', 14);
+                if (drop.type === 'data_core') {
+                    // ПАУЗА И ВЫБОР ПЕРКА
+                    this.soundManager.playShoot(); // Звук открытия
+                    this.perkManager.showSelection((perkId) => {
+                        this.applyPerk(perkId);
+                    });
+                } else {
+                    this.resourceManager.addBiomass(drop.value);
+                    this.soundManager.playMine(); 
+                    this.spawnFloatingText(drop.x, drop.y, `+${drop.value}`, '#9b59b6', 14);
+                }
                 this.world.removeChild(drop);
                 this.dropItems.splice(i, 1);
             }
@@ -351,7 +386,11 @@ export class Game {
         if (!this.coreBuilding || this.coreBuilding.isDestroyed) return;
         const spawnRadius = GameConfig.WAVES.SPAWN_RADIUS;
 
+        // 1. Проверка на БОССА (каждые 10 волн)
         if (waveNum % GameConfig.WAVES.BOSS_WAVE_INTERVAL === 0) {
+            this.spawnFloatingText(this.player.x, this.player.y - 100, "☠️ BOSS INCOMING ☠️", '#e74c3c', 30);
+            this.soundManager.playError(); // Звук тревоги
+            
             const angle = Math.random() * Math.PI * 2;
             this.spawnEnemy(this.coreBuilding.x + Math.cos(angle) * spawnRadius, this.coreBuilding.y + Math.sin(angle) * spawnRadius, 'boss');
             
@@ -362,16 +401,34 @@ export class Game {
             return;
         }
 
+        // 2. Проверка на ОСОБЫЙ ПАТТЕРН
+        const patterns = (GameConfig.WAVES as any).PATTERNS;
+        if (patterns && patterns[waveNum]) {
+            const p = patterns[waveNum];
+            this.spawnFloatingText(this.player.x, this.player.y - 100, p.message, '#f1c40f', 24);
+            this.soundManager.playError();
+
+            const specialCount = Math.ceil(count * p.countMultiplier);
+            for (let i = 0; i < specialCount; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                this.spawnEnemy(this.coreBuilding.x + Math.cos(angle) * spawnRadius, this.coreBuilding.y + Math.sin(angle) * spawnRadius, p.type);
+            }
+            return;
+        }
+
+        // 3. ОБЫЧНАЯ ВОЛНА (Смешанная)
         for (let i = 0; i < count; i++) {
             let type: EnemyType = 'basic';
             const rand = Math.random();
-            if (waveNum === 1) type = 'basic';
-            else if (waveNum <= 3) { if (rand < 0.3) type = 'fast'; else type = 'basic'; }
-            else { 
-                if (rand < 0.15) type = 'tank'; 
-                else if (rand < 0.3) type = 'shooter'; 
-                else if (rand < 0.45) type = 'kamikaze'; 
-                else if (rand < 0.7) type = 'fast'; 
+            
+            if (waveNum <= 3) { 
+                if (rand < 0.2) type = 'fast'; else type = 'basic'; 
+            } else { 
+                // Чем выше волна, тем больше сильных врагов
+                if (rand < 0.1 + waveNum * 0.005) type = 'tank'; 
+                else if (rand < 0.25 + waveNum * 0.005) type = 'shooter'; 
+                else if (rand < 0.4 + waveNum * 0.005) type = 'kamikaze'; 
+                else if (rand < 0.6) type = 'fast'; 
                 else type = 'basic'; 
             }
 
@@ -544,13 +601,19 @@ export class Game {
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const enemy = this.enemies[i];
             if (enemy.isDead) {
-                // Шанс дропа повышен до 70% (было 40%)
-                if (Math.random() < 0.7) {
-                    // Берем награду из конфига врага, если есть, иначе дефолт
-                    const reward = GameConfig.ENEMIES[enemy.type.toUpperCase() as keyof typeof GameConfig.ENEMIES]?.reward || 5;
-                    const drop = new DropItem(enemy.x, enemy.y, reward);
+                // Если это босс, то выпадать будет Data Core гарантированно
+                if (enemy.type === 'boss') {
+                    const drop = new DropItem(enemy.x, enemy.y, 0, 'data_core');
                     this.world.addChild(drop);
                     this.dropItems.push(drop);
+                } else {
+                    // Шанс дропа обычных ресурсов повышен до 70%
+                    if (Math.random() < 0.7) {
+                        const reward = GameConfig.ENEMIES[enemy.type.toUpperCase() as keyof typeof GameConfig.ENEMIES]?.reward || 5;
+                        const drop = new DropItem(enemy.x, enemy.y, reward);
+                        this.world.addChild(drop);
+                        this.dropItems.push(drop);
+                    }
                 }
                 this.createExplosion(enemy.x, enemy.y, 0xff0000, 10);
                 this.soundManager.playExplosion();

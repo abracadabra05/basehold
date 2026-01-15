@@ -7,6 +7,12 @@ export class Player extends Container {
     public hp: number = GameConfig.PLAYER.START_HP;
     public damage: number = 1;
     
+    // ПЕРКИ
+    public bulletsPerShot: number = 1;
+    public vampirism: number = 0;
+    public hasShield: boolean = false;
+    private shieldHP: number = 0;
+    
     private bodyContainer: Container;
     private bodyGraphics: Graphics;
     private hpBar: Graphics;
@@ -60,11 +66,24 @@ export class Player extends Container {
         if (this.fireCooldown <= 0) {
             const angle = this.bodyContainer.rotation;
             const barrelLen = 25;
-            const spawnX = this.x + Math.cos(angle) * barrelLen;
-            const spawnY = this.y + Math.sin(angle) * barrelLen;
 
-            if (this.onShoot) {
-                this.onShoot(spawnX, spawnY, targetX, targetY);
+            // Выстрел(ы)
+            for (let i = 0; i < this.bulletsPerShot; i++) {
+                // Если пуль больше одной, добавляем разброс
+                let finalAngle = angle;
+                if (this.bulletsPerShot > 1) {
+                    finalAngle += (i - (this.bulletsPerShot - 1) / 2) * 0.2;
+                }
+
+                const spawnX = this.x + Math.cos(finalAngle) * barrelLen;
+                const spawnY = this.y + Math.sin(finalAngle) * barrelLen;
+
+                if (this.onShoot) {
+                    // Рассчитываем новую цель на основе измененного угла для правильной траектории
+                    const tx = spawnX + Math.cos(finalAngle) * 500;
+                    const ty = spawnY + Math.sin(finalAngle) * 500;
+                    this.onShoot(spawnX, spawnY, tx, ty);
+                }
             }
             
             this.bodyGraphics.x = -5;

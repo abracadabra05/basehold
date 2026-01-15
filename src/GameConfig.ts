@@ -16,6 +16,13 @@ export const GameConfig = {
     WAVES: {
         SPAWN_RADIUS: 800,
         BOSS_WAVE_INTERVAL: 10,
+        PATTERNS: {
+            // [waveNum]: { type: EnemyType, countMultiplier: number, message: string }
+            5: { type: 'fast', countMultiplier: 2.0, message: "⚠️ SPEED SWARM" },
+            7: { type: 'shooter', countMultiplier: 1.5, message: "⚠️ RANGED ATTACK" },
+            15: { type: 'kamikaze', countMultiplier: 2.5, message: "⚠️ EXPLOSIVE RAIN" },
+            20: { type: 'tank', countMultiplier: 1.0, message: "⚠️ HEAVY ASSAULT" }
+        }
     },
     GAME: {
         GRID_SIZE: 40,
@@ -32,5 +39,13 @@ export const GameConfig = {
         sniper: { hp: 60, cost: 75, energy: -15, range: 500, damage: 30, fireRate: 120 },
         minigun: { hp: 150, cost: 120, energy: -20, range: 200, damage: 1.5, fireRate: 4 },
         laser: { hp: 80, cost: 200, energy: -5, range: 300, damage: 50, fireRate: 60 },
-    }
+    },
+    PERKS: [
+        { id: 'double_shot', key: 'perk_double_shot', icon: '⚔️' },
+        { id: 'vampirism', key: 'perk_vampirism', icon: '🩸' },
+        { id: 'explosive_rounds', key: 'perk_explosive', icon: '💥' },
+        { id: 'faster_reload', key: 'perk_reload', icon: '⚡' },
+        { id: 'shield_core', key: 'perk_shield', icon: '🛡️' },
+        { id: 'auto_repair', key: 'perk_repair', icon: '🔧' }
+    ]
 };
