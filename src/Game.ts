@@ -95,15 +95,21 @@ export class Game {
         // 1. Сначала базовые системы без зависимостей
         this.inputSystem = new InputSystem(this.app.stage);
         this.inputSystem.init(this.app.screen);
+        
+        window.addEventListener('resize', () => {
+            this.resize(this.app.screen.width, this.app.screen.height);
+        });
+
         this.inputSystem.onToggleBuildMode = () => {
              this.buildingSystem.setTool('wall');
         };
+        
+        // Убрали сброс на ПКМ, так как это стрельба
+        /*
         this.inputSystem.onRightClick = () => {
-            this.buildingSystem.setTool('wall'); // Сброс на стену (или можно на 'none', если добавить такой тип)
-            // Но в нашей логике 'wall' это дефолт.
-            // Хотя, если мы хотим "отменить", лучше ничего не строить.
-            // Но пока пусть будет стена, так как "пустой руки" у нас нет в типах.
+            this.buildingSystem.setTool('wall'); 
         };
+        */
         
         this.soundManager = new SoundManager();
         this.worldBoundary = new WorldBoundary(this.mapSizePixel);
@@ -118,9 +124,11 @@ export class Game {
                 this.resourceManager = new ResourceManager();
                 this.uiManager = new UIManager((tool) => this.buildingSystem.setTool(tool));
                 this.uiManager.init();
-                this.uiManager.onLanguageChange = (lang) => this.resourceManager.setLanguage(lang);
-                this.resourceManager.setLanguage(this.uiManager.currentLang);
-        
+                        this.uiManager.onLanguageChange = (lang) => {
+                            this.resourceManager.setLanguage(lang);
+                            this.waveManager.setLanguage(); // Добавлено
+                        };
+                        this.resourceManager.setLanguage(this.uiManager.currentLang);        
                 // 4. BuildingSystem (нужна для игрока и врагов)
                 this.buildingSystem = new BuildingSystem(this.app, this.world);
                 this.buildingSystem.setSoundManager(this.soundManager);
@@ -161,12 +169,11 @@ export class Game {
                         this.uiManager.checkUnlock = (type) => this.upgradeManager.isBuildingUnlocked(type);
                         this.uiManager.updateButtonsState(); // Обновляем сразу при старте
                 
-                        this.upgradeManager.onUnlock = (type) => {
-                            this.uiManager.updateButtonsState();
-                            this.soundManager.playBuild(); // Звук успеха
-                            this.spawnFloatingText(this.player.x, this.player.y - 50, "TECH UNLOCKED!", '#2ecc71', 24);
-                        };
-                
+                                this.upgradeManager.onUnlock = () => {
+                                    this.uiManager.updateButtonsState();
+                                    this.soundManager.playBuild(); // Звук успеха
+                                    this.spawnFloatingText(this.player.x, this.player.y - 50, "TECH UNLOCKED!", '#2ecc71', 24);
+                                };                
                         this.upgradeManager.onUpgrade = (type: string) => {
                             if (type === 'damage') this.player.damage += 1;
                             if (type === 'mine') this.currentMineMultiplier += 0.5;
@@ -261,7 +268,7 @@ export class Game {
             }
             
             this.camera.update(ticker);
-            this.miniMap.update(this.player, this.enemies, this.resources, this.buildingSystem);
+            this.miniMap.update(this.player, this.enemies, this.resources);
             
             this.buildingSystem.update(ticker, this.enemies, (x, y, tx, ty, damage) => {
                 this.spawnProjectile(x, y, tx, ty, damage);
@@ -361,6 +368,17 @@ export class Game {
         this.isGameStarted = true;
         this.uiManager.hideMenu();
     }
+
+    public resize(width: number, height: number) {
+        if (this.camera) this.camera.resize(width, height);
+        if (this.miniMap) this.miniMap.resize(width);
+        if (this.inputSystem) this.inputSystem.init(this.app.screen); // Обновляем хитбокс
+        if (this.voidOverlay) {
+            this.voidOverlay.clear().rect(0, 0, width, height).fill({ color: 0xFF0000, alpha: 0 });
+        }
+    }
+    
+    // reasonCore: true если взорвалось ядро
 
     public spawnFloatingText(x: number, y: number, text: string, color: string = '#ffffff', size: number = 16) {
         const ft = new FloatingText(x, y, text, color, size);

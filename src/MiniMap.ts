@@ -1,19 +1,16 @@
 import { Application, Container, Graphics } from 'pixi.js';
 import type { Player } from './Player';
 import type { Enemy } from './Enemy';
-import type { BuildingSystem } from './BuildingSystem';
 import type { ResourceNode } from './ResourceNode';
 
 export class MiniMap {
     private container: Container;
     private bg: Graphics;
     private dots: Graphics;
-    private mapSize: number;
     private size: number = 150; // Размер миникарты в пикселях
     private scale: number;
 
     constructor(app: Application, mapSize: number) {
-        this.mapSize = mapSize;
         this.scale = this.size / mapSize;
 
         this.container = new Container();
@@ -33,7 +30,7 @@ export class MiniMap {
         app.stage.addChild(this.container);
     }
 
-    public update(player: Player, enemies: Enemy[], resources: ResourceNode[], buildingSystem: BuildingSystem) {
+    public update(player: Player, enemies: Enemy[], resources: ResourceNode[]) {
         this.dots.clear();
 
         // Ресурсы (Синие)

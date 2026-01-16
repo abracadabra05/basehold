@@ -10,7 +10,7 @@ export const Translations: Record<Language, any> = {
         game_over: 'МИССИЯ ПРОВАЛЕНА',
         tutorial_toggle: 'Обучение',
         
-        hud_hp: 'Целостность',
+        hud_hp: 'Здоровье', // Было Целостность
         hud_core_short: 'ЯДРО',
         
         res_metal: 'Металл',
@@ -62,6 +62,7 @@ export const Translations: Record<Language, any> = {
         wave_active: 'ВОЛНА',
         wave_shop: 'МАГАЗИН',
         wave_boss: 'БИТВА С БОССОМ',
+        wave_skip: 'СКИП',
         
         // Perks
         perk_title: 'Выберите Усиление',
@@ -87,7 +88,7 @@ export const Translations: Record<Language, any> = {
         game_over: 'MISSION FAILED',
         tutorial_toggle: 'Show Tutorial',
         
-        hud_hp: 'Integrity',
+        hud_hp: 'HP', // Was Integrity
         hud_core_short: 'CORE',
         
         res_metal: 'Metal',
@@ -139,6 +140,7 @@ export const Translations: Record<Language, any> = {
         wave_active: 'WAVE',
         wave_shop: 'SHOPPING',
         wave_boss: 'BOSS FIGHT',
+        wave_skip: 'SKIP',
 
         // Perks
         perk_title: 'Choose an Upgrade',

@@ -111,6 +111,37 @@ export class WaveManager {
         }
     }
 
+    public setLanguage() {
+        // Принудительно обновляем текст таймера
+        // Просто вызовем update с delta=0, чтобы перерисовать текст
+        // Но update меняет логику времени.
+        // Лучше просто обновить текст вручную.
+        
+        if (this.isPaused) {
+            this.timerText.innerHTML = `<span style="color: #f1c40f">${this.t('wave_shop')}</span>`;
+        } else if (this.isBossActive) {
+            this.timerText.innerHTML = `<span style="color: #e74c3c">${this.t('wave_boss')}</span>`;
+        } else if (this.isPrepPhase) {
+            const timeLeft = Math.ceil(this.prepTime / 1000);
+            this.timerText.innerHTML = `
+                <div style="color: #3498db; font-size: 14px; margin-bottom: -5px;">${this.t('wave_prep')}</div>
+                <div style="font-size: 28px;">${Math.max(0, timeLeft)}</div>
+            `;
+            // Обновляем кнопку скипа
+            const bonus = Math.max(1, timeLeft * 2);
+            // "SKIP" переведем как "ПРОПУСК" или "ДАЛЕЕ"
+            // Но в Localization.ts нет ключа "skip". Добавим.
+            // Пока хардкод или используем существующий ключ tut_next (Далее)?
+            // Лучше добавить ключ 'skip'.
+            // Для скорости пока использую английский "SKIP" так как это интернационально, 
+            // но лучше добавить ключ. 
+            // Ладно, добавим ключ 'wave_skip' в Localization.
+            this.skipButton.innerText = `${this.t('wave_skip')} (+${bonus} 🧬)`;
+        } else {
+            this.timerText.innerHTML = `<span style="color: #e74c3c; font-size: 14px;">${this.t('wave_active')}</span> ${this.waveCount}`;
+        }
+    }
+
     private t(key: string): string {
         const lang = this.uiManager.currentLang;
         return (Translations[lang] as any)[key] || key;
@@ -143,7 +174,7 @@ export class WaveManager {
             `;
             
             const bonus = Math.max(1, timeLeft * 2);
-            this.skipButton.innerText = `SKIP (+${bonus} 🧬)`;
+            this.skipButton.innerText = `${this.t('wave_skip')} (+${bonus} 🧬)`;
 
             if (this.prepTime <= 0) {
                 this.startWave();

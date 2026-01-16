@@ -115,20 +115,7 @@ export class InputSystem {
         this.rightJoystick = new VirtualJoystick(joyContainer, 'right');
         this.rightJoystick.show();
 
-        const buildBtn = document.createElement('button');
-        buildBtn.innerText = 'Build';
-        Object.assign(buildBtn.style, {
-            position: 'absolute', top: '100px', right: '20px',
-            width: '60px', height: '60px',
-            background: 'rgba(0,0,0,0.5)', color: 'white',
-            border: '2px solid white', borderRadius: '50%', pointerEvents: 'auto',
-            fontSize: '12px', fontWeight: 'bold'
-        });
-        buildBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if(this.onToggleBuildMode) this.onToggleBuildMode();
-        });
-        uiLayer.appendChild(buildBtn);
+        // Кнопка Build удалена по просьбе
     }
 
     public getMovementVector(): { x: number, y: number } {

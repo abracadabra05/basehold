@@ -11,13 +11,11 @@ export class Player extends Container {
     public bulletsPerShot: number = 1;
     public vampirism: number = 0;
     public hasShield: boolean = false;
-    private shieldHP: number = 0;
     
     private bodyContainer: Container;
     private bodyGraphics: Graphics;
     private hpBar: Graphics;
     
-    private mapSize: number;
     private invulnerableTimer: number = 0;
     private invulnerableTime: number = 60;
     private fireCooldown: number = 0;
@@ -28,7 +26,6 @@ export class Player extends Container {
 
     constructor(mapSize: number) {
         super();
-        this.mapSize = mapSize;
         
         this.bodyContainer = new Container();
         this.addChild(this.bodyContainer);
@@ -62,7 +59,7 @@ export class Player extends Container {
         this.bodyContainer.rotation = angle;
     }
 
-    public tryShoot(targetX: number, targetY: number) {
+    public tryShoot(_targetX: number, _targetY: number) {
         if (this.fireCooldown <= 0) {
             const angle = this.bodyContainer.rotation;
             const barrelLen = 25;
@@ -98,10 +95,6 @@ export class Player extends Container {
 
             if (!this.isColliding(this.x + moveX, this.y)) this.x += moveX;
             if (!this.isColliding(this.x, this.y + moveY)) this.y += moveY;
-            
-            // Убрали ограничение карты, чтобы игрок мог уйти в Пустоту
-            // this.x = Math.max(0, Math.min(this.mapSize, this.x));
-            // this.y = Math.max(0, Math.min(this.mapSize, this.y));
         }
     }
 

@@ -261,6 +261,7 @@ export class UIManager {
         this.createButtons(); 
         this.initCoreHUD(); 
         this.initPlayerHUD();
+        this.updateButtonsState(); // Добавлено: блокируем кнопки заново
         if (this.onLanguageChange) this.onLanguageChange(this.lang);
     }
 
@@ -331,7 +332,7 @@ export class UIManager {
         });
     }
 
-    public updateWave(wave: number) {
+    public updateWave(_wave: number) {
         // Мы перенесли логику блокировки в updateButtonsState, 
         // но если нужно оставить minWave, можно передать wave туда.
         // Пока просто вызываем обновление состояния.
