@@ -95,6 +95,15 @@ export class Game {
         // 1. Сначала базовые системы без зависимостей
         this.inputSystem = new InputSystem(this.app.stage);
         this.inputSystem.init(this.app.screen);
+        this.inputSystem.onToggleBuildMode = () => {
+             this.buildingSystem.setTool('wall');
+        };
+        this.inputSystem.onRightClick = () => {
+            this.buildingSystem.setTool('wall'); // Сброс на стену (или можно на 'none', если добавить такой тип)
+            // Но в нашей логике 'wall' это дефолт.
+            // Хотя, если мы хотим "отменить", лучше ничего не строить.
+            // Но пока пусть будет стена, так как "пустой руки" у нас нет в типах.
+        };
         
         this.soundManager = new SoundManager();
         this.worldBoundary = new WorldBoundary(this.mapSizePixel);
@@ -146,16 +155,26 @@ export class Game {
                 this.coreBuilding = this.buildingSystem.spawnCore(coreGridX, coreGridY);
         
                 // 8. Магазин и волны
-                this.upgradeManager = new UpgradeManager(this.uiManager, this.resourceManager);
-                this.upgradeManager.onUpgrade = (type: string) => {
-                    if (type === 'damage') this.player.damage += 1;
-                    if (type === 'mine') this.currentMineMultiplier += 0.5;
-                    if (type === 'speed') this.player.moveSpeed += 0.5;
-                    if (type === 'regen') this.buildingSystem.setRegenAmount(1);
-                    if (type === 'thorns') this.buildingSystem.setThornsDamage(1);
-                    if (type === 'magnet') this.magnetRadius += 100;
-                };
-        
+                        this.upgradeManager = new UpgradeManager(this.uiManager, this.resourceManager);
+                        
+                        // Связываем проверку технологий с UI
+                        this.uiManager.checkUnlock = (type) => this.upgradeManager.isBuildingUnlocked(type);
+                        this.uiManager.updateButtonsState(); // Обновляем сразу при старте
+                
+                        this.upgradeManager.onUnlock = (type) => {
+                            this.uiManager.updateButtonsState();
+                            this.soundManager.playBuild(); // Звук успеха
+                            this.spawnFloatingText(this.player.x, this.player.y - 50, "TECH UNLOCKED!", '#2ecc71', 24);
+                        };
+                
+                        this.upgradeManager.onUpgrade = (type: string) => {
+                            if (type === 'damage') this.player.damage += 1;
+                            if (type === 'mine') this.currentMineMultiplier += 0.5;
+                            if (type === 'speed') this.player.moveSpeed += 0.5;
+                            if (type === 'regen') this.buildingSystem.setRegenAmount(1);
+                            if (type === 'thorns') this.buildingSystem.setThornsDamage(1);
+                            if (type === 'magnet') this.magnetRadius += 100;
+                        };        
                         this.waveManager = new WaveManager(
                             this.resourceManager,
                             this.uiManager, // Добавлено
@@ -178,10 +197,11 @@ export class Game {
                     this.waveManager.resume();
                 });
         
-                this.inputSystem.onSpacePressed = () => {
-                    if (this.waveManager) this.waveManager.skipWait();
-                };
-        
+                        this.inputSystem.onSpacePressed = () => {
+                            if (this.waveManager && this.waveManager.isPrepPhase) {
+                                this.waveManager.skipWait();
+                            }
+                        };        
                 this.uiManager.onStartGame = (skipTutorial) => {
             if (skipTutorial) this.startGame();
             else this.uiManager.showTutorial(() => this.startGame());
@@ -204,7 +224,17 @@ export class Game {
 
         this.app.ticker.add((ticker) => {
             if (!this.isGameStarted) return;
-            if (this.isGameOver || this.waveManager.isShopOpen) return;
+            
+            // Если магазин открыт, не обновляем игру (пауза)
+            if (this.waveManager.isShopOpen) return;
+
+            // Если Game Over, обновляем ТОЛЬКО визуальные эффекты (камера, частицы)
+            if (this.isGameOver) {
+                this.camera.update(ticker);
+                this.updateParticles(ticker);
+                this.lightingSystem.update(ticker.deltaMS, this.app.screen.width, this.app.screen.height);
+                return;
+            }
 
             this.player.update(ticker);
             

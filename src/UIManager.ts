@@ -32,6 +32,7 @@ export class UIManager {
 
     public onStartGame?: (skipTutorial: boolean) => void;
     public onLanguageChange?: (lang: Language) => void;
+    public checkUnlock?: (type: string) => boolean; // Колбек проверки
     
     private items: ToolItem[] = [
         { type: 'wall', key: 'tool_wall', icon: '🧱', cost: 10 },
@@ -290,21 +291,51 @@ export class UIManager {
         if (sky) sky.style.transform = `rotate(${progress * 360}deg)`;
     }
 
-    public updateWave(wave: number) {
+    public updateButtonsState() {
         this.items.forEach(item => {
             const btn = this.buttons.get(item.type);
-            if (btn && item.minWave) {
-                if (wave < item.minWave) {
-                    btn.disabled = true;
-                    btn.style.opacity = '0.3';
-                    btn.style.filter = 'grayscale(1)';
-                } else {
-                    btn.disabled = false;
-                    btn.style.opacity = '1.0';
-                    btn.style.filter = 'none';
+            if (!btn) return;
+
+            let locked = false;
+            
+            // Проверка по волне (если есть)
+            // if (item.minWave && currentWave < item.minWave) locked = true; // Можно оставить или убрать, если технологии заменят это
+
+            // Проверка по технологии
+            if (this.checkUnlock && !this.checkUnlock(item.type)) {
+                locked = true;
+            }
+
+            if (locked) {
+                btn.disabled = true;
+                btn.style.opacity = '0.3';
+                btn.style.filter = 'grayscale(1)';
+                // Добавляем иконку замка, если ее нет
+                if (!btn.querySelector('.lock-icon')) {
+                    const lock = document.createElement('div');
+                    lock.className = 'lock-icon';
+                    lock.innerText = '🔒';
+                    Object.assign(lock.style, {
+                        position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                        fontSize: '24px', textShadow: '0 0 5px black'
+                    });
+                    btn.appendChild(lock);
                 }
+            } else {
+                btn.disabled = false;
+                btn.style.opacity = '1.0';
+                btn.style.filter = 'none';
+                const lock = btn.querySelector('.lock-icon');
+                if (lock) lock.remove();
             }
         });
+    }
+
+    public updateWave(wave: number) {
+        // Мы перенесли логику блокировки в updateButtonsState, 
+        // но если нужно оставить minWave, можно передать wave туда.
+        // Пока просто вызываем обновление состояния.
+        this.updateButtonsState();
     }
 
     public showBuildingInfo(data: { name: string, hp: number, maxHp: number, damage?: number, energy?: string } | null) {

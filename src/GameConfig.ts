@@ -30,15 +30,17 @@ export const GameConfig = {
         VOID_DAMAGE_INTERVAL: 30,
     },
     BUILDINGS: {
-        wall: { hp: 200, cost: 10, energy: 0 },
-        drill: { hp: 50, cost: 50, energy: -5 },
-        generator: { hp: 40, cost: 100, energy: 20 },
-        core: { hp: 1000, cost: 0, energy: 50, capacity: 1000 },
-        battery: { hp: 100, cost: 150, energy: 0, capacity: 2000 },
-        turret: { hp: 100, cost: 30, energy: -10, range: 250, damage: 3, fireRate: 30 },
-        sniper: { hp: 60, cost: 75, energy: -15, range: 500, damage: 30, fireRate: 120 },
-        minigun: { hp: 150, cost: 120, energy: -20, range: 200, damage: 1.5, fireRate: 4 },
-        laser: { hp: 80, cost: 200, energy: -5, range: 300, damage: 50, fireRate: 60 },
+        wall: { hp: 200, cost: 10, energy: 0, unlocked: true },
+        drill: { hp: 50, cost: 50, energy: -5, unlocked: true },
+        generator: { hp: 40, cost: 100, energy: 20, unlocked: true },
+        core: { hp: 1000, cost: 0, energy: 50, capacity: 1000, unlocked: true },
+        turret: { hp: 100, cost: 30, energy: -10, range: 250, damage: 3, fireRate: 30, unlocked: true },
+        
+        // Unlockable
+        battery: { hp: 100, cost: 150, energy: 0, capacity: 2000, unlocked: false, researchCost: 200 },
+        sniper: { hp: 60, cost: 75, energy: -15, range: 500, damage: 30, fireRate: 120, unlocked: false, researchCost: 300 },
+        minigun: { hp: 150, cost: 120, energy: -20, range: 200, damage: 1.5, fireRate: 4, unlocked: false, researchCost: 500 },
+        laser: { hp: 80, cost: 200, energy: -5, range: 300, damage: 50, fireRate: 60, unlocked: false, researchCost: 800 },
     },
     PERKS: [
         { id: 'double_shot', key: 'perk_double_shot', icon: '⚔️' },

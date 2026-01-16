@@ -1,6 +1,7 @@
 import type { ResourceManager } from './ResourceManager';
 import type { UIManager } from './UIManager';
 import { Translations } from './Localization';
+import { GameConfig } from './GameConfig'; // Добавлено
 
 export class UpgradeManager {
     private resourceManager: ResourceManager;
@@ -16,15 +17,28 @@ export class UpgradeManager {
     public thornsLevel: number = 0;
 
     public onUpgrade?: (type: string) => void;
+    public onUnlock?: (type: string) => void; // Колбек разблокировки
+
+    // Список открытых зданий (изначально берем из конфига)
+    private unlockedBuildings: Set<string> = new Set();
 
     constructor(uiManager: UIManager, resourceManager: ResourceManager) {
         this.resourceManager = resourceManager;
         this.uiManager = uiManager;
         
+        // Инициализация открытых зданий
+        for (const [key, val] of Object.entries(GameConfig.BUILDINGS)) {
+            if ((val as any).unlocked) this.unlockedBuildings.add(key);
+        }
+        
         this.container = document.createElement('div');
         this.initStyles();
         this.hide();
         document.body.appendChild(this.container);
+    }
+
+    public isBuildingUnlocked(type: string): boolean {
+        return this.unlockedBuildings.has(type);
     }
 
     private t(key: string): string {
@@ -67,19 +81,23 @@ export class UpgradeManager {
 
         const tabsContainer = document.createElement('div');
         Object.assign(tabsContainer.style, {
-            display: 'flex', justifyContent: 'space-around', marginBottom: '15px', borderBottom: '1px solid #333'
+            display: 'flex', justifyContent: 'space-around', marginBottom: '15px', borderBottom: '1px solid #333', width: '100%'
         });
         this.container.appendChild(tabsContainer);
 
         const playerTabBtn = this.createTabBtn("👤", true);
         const baseTabBtn = this.createTabBtn("🏰", false);
+        const techTabBtn = this.createTabBtn("🔬", false);
+        
         tabsContainer.appendChild(playerTabBtn);
         tabsContainer.appendChild(baseTabBtn);
+        tabsContainer.appendChild(techTabBtn);
 
         const contentContainer = document.createElement('div');
-        contentContainer.style.minHeight = '240px';
+        contentContainer.style.minHeight = '280px'; // Чуть больше места
         this.container.appendChild(contentContainer);
 
+        // --- PLAYER ---
         const playerContent = document.createElement('div');
         playerContent.style.display = 'flex';
         playerContent.style.flexDirection = 'column';
@@ -102,6 +120,7 @@ export class UpgradeManager {
             if (this.onUpgrade) this.onUpgrade('magnet');
         });
 
+        // --- BASE ---
         const baseContent = document.createElement('div');
         baseContent.style.display = 'none'; 
         baseContent.style.flexDirection = 'column';
@@ -116,18 +135,38 @@ export class UpgradeManager {
             if (this.onUpgrade) this.onUpgrade('thorns');
         });
 
+        // --- TECH ---
+        const techContent = document.createElement('div');
+        techContent.style.display = 'none';
+        techContent.style.flexDirection = 'column';
+        techContent.style.gap = '8px';
+
+        // Генерируем кнопки для закрытых технологий
+        const unlockables = ['battery', 'sniper', 'minigun', 'laser'];
+        unlockables.forEach(type => {
+            if (GameConfig.BUILDINGS[type as keyof typeof GameConfig.BUILDINGS]) {
+                this.createUnlockBtn(techContent, type);
+            }
+        });
+
         contentContainer.appendChild(playerContent);
         contentContainer.appendChild(baseContent);
+        contentContainer.appendChild(techContent);
 
         playerTabBtn.onclick = () => {
-            playerContent.style.display = 'flex'; baseContent.style.display = 'none';
-            playerTabBtn.style.borderBottom = '2px solid #9b59b6'; baseTabBtn.style.borderBottom = 'none';
-            playerTabBtn.style.color = 'white'; baseTabBtn.style.color = '#555';
+            playerContent.style.display = 'flex'; baseContent.style.display = 'none'; techContent.style.display = 'none';
+            playerTabBtn.style.color = 'white'; baseTabBtn.style.color = '#555'; techTabBtn.style.color = '#555';
+            playerTabBtn.style.borderBottom = '2px solid #9b59b6'; baseTabBtn.style.borderBottom = 'none'; techTabBtn.style.borderBottom = 'none';
         };
         baseTabBtn.onclick = () => {
-            playerContent.style.display = 'none'; baseContent.style.display = 'flex';
-            baseTabBtn.style.borderBottom = '2px solid #9b59b6'; playerTabBtn.style.borderBottom = 'none';
-            baseTabBtn.style.color = 'white'; playerTabBtn.style.color = '#555';
+            playerContent.style.display = 'none'; baseContent.style.display = 'flex'; techContent.style.display = 'none';
+            baseTabBtn.style.color = 'white'; playerTabBtn.style.color = '#555'; techTabBtn.style.color = '#555';
+            baseTabBtn.style.borderBottom = '2px solid #9b59b6'; playerTabBtn.style.borderBottom = 'none'; techTabBtn.style.borderBottom = 'none';
+        };
+        techTabBtn.onclick = () => {
+            playerContent.style.display = 'none'; baseContent.style.display = 'none'; techContent.style.display = 'flex';
+            techTabBtn.style.color = 'white'; playerTabBtn.style.color = '#555'; baseTabBtn.style.color = '#555';
+            techTabBtn.style.borderBottom = '2px solid #9b59b6'; playerTabBtn.style.borderBottom = 'none'; baseTabBtn.style.borderBottom = 'none';
         };
 
         const closeBtn = document.createElement('button');
@@ -138,6 +177,63 @@ export class UpgradeManager {
         });
         closeBtn.onclick = () => { this.hide(); if (this.onCloseCallback) this.onCloseCallback(); };
         this.container.appendChild(closeBtn);
+    }
+
+    private createUnlockBtn(parent: HTMLElement, type: string) {
+        const wrapper = document.createElement('div');
+        Object.assign(wrapper.style, {
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '4px', border: '1px solid #333'
+        });
+
+        const info = document.createElement('div');
+        info.style.textAlign = 'left';
+
+        const btn = document.createElement('button');
+        Object.assign(btn.style, {
+            cursor: 'pointer', padding: '6px 12px', background: '#3498db', color: 'white',
+            border: 'none', borderRadius: '3px', fontWeight: 'bold', minWidth: '80px'
+        });
+
+        const cost = (GameConfig.BUILDINGS as any)[type].researchCost || 100;
+        
+        // Находим ключ локализации для названия здания (tool_sniper -> Sniper)
+        const toolName = this.t(`tool_${type}`);
+
+        const updateState = () => {
+            const isUnlocked = this.isBuildingUnlocked(type);
+            
+            if (isUnlocked) {
+                btn.innerText = "UNLOCKED";
+                btn.disabled = true;
+                btn.style.background = '#27ae60';
+                info.style.opacity = '0.5';
+            } else {
+                btn.innerText = `${cost} 🧬`;
+                btn.disabled = false;
+                btn.style.background = '#3498db';
+                info.style.opacity = '1';
+            }
+            
+            info.innerHTML = `<div style="font-size: 14px; font-weight: bold;">${toolName}</div>
+                              <div style="font-size: 11px; color: #aaa;">Tech Level 1</div>`;
+        };
+
+        btn.onclick = () => {
+            if (this.resourceManager.spendBiomass(cost)) {
+                this.unlockedBuildings.add(type);
+                if (this.onUnlock) this.onUnlock(type);
+                updateState();
+            } else {
+                btn.style.background = '#c0392b';
+                setTimeout(() => btn.style.background = '#3498db', 300);
+            }
+        };
+
+        updateState();
+        wrapper.appendChild(info);
+        wrapper.appendChild(btn);
+        parent.appendChild(wrapper);
     }
 
     private createTabBtn(label: string, isActive: boolean): HTMLElement {

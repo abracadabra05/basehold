@@ -191,8 +191,23 @@ export class BuildingSystem {
         this.ghost.x = pos.x;
         this.ghost.y = pos.y;
         this.ghost.clear();
-        this.ghost.removeChildren(); // Убираем старый радиус
+        this.ghost.removeChildren(); 
+        
+        // Рисуем сетку 3x3 вокруг курсора для удобства
         this.ghost.rect(0, 0, this.gridSize, this.gridSize);
+        this.ghost.stroke({ width: 2, color: 0xFFFFFF, alpha: 0.8 }); // Основной квадрат
+        
+        // Соседние клетки (яркий крестик)
+        const ghostGrid = new Graphics();
+        const gs = this.gridSize;
+        // Линии сетки
+        ghostGrid.moveTo(-gs, 0).lineTo(gs*2, 0); // Верхняя горизонталь
+        ghostGrid.moveTo(-gs, gs).lineTo(gs*2, gs); // Нижняя горизонталь
+        ghostGrid.moveTo(0, -gs).lineTo(0, gs*2); // Левая вертикаль
+        ghostGrid.moveTo(gs, -gs).lineTo(gs, gs*2); // Правая вертикаль
+        
+        ghostGrid.stroke({ width: 1, color: 0x00FFFF, alpha: 0.5 }); // Голубой цвет, 50% прозрачности
+        this.ghost.addChild(ghostGrid);
         
         if (this.selectedTool === 'repair') {
             const building = this.getBuildingAt(pos.x, pos.y);

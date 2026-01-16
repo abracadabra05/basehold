@@ -15,6 +15,7 @@ export class InputSystem {
     
     public onSpacePressed?: () => void;
     public onToggleBuildMode?: () => void; 
+    public onRightClick?: () => void; // Добавлено
 
     constructor(stage: Container) {
         this.stage = stage;
@@ -47,7 +48,10 @@ export class InputSystem {
         // --- GLOBAL WINDOW EVENTS ---
         
         window.addEventListener('mousedown', (e) => {
-            if (e.button === 2) this.isRightMouseDown = true;
+            if (e.button === 2) {
+                this.isRightMouseDown = true;
+                if (this.onRightClick) this.onRightClick();
+            }
         });
 
         window.addEventListener('mouseup', (e) => {
@@ -72,6 +76,9 @@ export class InputSystem {
             this.keys[e.code] = true;
             if (e.code === 'Space') {
                 if (this.onSpacePressed) this.onSpacePressed();
+            }
+            if (e.code === 'Escape') {
+                if (this.onToggleBuildMode) this.onToggleBuildMode(); // Сброс инструмента
             }
         });
         window.addEventListener('keyup', (e) => {

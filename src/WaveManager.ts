@@ -21,7 +21,7 @@ export class WaveManager {
     private skipButton: HTMLButtonElement; 
     
     private isPaused: boolean = false;
-    private isPrepPhase: boolean = true;
+    public isPrepPhase: boolean = true;
     public isBossActive: boolean = false; 
 
     constructor(
@@ -49,7 +49,8 @@ export class WaveManager {
         Object.assign(this.timerText.style, {
             fontSize: '24px', fontWeight: '900', color: 'white',
             textShadow: '0 2px 4px rgba(0,0,0,0.8)', letterSpacing: '2px',
-            fontFamily: "'Segoe UI', sans-serif"
+            fontFamily: "'Segoe UI', sans-serif",
+            textAlign: 'center' // Добавлено
         });
         this.container.appendChild(this.timerText);
 
@@ -130,44 +131,55 @@ export class WaveManager {
 
         const dt = ticker.deltaMS; 
 
+        // ФАЗА ПОДГОТОВКИ (МЕЖДУ ВОЛНАМИ)
         if (this.isPrepPhase) {
             this.skipButton.style.display = 'block';
             this.prepTime -= dt;
             const timeLeft = Math.ceil(this.prepTime / 1000);
-            this.timerText.innerHTML = `<span style="color: #3498db; font-size: 14px;">${this.t('wave_prep')}</span><br>${Math.max(0, timeLeft)}`;
+            
+            this.timerText.innerHTML = `
+                <div style="color: #3498db; font-size: 14px; margin-bottom: -5px;">${this.t('wave_prep')}</div>
+                <div style="font-size: 28px;">${Math.max(0, timeLeft)}</div>
+            `;
+            
+            const bonus = Math.max(1, timeLeft * 2);
+            this.skipButton.innerText = `SKIP (+${bonus} 🧬)`;
 
             if (this.prepTime <= 0) {
-                this.isPrepPhase = false;
                 this.startWave();
             }
             return;
         }
 
+        // ФАЗА ВОЛНЫ (БОЙ)
         this.waveTimer += dt;
-        const timeLeft = Math.ceil((this.timeBetweenWaves - this.waveTimer) / 1000);
         
         this.timerText.innerHTML = `<span style="color: #e74c3c; font-size: 14px;">${this.t('wave_active')}</span> ${this.waveCount}`;
-        
-        this.skipButton.style.display = 'none'; // Во время волны скипать нечего
+        this.skipButton.style.display = 'none';
 
-        if (this.waveTimer >= this.timeBetweenWaves) {
-            if (this.waveCount > 1 && (this.waveCount - 1) % 5 === 0) {
-                this.isPaused = true;
-                this.waveTimer = 0; 
-                this.onOpenShopCallback();
-            } else {
-                this.startWave();
-            }
+        // 5 секунд после спавна волны переходим в ожидание следующей
+        if (this.waveTimer > 5000) { 
+             this.isPrepPhase = true;
+             // Увеличиваем сложность времени
+             const nextBreak = 20000; // 20 сек передышка
+             this.prepTime = nextBreak;
+             this.waveTimer = 0;
         }
     }
 
     private startWave() {
+        this.isPrepPhase = false;
         this.waveTimer = 0;
-        const nextBreak = 10000 + (this.waveCount * 1000);
-        this.timeBetweenWaves = Math.min(nextBreak, 30000);
+        this.timeBetweenWaves = 5000; // Время самой волны (пока не перейдем в PREP)
 
         const enemiesToSpawn = 3 + Math.floor(this.waveCount * 1.5);
         this.spawnCallback(this.waveCount, enemiesToSpawn);
+        
+        if (this.waveCount > 1 && (this.waveCount) % 5 === 0) {
+             this.isPaused = true;
+             this.onOpenShopCallback();
+        }
+        
         this.waveCount++;
     }
 }
