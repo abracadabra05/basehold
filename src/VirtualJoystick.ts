@@ -1,7 +1,19 @@
 export class VirtualJoystick {
+    public static activeTouchIds: Set<number> = new Set();
+    public static activeJoysticks: Set<VirtualJoystick> = new Set();
+
+    public static isTouchCaptured(pointerId: number): boolean {
+        return this.activeTouchIds.has(pointerId);
+    }
+
+    public static activeCount(): number {
+        return this.activeJoysticks.size;
+    }
+
     private container: HTMLElement;
     private knob: HTMLElement;
     private touchId: number | null = null;
+    private pointerId: number | null = null;
     
     public value: { x: number, y: number } = { x: 0, y: 0 };
     public isActive: boolean = false;
@@ -16,24 +28,24 @@ export class VirtualJoystick {
         this.container.style.width = '120px';
         this.container.style.height = '120px';
         this.container.style.borderRadius = '50%';
-        this.container.style.background = 'rgba(255, 255, 255, 0.05)'; // Было 0.1
-        this.container.style.border = '2px solid rgba(255, 255, 255, 0.1)'; // Было 0.2
+        this.container.style.background = 'rgba(255, 255, 255, 0.02)';
+        this.container.style.border = '2px solid rgba(255, 255, 255, 0.06)';
         this.container.style.touchAction = 'none'; 
         this.container.style.pointerEvents = 'auto';
         this.container.style.zIndex = '3000';
         this.container.style.display = 'none'; 
         
         // Позиционирование
-        this.container.style.bottom = '40px';
-        if (side === 'left') this.container.style.left = '40px';
-        else this.container.style.right = '40px';
+        this.container.style.bottom = '0px';
+        if (side === 'left') this.container.style.left = '0px';
+        else this.container.style.right = '0px';
 
         this.knob = document.createElement('div');
         this.knob.style.position = 'absolute';
         this.knob.style.width = '50px';
         this.knob.style.height = '50px';
         this.knob.style.borderRadius = '50%';
-        this.knob.style.background = 'rgba(255, 255, 255, 0.3)'; // Было 0.5
+        this.knob.style.background = 'rgba(255, 255, 255, 0.15)';
         this.knob.style.left = '50%';
         this.knob.style.top = '50%';
         this.knob.style.transform = 'translate(-50%, -50%)';
@@ -54,17 +66,67 @@ export class VirtualJoystick {
             e.preventDefault();
             e.stopPropagation();
         };
-        this.container.addEventListener('pointerdown', blockPointer);
-        this.container.addEventListener('pointermove', blockPointer);
-        this.container.addEventListener('pointerup', blockPointer);
-        this.container.addEventListener('pointercancel', blockPointer);
+        this.container.addEventListener('pointerdown', (e) => {
+            blockPointer(e);
+            if (this.isActive) return;
+            const pe = e as PointerEvent;
+            this.pointerId = pe.pointerId;
+            this.isActive = true;
+            VirtualJoystick.activeTouchIds.add(this.pointerId);
+            VirtualJoystick.activeJoysticks.add(this);
+            if (this.container.setPointerCapture) {
+                this.container.setPointerCapture(this.pointerId);
+            }
+            const rect = this.container.getBoundingClientRect();
+            this.centerX = rect.left + rect.width / 2;
+            this.centerY = rect.top + rect.height / 2;
+            this.updateKnob(pe.clientX, pe.clientY);
+        });
+        this.container.addEventListener('pointermove', (e) => {
+            blockPointer(e);
+            const pe = e as PointerEvent;
+            if (this.pointerId !== null && pe.pointerId === this.pointerId) {
+                this.updateKnob(pe.clientX, pe.clientY);
+            }
+        });
+        this.container.addEventListener('pointerup', (e) => {
+            blockPointer(e);
+            const pe = e as PointerEvent;
+            if (this.pointerId !== null && pe.pointerId !== this.pointerId) return;
+            if (this.pointerId !== null) {
+                VirtualJoystick.activeTouchIds.delete(this.pointerId);
+                if (this.container.releasePointerCapture) {
+                    this.container.releasePointerCapture(this.pointerId);
+                }
+            }
+            VirtualJoystick.activeJoysticks.delete(this);
+            this.pointerId = null;
+            this.reset();
+        });
+        this.container.addEventListener('pointercancel', (e) => {
+            blockPointer(e);
+            if (this.pointerId !== null) {
+                VirtualJoystick.activeTouchIds.delete(this.pointerId);
+                if (this.container.releasePointerCapture) {
+                    this.container.releasePointerCapture(this.pointerId);
+                }
+            }
+            VirtualJoystick.activeJoysticks.delete(this);
+            this.pointerId = null;
+            this.reset();
+        });
 
         this.container.addEventListener('touchstart', (e) => {
             e.preventDefault();
             e.stopPropagation();
+            if (this.isActive) return;
             const touch = e.changedTouches[0];
             this.touchId = touch.identifier;
             this.isActive = true;
+            if (this.pointerId === null) {
+                VirtualJoystick.activeTouchIds.add(this.touchId);
+                VirtualJoystick.activeJoysticks.add(this);
+            }
             
             const rect = this.container.getBoundingClientRect();
             this.centerX = rect.left + rect.width / 2;
@@ -92,6 +154,11 @@ export class VirtualJoystick {
             e.stopPropagation();
             for (let i = 0; i < e.changedTouches.length; i++) {
                 if (e.changedTouches[i].identifier === this.touchId) {
+                    if (this.pointerId === null && this.touchId !== null) {
+                        VirtualJoystick.activeTouchIds.delete(this.touchId);
+                        VirtualJoystick.activeJoysticks.delete(this);
+                    }
+                    this.touchId = null;
                     this.reset();
                     break;
                 }

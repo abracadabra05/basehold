@@ -7,6 +7,7 @@ import type { SoundManager } from './SoundManager';
 import type { ToolType } from './UIManager';
 import type { Rock } from './Rock';
 import { GameConfig } from './GameConfig';
+import { VirtualJoystick } from './VirtualJoystick';
 
 const BUILDING_COSTS: Record<BuildingType, number> = {
     'wall': 10,
@@ -35,6 +36,7 @@ export class BuildingSystem {
     private isDragging: boolean = false;
     private soundManager: SoundManager | null = null;
     private isPaused: boolean = false;
+    private activeBuildPointerId: number | null = null;
 
     private regenAmount: number = 0;
     private regenTimer: number = 0;
@@ -172,18 +174,50 @@ export class BuildingSystem {
         this.app.stage.hitArea = this.app.screen;
         this.app.stage.on('pointermove', (e) => { 
             if (this.isPaused) return;
+            if (this.activeBuildPointerId !== null && e.pointerId !== this.activeBuildPointerId) return;
+            if (this.isBuildInputBlocked(e)) {
+                this.isDragging = false;
+                this.activeBuildPointerId = null;
+                return;
+            }
             this.updateGhost(e); 
             if (this.isDragging) this.handleAction();
         });
         this.app.stage.on('pointerdown', (e) => {
             if (this.isPaused) return;
+            if (this.isBuildInputBlocked(e)) return;
             if (e.button === 0) {
+                this.activeBuildPointerId = e.pointerId;
                 this.isDragging = true;
+                this.updateGhost(e);
                 this.handleAction();
             }
         });
-        this.app.stage.on('pointerup', () => { this.isDragging = false; });
-        this.app.stage.on('pointerupoutside', () => { this.isDragging = false; });
+        this.app.stage.on('pointerup', (e) => {
+            if (this.activeBuildPointerId === e.pointerId) {
+                this.activeBuildPointerId = null;
+            }
+            this.isDragging = false;
+        });
+        this.app.stage.on('pointerupoutside', (e) => {
+            if (this.activeBuildPointerId === e.pointerId) {
+                this.activeBuildPointerId = null;
+            }
+            this.isDragging = false;
+        });
+    }
+
+    private isBuildInputBlocked(e: FederatedPointerEvent): boolean {
+        if (VirtualJoystick.activeCount() > 1) return true;
+        if (VirtualJoystick.isTouchCaptured(e.pointerId)) return true;
+        return this.isPointerOverUI(e);
+    }
+
+    private isPointerOverUI(e: FederatedPointerEvent): boolean {
+        if (typeof document === 'undefined') return false;
+        const el = document.elementFromPoint(e.global.x, e.global.y);
+        if (!el) return false;
+        return el !== this.app.view && el.tagName !== 'CANVAS';
     }
 
     private updateGhost(e: FederatedPointerEvent) {

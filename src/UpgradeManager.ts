@@ -67,6 +67,13 @@ export class UpgradeManager {
             boxShadow: '0 0 40px rgba(155, 89, 182, 0.4)', color: 'white',
             fontFamily: "'Segoe UI', sans-serif", zIndex: '2000', minWidth: '380px', textAlign: 'center'
         });
+
+        if (window.innerWidth <= 768) {
+            Object.assign(this.container.style, {
+                width: '92vw', maxWidth: '92vw', maxHeight: '88vh', minWidth: 'unset',
+                padding: '16px', overflowY: 'auto'
+            });
+        }
     }
 
     private createUI() {
@@ -175,6 +182,12 @@ export class UpgradeManager {
             marginTop: '20px', padding: '12px', fontSize: '16px', fontWeight: 'bold',
             cursor: 'pointer', background: '#27ae60', color: 'white', border: 'none', borderRadius: '4px'
         });
+        if (window.innerWidth <= 768) {
+            Object.assign(closeBtn.style, {
+                position: 'sticky', bottom: '0px'
+            });
+            this.container.style.paddingBottom = '26px';
+        }
         closeBtn.onclick = () => { this.hide(); if (this.onCloseCallback) this.onCloseCallback(); };
         this.container.appendChild(closeBtn);
     }
