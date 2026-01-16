@@ -51,12 +51,21 @@ export class UpgradeManager {
     }
 
     public show() {
+        this.initStyles();
         this.createUI();
         this.container.style.display = 'flex';
     }
 
     public hide() {
         this.container.style.display = 'none';
+    }
+
+    private isMobileLayout(): boolean {
+        try {
+            return window.matchMedia('(pointer: coarse)').matches || window.innerWidth <= 900;
+        } catch {
+            return window.innerWidth <= 900;
+        }
     }
 
     private initStyles() {
@@ -68,22 +77,53 @@ export class UpgradeManager {
             fontFamily: "'Segoe UI', sans-serif", zIndex: '2000', minWidth: '380px', textAlign: 'center'
         });
 
-        if (window.innerWidth <= 768) {
+        if (this.isMobileLayout()) {
             Object.assign(this.container.style, {
-                width: '92vw', maxWidth: '92vw', maxHeight: '88vh', minWidth: 'unset',
-                padding: '16px', overflowY: 'auto'
+                width: '94vw', maxWidth: '94vw', height: '88vh', maxHeight: '88vh', minWidth: 'unset',
+                padding: '12px',
+                overflow: 'hidden'
             });
         }
     }
 
     private createUI() {
         this.container.innerHTML = '';
+
+        const isMobile = this.isMobileLayout();
+
+        const closeX = document.createElement('button');
+        closeX.innerText = '✕';
+        Object.assign(closeX.style, {
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            width: '36px',
+            height: '36px',
+            borderRadius: '10px',
+            border: '1px solid #333',
+            background: 'rgba(0,0,0,0.35)',
+            color: 'white',
+            fontSize: '18px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            zIndex: '3000'
+        });
+        closeX.onclick = () => { this.hide(); if (this.onCloseCallback) this.onCloseCallback(); };
+        this.container.appendChild(closeX);
         
         const header = document.createElement('div');
         header.innerHTML = `
             <h2 style="margin: 0 0 5px 0; color: #9b59b6; text-transform: uppercase; letter-spacing: 2px;">${this.t('shop_title')}</h2>
             <p style="margin-bottom: 20px; font-size: 13px; color: #888;">${this.t('shop_subtitle')}</p>
         `;
+        if (isMobile) {
+            header.style.paddingRight = '44px';
+            const subtitle = header.querySelector('p') as HTMLParagraphElement | null;
+            if (subtitle) {
+                subtitle.style.marginBottom = '10px';
+                subtitle.style.fontSize = '12px';
+            }
+        }
         this.container.appendChild(header);
 
         const tabsContainer = document.createElement('div');
@@ -101,7 +141,15 @@ export class UpgradeManager {
         tabsContainer.appendChild(techTabBtn);
 
         const contentContainer = document.createElement('div');
-        contentContainer.style.minHeight = '280px'; // Чуть больше места
+        contentContainer.style.minHeight = isMobile ? 'unset' : '280px'; // Чуть больше места
+        contentContainer.style.flex = '1';
+        contentContainer.style.minHeight = '0';
+        contentContainer.style.overflowY = 'auto';
+        if (isMobile) {
+            contentContainer.style.paddingBottom = '10px';
+            (contentContainer.style as any).webkitOverflowScrolling = 'touch';
+            contentContainer.style.touchAction = 'pan-y';
+        }
         this.container.appendChild(contentContainer);
 
         // --- PLAYER ---
@@ -182,11 +230,12 @@ export class UpgradeManager {
             marginTop: '20px', padding: '12px', fontSize: '16px', fontWeight: 'bold',
             cursor: 'pointer', background: '#27ae60', color: 'white', border: 'none', borderRadius: '4px'
         });
-        if (window.innerWidth <= 768) {
+        if (isMobile) {
             Object.assign(closeBtn.style, {
-                position: 'sticky', bottom: '0px'
+                marginTop: '12px',
+                padding: '10px',
+                fontSize: '14px'
             });
-            this.container.style.paddingBottom = '26px';
         }
         closeBtn.onclick = () => { this.hide(); if (this.onCloseCallback) this.onCloseCallback(); };
         this.container.appendChild(closeBtn);
@@ -252,8 +301,9 @@ export class UpgradeManager {
     private createTabBtn(label: string, isActive: boolean): HTMLElement {
         const btn = document.createElement('div');
         btn.innerText = label;
+        const isMobile = window.innerWidth <= 768;
         Object.assign(btn.style, {
-            cursor: 'pointer', padding: '10px 30px', fontWeight: 'bold', fontSize: '20px', transition: 'all 0.2s',
+            cursor: 'pointer', padding: isMobile ? '8px 10px' : '10px 30px', fontWeight: 'bold', fontSize: isMobile ? '18px' : '20px', transition: 'all 0.2s',
             borderBottom: isActive ? '2px solid #9b59b6' : 'none', color: isActive ? 'white' : '#555'
         });
         return btn;

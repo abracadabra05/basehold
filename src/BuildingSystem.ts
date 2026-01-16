@@ -180,6 +180,9 @@ export class BuildingSystem {
                 this.activeBuildPointerId = null;
                 return;
             }
+            if ((e as any).pointerType === 'touch') {
+                this.ghost.visible = true;
+            }
             this.updateGhost(e); 
             if (this.isDragging) this.handleAction();
         });
@@ -189,6 +192,9 @@ export class BuildingSystem {
             if (e.button === 0) {
                 this.activeBuildPointerId = e.pointerId;
                 this.isDragging = true;
+                if ((e as any).pointerType === 'touch') {
+                    this.ghost.visible = true;
+                }
                 this.updateGhost(e);
                 this.handleAction();
             }
@@ -198,12 +204,18 @@ export class BuildingSystem {
                 this.activeBuildPointerId = null;
             }
             this.isDragging = false;
+            if ((e as any).pointerType === 'touch') {
+                this.ghost.visible = false;
+            }
         });
         this.app.stage.on('pointerupoutside', (e) => {
             if (this.activeBuildPointerId === e.pointerId) {
                 this.activeBuildPointerId = null;
             }
             this.isDragging = false;
+            if ((e as any).pointerType === 'touch') {
+                this.ghost.visible = false;
+            }
         });
     }
 
