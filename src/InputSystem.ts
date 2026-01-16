@@ -109,25 +109,36 @@ export class InputSystem {
     private createMobileControls() {
         if (!this.isMobile) return;
 
-        const uiLayer = document.createElement('div');
-        uiLayer.id = 'mobile-controls';
-        Object.assign(uiLayer.style, {
-            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-            pointerEvents: 'none', zIndex: 2000
-        });
-        document.body.appendChild(uiLayer);
+        const leftJoystickContainer = document.createElement('div');
+        leftJoystickContainer.style.width = '120px';
+        leftJoystickContainer.style.height = '120px';
+        leftJoystickContainer.style.position = 'absolute';
+        leftJoystickContainer.style.bottom = '40px';
+        leftJoystickContainer.style.left = '40px';
 
-        const joyContainer = document.createElement('div');
-        Object.assign(joyContainer.style, {
-            position: 'absolute', bottom: 0, left: 0, width: '100%', height: '50%',
-            pointerEvents: 'auto'
-        });
-        uiLayer.appendChild(joyContainer);
+        leftJoystickContainer.style.pointerEvents = 'auto';
+        leftJoystickContainer.style.touchAction = 'none';
+        leftJoystickContainer.style.zIndex = '950';
 
-        this.leftJoystick = new VirtualJoystick(joyContainer, 'left');
+        document.body.appendChild(leftJoystickContainer);
+
+        const rightJoystickContainer = document.createElement('div');
+        rightJoystickContainer.style.width = '120px';
+        rightJoystickContainer.style.height = '120px';
+        rightJoystickContainer.style.position = 'absolute';
+        rightJoystickContainer.style.bottom = '40px';
+        rightJoystickContainer.style.right = '40px';
+
+        rightJoystickContainer.style.pointerEvents = 'auto';
+        rightJoystickContainer.style.touchAction = 'none';
+        rightJoystickContainer.style.zIndex = '950';
+
+        document.body.appendChild(rightJoystickContainer);
+
+        this.leftJoystick = new VirtualJoystick(leftJoystickContainer, 'left');
         this.leftJoystick.show();
 
-        this.rightJoystick = new VirtualJoystick(joyContainer, 'right');
+        this.rightJoystick = new VirtualJoystick(rightJoystickContainer, 'right');
         this.rightJoystick.show();
 
         // Кнопка Build удалена по просьбе

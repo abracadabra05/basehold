@@ -19,6 +19,8 @@ export class VirtualJoystick {
         this.container.style.background = 'rgba(255, 255, 255, 0.05)'; // Было 0.1
         this.container.style.border = '2px solid rgba(255, 255, 255, 0.1)'; // Было 0.2
         this.container.style.touchAction = 'none'; 
+        this.container.style.pointerEvents = 'auto';
+        this.container.style.zIndex = '3000';
         this.container.style.display = 'none'; 
         
         // Позиционирование
@@ -48,8 +50,18 @@ export class VirtualJoystick {
     }
 
     private initEvents() {
+        const blockPointer = (e: Event) => {
+            e.preventDefault();
+            e.stopPropagation();
+        };
+        this.container.addEventListener('pointerdown', blockPointer);
+        this.container.addEventListener('pointermove', blockPointer);
+        this.container.addEventListener('pointerup', blockPointer);
+        this.container.addEventListener('pointercancel', blockPointer);
+
         this.container.addEventListener('touchstart', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             const touch = e.changedTouches[0];
             this.touchId = touch.identifier;
             this.isActive = true;
@@ -63,6 +75,7 @@ export class VirtualJoystick {
 
         this.container.addEventListener('touchmove', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             if (!this.isActive) return;
             
             for (let i = 0; i < e.changedTouches.length; i++) {
@@ -75,6 +88,8 @@ export class VirtualJoystick {
         }, { passive: false });
 
         const endHandler = (e: TouchEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
             for (let i = 0; i < e.changedTouches.length; i++) {
                 if (e.changedTouches[i].identifier === this.touchId) {
                     this.reset();
