@@ -16,10 +16,10 @@ export class VirtualJoystick {
         this.container.style.width = '120px';
         this.container.style.height = '120px';
         this.container.style.borderRadius = '50%';
-        this.container.style.background = 'rgba(255, 255, 255, 0.1)';
-        this.container.style.border = '2px solid rgba(255, 255, 255, 0.2)';
-        this.container.style.touchAction = 'none'; // Важно для предотвращения скролла
-        this.container.style.display = 'none'; // Скрыт по умолчанию (покажем на тач-устройствах)
+        this.container.style.background = 'rgba(255, 255, 255, 0.05)'; // Было 0.1
+        this.container.style.border = '2px solid rgba(255, 255, 255, 0.1)'; // Было 0.2
+        this.container.style.touchAction = 'none'; 
+        this.container.style.display = 'none'; 
         
         // Позиционирование
         this.container.style.bottom = '40px';
@@ -31,7 +31,7 @@ export class VirtualJoystick {
         this.knob.style.width = '50px';
         this.knob.style.height = '50px';
         this.knob.style.borderRadius = '50%';
-        this.knob.style.background = 'rgba(255, 255, 255, 0.5)';
+        this.knob.style.background = 'rgba(255, 255, 255, 0.3)'; // Было 0.5
         this.knob.style.left = '50%';
         this.knob.style.top = '50%';
         this.knob.style.transform = 'translate(-50%, -50%)';

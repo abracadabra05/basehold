@@ -47,7 +47,14 @@ export class InputSystem {
 
         // --- GLOBAL WINDOW EVENTS ---
         
+        const isGameCanvas = (e: Event) => {
+            const target = e.target as HTMLElement;
+            // Если цель - не канвас (а кнопка, джойстик, див меню), то это UI
+            return target.tagName === 'CANVAS';
+        };
+
         window.addEventListener('mousedown', (e) => {
+            if (!isGameCanvas(e)) return; // ИГНОРИРУЕМ ВСЁ, ЧТО НЕ КАНВАС
             if (e.button === 2) {
                 this.isRightMouseDown = true;
                 if (this.onRightClick) this.onRightClick();
@@ -58,7 +65,15 @@ export class InputSystem {
             if (e.button === 2) this.isRightMouseDown = false;
         });
 
+        window.addEventListener('touchstart', (e) => {
+            // Если коснулись интерфейса - игра не должна реагировать
+            if (!isGameCanvas(e)) return;
+            
+            // Ноль реакции, обработка внутри Pixi или джойстиков
+        }, { passive: false });
+
         window.addEventListener('pointerdown', (e) => {
+            if (!isGameCanvas(e)) return;
             if (e.button === 2) this.isRightMouseDown = true;
         });
         

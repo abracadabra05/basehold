@@ -47,19 +47,19 @@ export class WaveManager {
         // Текст таймера
         this.timerText = document.createElement('div');
         Object.assign(this.timerText.style, {
-            fontSize: '24px', fontWeight: '900', color: 'white',
-            textShadow: '0 2px 4px rgba(0,0,0,0.8)', letterSpacing: '2px',
+            fontSize: '20px', fontWeight: '900', color: 'white', // 24 -> 20
+            textShadow: '0 2px 4px rgba(0,0,0,0.8)', letterSpacing: '1px',
             fontFamily: "'Segoe UI', sans-serif",
-            textAlign: 'center' // Добавлено
+            textAlign: 'center'
         });
         this.container.appendChild(this.timerText);
 
-        // Кнопка пропуска (делаем ее маленькой и аккуратной под таймером)
+        // Кнопка пропуска
         this.skipButton = document.createElement('button');
         this.skipButton.innerText = "SKIP >>";
         Object.assign(this.skipButton.style, {
             marginTop: '5px', padding: '4px 12px', fontSize: '12px', cursor: 'pointer',
-            backgroundColor: 'rgba(39, 174, 96, 0.8)', color: 'white', border: '1px solid #2ecc71',
+            backgroundColor: 'rgba(39, 174, 96, 0.5)', color: 'white', border: '1px solid rgba(46, 204, 113, 0.5)', // 0.8 -> 0.5
             borderRadius: '12px', transition: 'all 0.2s', pointerEvents: 'auto',
             backdropFilter: 'blur(4px)', textTransform: 'uppercase', fontWeight: 'bold'
         });

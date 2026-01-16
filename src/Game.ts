@@ -268,6 +268,7 @@ export class Game {
             }
             
             this.camera.update(ticker);
+            this.miniMap.resize(this.app.screen.width); // Обновляем позицию каждый кадр (дешевая операция)
             this.miniMap.update(this.player, this.enemies, this.resources);
             
             this.buildingSystem.update(ticker, this.enemies, (x, y, tx, ty, damage) => {
@@ -370,12 +371,18 @@ export class Game {
     }
 
     public resize(width: number, height: number) {
+        // Принудительно обновляем размеры рендера, если они рассинхронизировались
+        this.app.renderer.resize(width, height);
+        
         if (this.camera) this.camera.resize(width, height);
         if (this.miniMap) this.miniMap.resize(width);
         if (this.inputSystem) this.inputSystem.init(this.app.screen); // Обновляем хитбокс
         if (this.voidOverlay) {
             this.voidOverlay.clear().rect(0, 0, width, height).fill({ color: 0xFF0000, alpha: 0 });
         }
+        
+        // Обновляем позицию UI через CSS
+        this.uiManager.resize();
     }
     
     // reasonCore: true если взорвалось ядро

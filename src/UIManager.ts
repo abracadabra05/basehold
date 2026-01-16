@@ -107,6 +107,12 @@ export class UIManager {
         this.mainMenu.style.display = 'none';
     }
 
+    public resize() {
+        // Если что-то нужно пересчитать при ресайзе
+        this.detectPlatform();
+        // Можно обновить размеры кнопок, если они зависят от платформы
+    }
+
     public showGameOver() {
         const overlay = document.createElement('div');
         Object.assign(overlay.style, {
@@ -220,26 +226,34 @@ export class UIManager {
     }
 
     private updateMainMenuContent(div: HTMLDivElement) {
+        const titleSize = this.isMobile ? '40px' : '80px';
+        const subSize = this.isMobile ? '14px' : '18px';
+        const gap = this.isMobile ? '20px' : '40px';
+        
         div.innerHTML = `
-            <h1 style="font-size: 80px; color: #3498db; margin: 0; text-transform: uppercase; letter-spacing: 10px; font-weight: 900;">${this.t('title')}</h1>
-            <p style="color: #7f8c8d; margin-bottom: 50px; font-size: 18px; letter-spacing: 2px;">${this.t('subtitle')}</p>
-            
-            <div style="display: flex; gap: 15px; margin-bottom: 40px;">
-                <button id="lang-en" style="padding: 10px 20px; cursor: pointer; background: ${this.lang==='en'?'#3498db':'#1a1a1a'}; border: 1px solid #3498db; color: white; border-radius: 4px;">EN</button>
-                <button id="lang-ru" style="padding: 10px 20px; cursor: pointer; background: ${this.lang==='ru'?'#3498db':'#1a1a1a'}; border: 1px solid #3498db; color: white; border-radius: 4px;">RU</button>
-            </div>
+            <div style="text-align: center; padding: 20px;">
+                <h1 style="font-size: ${titleSize}; color: #3498db; margin: 0; text-transform: uppercase; letter-spacing: 5px; font-weight: 900;">${this.t('title')}</h1>
+                <p style="color: #7f8c8d; margin-bottom: ${gap}; font-size: ${subSize}; letter-spacing: 2px;">${this.t('subtitle')}</p>
+                
+                <div style="display: flex; gap: 15px; margin-bottom: ${gap}; justify-content: center;">
+                    <button id="lang-en" style="padding: 10px 20px; cursor: pointer; background: ${this.lang==='en'?'#3498db':'#1a1a1a'}; border: 1px solid #3498db; color: white; border-radius: 4px;">EN</button>
+                    <button id="lang-ru" style="padding: 10px 20px; cursor: pointer; background: ${this.lang==='ru'?'#3498db':'#1a1a1a'}; border: 1px solid #3498db; color: white; border-radius: 4px;">RU</button>
+                </div>
 
-            <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 40px; cursor: pointer; font-size: 18px;">
-                <input type="checkbox" id="tut-toggle" ${this.showTutorialFlag ? 'checked' : ''} style="width: 20px; height: 20px;">
-                ${this.t('tutorial_toggle')}
-            </label>
+                <label style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: ${gap}; cursor: pointer; font-size: 16px;">
+                    <input type="checkbox" id="tut-toggle" ${this.showTutorialFlag ? 'checked' : ''} style="width: 20px; height: 20px;">
+                    ${this.t('tutorial_toggle')}
+                </label>
+            </div>
         `;
 
         const startBtn = document.createElement('button');
         startBtn.innerText = this.t('start');
         Object.assign(startBtn.style, {
-            padding: '18px 60px', fontSize: '24px', cursor: 'pointer',
-            background: 'transparent', color: '#3498db', border: '2px solid #3498db',
+            padding: this.isMobile ? '12px 40px' : '18px 60px',
+            fontSize: this.isMobile ? '18px' : '24px',
+            cursor: 'pointer',
+            background: 'rgba(52, 152, 219, 0.1)', color: '#3498db', border: '2px solid #3498db',
             borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '4px',
             transition: 'all 0.2s', fontWeight: 'bold'
         });
@@ -421,7 +435,7 @@ export class UIManager {
 
     private initPlayerHUD() {
         this.hudPlayer.style.position = 'absolute';
-        this.hudPlayer.style.bottom = '20px';
+        this.hudPlayer.style.top = '20px'; // Переместим наверх слева (было bottom 20px)
         this.hudPlayer.style.left = '20px';
         this.hudPlayer.style.width = '180px';
         this.applyPanelStyle(this.hudPlayer);
@@ -440,7 +454,7 @@ export class UIManager {
 
     private initToolbarStyles() {
         this.container.style.position = 'absolute';
-        this.container.style.bottom = '20px';
+        this.container.style.bottom = '30px'; // Было 20px
         this.container.style.left = '50%';
         this.container.style.transform = 'translateX(-50%)';
         this.container.style.display = 'flex';
@@ -467,8 +481,9 @@ export class UIManager {
 
     private createButtons() {
         this.container.innerHTML = '';
-        const btnSize = this.isMobile ? '56px' : '48px';
-        const iconSize = this.isMobile ? '24px' : '18px';
+        // Уменьшаем размер кнопок для мобильных, чтобы не было громоздко
+        const btnSize = this.isMobile ? '40px' : '48px'; // Было 56px для мобильных
+        const iconSize = this.isMobile ? '20px' : '18px';
 
         this.items.forEach(item => {
             const btn = document.createElement('button');
@@ -484,10 +499,33 @@ export class UIManager {
             });
             
             if (item.color) btn.style.borderColor = item.color;
-            btn.onclick = () => { if (!this.isPaused) { this.onSelect(item.type); this.highlightButton(item.type); } };
+            btn.dataset.type = item.type; // Храним тип в дата-атрибуте
             this.container.appendChild(btn);
             this.buttons.set(item.type, btn);
         });
+        
+        // Делегированная обработка для всего контейнера
+        const handleInteraction = (e: Event) => {
+            const target = (e.target as HTMLElement).closest('button');
+            if (target && target.dataset.type) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                
+                if (!this.isPaused) {
+                    const type = target.dataset.type as ToolType;
+                    this.onSelect(type);
+                    this.highlightButton(type);
+                }
+            }
+        };
+
+        // Удаляем старые листенеры если есть (нет, мы создаем кнопки заново)
+        this.container.onpointerdown = handleInteraction;
+        // Дублируем touchstart для гарантии
+        this.container.ontouchstart = handleInteraction; 
+        
+        this.updateButtonsState(); // Обновляем состояние (замки)
     }
 
     private highlightButton(type: ToolType) {

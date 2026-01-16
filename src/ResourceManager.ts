@@ -17,7 +17,7 @@ export class ResourceManager {
         this.uiElement = document.createElement('div');
         
         Object.assign(this.uiElement.style, {
-            position: 'absolute', top: '20px', left: '20px', padding: '12px 15px',
+            position: 'absolute', top: '80px', left: '20px', padding: '12px 15px', // Сдвинул вниз на 80px (было 20px)
             background: 'rgba(15, 15, 15, 0.95)', border: '1px solid #333', borderRadius: '4px',
             color: 'white', fontFamily: "'Segoe UI', sans-serif", fontSize: '13px',
             boxShadow: '0 10px 20px rgba(0,0,0,0.4)', pointerEvents: 'none',

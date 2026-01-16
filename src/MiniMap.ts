@@ -31,6 +31,13 @@ export class MiniMap {
     }
 
     public update(player: Player, enemies: Enemy[], resources: ResourceNode[]) {
+        // Жесткая привязка к правому краю каждый кадр для надежности
+        // this.container.parent.screen.width доступен через app.screen, но здесь у нас нет ссылки на app
+        // Мы передадим screenWidth в update, или оставим как есть, но в Game.ts будем дергать resize каждый кадр? 
+        // Нет, это дорого.
+        
+        // Лучше: В Game.ts передадим ширину экрана в update.
+        
         this.dots.clear();
 
         // Ресурсы (Синие)
