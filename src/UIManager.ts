@@ -1,6 +1,7 @@
 import type { BuildingType } from './Building';
 import { Icons } from './Icons';
 import { Translations, type Language } from './Localization';
+import { yandex } from './YandexSDK';
 
 export type ToolType = BuildingType | 'repair' | 'demolish';
 
@@ -32,7 +33,8 @@ export class UIManager {
 
     public onStartGame?: (skipTutorial: boolean) => void;
     public onLanguageChange?: (lang: Language) => void;
-    public checkUnlock?: (type: string) => boolean; // Колбек проверки
+    public checkUnlock?: (type: string) => boolean; 
+    public onRevive?: () => void; // Колбек воскрешения
     
     private items: ToolItem[] = [
         { type: 'wall', key: 'tool_wall', icon: '🧱', cost: 10 },
@@ -127,7 +129,10 @@ export class UIManager {
         overlay.innerHTML = `
             <div style="text-align: center; transform: translateY(-20px);">
                 <h1 style="font-size: 80px; color: #e74c3c; margin: 0 0 40px 0; text-transform: uppercase; letter-spacing: 15px; font-weight: 900; text-shadow: 0 0 30px rgba(231, 76, 60, 0.5);">${this.t('game_over')}</h1>
-                <button id="restart-btn" style="padding: 18px 60px; font-size: 20px; cursor: pointer; background: transparent; color: #3498db; border: 2px solid #3498db; border-radius: 4px; text-transform: uppercase; letter-spacing: 4px; font-weight: bold; transition: all 0.3s;">${this.t('restart')}</button>
+                <div style="display: flex; gap: 20px; justify-content: center;">
+                    <button id="revive-btn" style="padding: 18px 40px; font-size: 20px; cursor: pointer; background: #e67e22; color: white; border: none; border-radius: 4px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; transition: all 0.3s;">🎬 REVIVE</button>
+                    <button id="restart-btn" style="padding: 18px 40px; font-size: 20px; cursor: pointer; background: transparent; color: #3498db; border: 2px solid #3498db; border-radius: 4px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; transition: all 0.3s;">${this.t('restart')}</button>
+                </div>
             </div>
         `;
         
@@ -136,18 +141,29 @@ export class UIManager {
         // Плавное появление
         setTimeout(() => overlay.style.opacity = '1', 10);
 
-        const btn = overlay.querySelector('#restart-btn') as HTMLButtonElement;
-        btn.onmouseenter = () => {
-            btn.style.background = '#3498db';
-            btn.style.color = 'white';
-            btn.style.boxShadow = '0 0 20px rgba(52, 152, 219, 0.5)';
+        const reviveBtn = overlay.querySelector('#revive-btn') as HTMLButtonElement;
+        const restartBtn = overlay.querySelector('#restart-btn') as HTMLButtonElement;
+
+        reviveBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            yandex.showRewardedVideo(() => {
+                document.body.removeChild(overlay);
+                if (this.onRevive) this.onRevive();
+            });
         };
-        btn.onmouseleave = () => {
-            btn.style.background = 'transparent';
-            btn.style.color = '#3498db';
-            btn.style.boxShadow = 'none';
+
+        restartBtn.onmouseenter = () => {
+            restartBtn.style.background = '#3498db';
+            restartBtn.style.color = 'white';
+            restartBtn.style.boxShadow = '0 0 20px rgba(52, 152, 219, 0.5)';
         };
-        btn.onclick = (e) => {
+        restartBtn.onmouseleave = () => {
+            restartBtn.style.background = 'transparent';
+            restartBtn.style.color = '#3498db';
+            restartBtn.style.boxShadow = 'none';
+        };
+        restartBtn.onclick = (e) => {
             e.preventDefault();
             e.stopPropagation();
             window.location.reload();

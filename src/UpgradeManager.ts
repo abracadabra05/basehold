@@ -1,7 +1,8 @@
 import type { ResourceManager } from './ResourceManager';
 import type { UIManager } from './UIManager';
 import { Translations } from './Localization';
-import { GameConfig } from './GameConfig'; // Добавлено
+import { GameConfig } from './GameConfig';
+import { yandex } from './YandexSDK';
 
 export class UpgradeManager {
     private resourceManager: ResourceManager;
@@ -250,16 +251,29 @@ export class UpgradeManager {
 
         const info = document.createElement('div');
         info.style.textAlign = 'left';
+        info.style.flex = '1';
+
+        const btnContainer = document.createElement('div');
+        btnContainer.style.display = 'flex';
+        btnContainer.style.flexDirection = 'column';
+        btnContainer.style.gap = '4px';
+        btnContainer.style.alignItems = 'flex-end';
 
         const btn = document.createElement('button');
         Object.assign(btn.style, {
             cursor: 'pointer', padding: '6px 12px', background: '#3498db', color: 'white',
-            border: 'none', borderRadius: '3px', fontWeight: 'bold', minWidth: '80px'
+            border: 'none', borderRadius: '3px', fontWeight: 'bold', minWidth: '80px', fontSize: '12px'
+        });
+
+        // Кнопка рекламы
+        const adBtn = document.createElement('button');
+        adBtn.innerText = "🎬 FREE";
+        Object.assign(adBtn.style, {
+            cursor: 'pointer', padding: '4px 12px', background: '#e67e22', color: 'white',
+            border: 'none', borderRadius: '3px', fontWeight: 'bold', minWidth: '80px', fontSize: '10px'
         });
 
         const cost = (GameConfig.BUILDINGS as any)[type].researchCost || 100;
-        
-        // Находим ключ локализации для названия здания (tool_sniper -> Sniper)
         const toolName = this.t(`tool_${type}`);
 
         const updateState = () => {
@@ -270,31 +284,45 @@ export class UpgradeManager {
                 btn.disabled = true;
                 btn.style.background = '#27ae60';
                 info.style.opacity = '0.5';
+                adBtn.style.display = 'none'; // Скрываем рекламу, если куплено
             } else {
                 btn.innerText = `${cost} 🧬`;
                 btn.disabled = false;
                 btn.style.background = '#3498db';
                 info.style.opacity = '1';
+                adBtn.style.display = 'block';
             }
             
             info.innerHTML = `<div style="font-size: 14px; font-weight: bold;">${toolName}</div>
                               <div style="font-size: 11px; color: #aaa;">Tech Level 1</div>`;
         };
 
+        const doUnlock = () => {
+            this.unlockedBuildings.add(type);
+            if (this.onUnlock) this.onUnlock(type);
+            updateState();
+        };
+
         btn.onclick = () => {
             if (this.resourceManager.spendBiomass(cost)) {
-                this.unlockedBuildings.add(type);
-                if (this.onUnlock) this.onUnlock(type);
-                updateState();
+                doUnlock();
             } else {
                 btn.style.background = '#c0392b';
                 setTimeout(() => btn.style.background = '#3498db', 300);
             }
         };
 
+        adBtn.onclick = () => {
+            yandex.showRewardedVideo(() => {
+                doUnlock();
+            });
+        };
+
         updateState();
         wrapper.appendChild(info);
-        wrapper.appendChild(btn);
+        wrapper.appendChild(btnContainer);
+        btnContainer.appendChild(btn);
+        btnContainer.appendChild(adBtn);
         parent.appendChild(wrapper);
     }
 

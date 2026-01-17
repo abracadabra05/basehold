@@ -23,6 +23,7 @@ import { ObjectPool } from './ObjectPool';
 import { Translations } from './Localization';
 import { MiniMap } from './MiniMap';
 import { PerkManager } from './PerkManager';
+import { yandex } from './YandexSDK';
 
 export class Game {
     private app: Application;
@@ -210,9 +211,13 @@ export class Game {
                             }
                         };        
                 this.uiManager.onStartGame = (skipTutorial) => {
+            // Убеждаемся что при старте язык тоже верный
+            this.resourceManager.setLanguage(this.uiManager.currentLang);
             if (skipTutorial) this.startGame();
             else this.uiManager.showTutorial(() => this.startGame());
         };
+        
+        this.uiManager.onRevive = () => this.revivePlayer();
 
         // 9. Освещение, Миникарта и основной цикл
         this.miniMap = new MiniMap(this.app, this.mapSizePixel);
@@ -383,6 +388,20 @@ export class Game {
         
         // Обновляем позицию UI через CSS
         this.uiManager.resize();
+    }
+
+    private revivePlayer() {
+        this.isGameOver = false;
+        this.player.visible = true;
+        this.player.hp = this.player.maxHp * 0.5;
+        this.player.x = this.coreBuilding ? this.coreBuilding.x + 20 : this.mapSizePixel / 2;
+        this.player.y = this.coreBuilding ? this.coreBuilding.y + 80 : this.mapSizePixel / 2;
+        
+        // Временная неуязвимость (хак через щит или таймер)
+        // this.player.invulnerableTimer = 300; // Нужно сделать публичным
+        
+        this.soundManager.playBuild();
+        this.spawnFloatingText(this.player.x, this.player.y - 50, "REVIVED!", '#e67e22', 30);
     }
     
     // reasonCore: true если взорвалось ядро
@@ -687,6 +706,9 @@ export class Game {
         }
         
         this.soundManager.playGameOver();
+        
+        // Отправляем рекорд
+        yandex.setLeaderboardScore(this.waveManager.waveCount);
         
         setTimeout(() => {
             this.uiManager.showGameOver();
