@@ -258,7 +258,7 @@ export class UIManager {
 
             <!-- НАСТРОЙКИ -->
             <div style="position: absolute; bottom: 20px; right: 20px; display: flex; gap: 10px;">
-                ${!yaSdk.isYandexEnvironment ? `<button id="fullscreen-btn" style="background: none; border: none; font-size: 30px; cursor: pointer;">⛶</button>` : ''}
+                ${(window.self === window.top) ? `<button id="fullscreen-btn" style="background: none; border: none; font-size: 30px; cursor: pointer;">⛶</button>` : ''}
                 <button id="settings-btn" style="background: none; border: none; font-size: 30px; cursor: pointer;">⚙️</button>
             </div>
         `;
