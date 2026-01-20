@@ -138,9 +138,13 @@ export class UIManager {
 
         if (reviveBtn) {
             reviveBtn.onclick = (e) => {
-                e.preventDefault(); e.stopPropagation();
-                document.body.removeChild(overlay);
-                if (this.onRevive) this.onRevive();
+                e.preventDefault(); 
+                e.stopPropagation();
+                
+                yaSdk.showRewardedVideo(() => {
+                    document.body.removeChild(overlay);
+                    if (this.onRevive) this.onRevive();
+                });
             };
         }
 
