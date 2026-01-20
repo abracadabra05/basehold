@@ -2,8 +2,9 @@ export type Language = 'ru' | 'en';
 
 export const Translations: Record<Language, any> = {
     ru: {
+        game_title: 'BASEHOLD', // Добавлено для модерации
         title: 'BASEHOLD',
-        subtitle: 'Обороняй. Струй. Выживай.',
+        subtitle: 'Обороняй. Строй. Выживай.',
         
         start: 'Начать миссию',
         restart: 'Начать заново',
@@ -80,6 +81,7 @@ export const Translations: Record<Language, any> = {
         perk_explosive_desc: 'Пули взрываются при попадании.'
     },
     en: {
+        game_title: 'BASEHOLD',
         title: 'BASEHOLD',
         subtitle: 'Defend. Build. Survive.',
         

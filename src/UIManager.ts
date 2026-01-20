@@ -1,7 +1,7 @@
 import type { BuildingType } from './Building';
 import { Icons } from './Icons';
 import { Translations, type Language } from './Localization';
-import { yandex } from './YandexSDK';
+import { yaSdk } from './YandexSDK';
 
 export type ToolType = BuildingType | 'repair' | 'demolish';
 
@@ -52,7 +52,7 @@ export class UIManager {
     constructor(onSelect: (type: ToolType) => void) {
         this.onSelect = onSelect;
         this.detectPlatform();
-        this.detectLanguage();
+        this.lang = yaSdk.lang; // Берем язык из SDK
         
         this.mainMenu = this.createMainMenu();
         document.body.appendChild(this.mainMenu);
@@ -84,12 +84,6 @@ export class UIManager {
 
     private detectPlatform() {
         this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || ('ontouchstart' in window);
-    }
-
-    private detectLanguage() {
-        const browserLang = navigator.language.split('-')[0];
-        if (browserLang === 'ru') this.lang = 'ru';
-        else this.lang = 'en';
     }
 
     public init() {
@@ -147,7 +141,7 @@ export class UIManager {
         reviveBtn.onclick = (e) => {
             e.preventDefault();
             e.stopPropagation();
-            yandex.showRewardedVideo(() => {
+            yaSdk.showRewardedVideo(() => {
                 document.body.removeChild(overlay);
                 if (this.onRevive) this.onRevive();
             });
@@ -248,7 +242,7 @@ export class UIManager {
         
         div.innerHTML = `
             <div style="text-align: center; padding: 20px;">
-                <h1 style="font-size: ${titleSize}; color: #3498db; margin: 0; text-transform: uppercase; letter-spacing: 5px; font-weight: 900;">${this.t('title')}</h1>
+                <h1 style="font-size: ${titleSize}; color: #3498db; margin: 0; text-transform: uppercase; letter-spacing: 5px; font-weight: 900;">${this.t('game_title')}</h1>
                 <p style="color: #7f8c8d; margin-bottom: ${gap}; font-size: ${subSize}; letter-spacing: 2px;">${this.t('subtitle')}</p>
                 
                 <div style="display: flex; gap: 15px; margin-bottom: ${gap}; justify-content: center;">

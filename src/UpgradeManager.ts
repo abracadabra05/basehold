@@ -2,7 +2,7 @@ import type { ResourceManager } from './ResourceManager';
 import type { UIManager } from './UIManager';
 import { Translations } from './Localization';
 import { GameConfig } from './GameConfig';
-import { yandex } from './YandexSDK';
+import { yaSdk } from './YandexSDK';
 
 export class UpgradeManager {
     private resourceManager: ResourceManager;
@@ -313,7 +313,7 @@ export class UpgradeManager {
         };
 
         adBtn.onclick = () => {
-            yandex.showRewardedVideo(() => {
+            yaSdk.showRewardedVideo(() => {
                 doUnlock();
             });
         };

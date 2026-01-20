@@ -201,7 +201,7 @@ export class WaveManager {
     private startWave() {
         this.isPrepPhase = false;
         this.waveTimer = 0;
-        this.timeBetweenWaves = 5000; // Время самой волны (пока не перейдем в PREP)
+        this.timeBetweenWaves = 5000; 
 
         const enemiesToSpawn = 3 + Math.floor(this.waveCount * 1.5);
         this.spawnCallback(this.waveCount, enemiesToSpawn);
@@ -212,5 +212,16 @@ export class WaveManager {
         }
         
         this.waveCount++;
+    }
+
+    public resetWave() {
+        this.waveCount = Math.max(1, this.waveCount - 1); // Откатываем на 1 назад
+        this.isPrepPhase = true;
+        this.prepTime = 10000; // Даем 10 сек на подготовку перед рестартом
+        this.timerText.innerHTML = `
+            <div style="color: #3498db; font-size: 14px; margin-bottom: -5px;">${this.t('wave_prep')}</div>
+            <div style="font-size: 28px;">10</div>
+        `;
+        this.skipButton.style.display = 'block';
     }
 }

@@ -14,32 +14,38 @@ export interface YandexData {
 
 export class YandexSDK {
     private ysdk: any = null;
-    private player: any = null;
     private leaderboard: any = null;
+    private player: any = null; // Восстанавливаем
     public isReady: boolean = false;
+    public lang: 'ru' | 'en' = 'en'; 
 
     constructor() {
-        this.init();
+        // Init вызывается вручную в main.ts
     }
 
-    private async init() {
+    public async init(): Promise<void> {
         try {
             // @ts-ignore
             if (window.YaGames) {
                 // @ts-ignore
                 this.ysdk = await window.YaGames.init();
                 this.isReady = true;
-                console.log('Yandex SDK initialized');
                 
-                // Авторизация для сохранений
+                // Определение языка
+                const env = this.ysdk.environment;
+                if (env && env.i18n && env.i18n.lang === 'ru') {
+                    this.lang = 'ru';
+                }
+                console.log(`Yandex SDK initialized. Lang: ${this.lang}`);
+                
+                // Авторизация
                 try {
-                    this.player = await this.ysdk.getPlayer();
+                    this.player = await this.ysdk.getPlayer(); // Присваиваем
                 } catch (e) {
                     console.warn('Player not authorized', e);
-                    // Можно вызвать this.ysdk.auth.openAuthDialog(), но лучше по кнопке
                 }
 
-                // Инициализация лидерборда
+                // Лидерборды
                 try {
                     this.leaderboard = await this.ysdk.getLeaderboards();
                 } catch (e) {
@@ -51,49 +57,6 @@ export class YandexSDK {
         } catch (e) {
             console.error('Yandex SDK init failed', e);
         }
-    }
-
-    public showFullscreenAdv(onClose: () => void) {
-        if (!this.ysdk) {
-            onClose();
-            return;
-        }
-        this.ysdk.adv.showFullscreenAdv({
-            callbacks: {
-                onClose: (_wasShown: boolean) => {
-                    onClose();
-                },
-                onError: (error: any) => {
-                    console.error('Adv error', error);
-                    onClose();
-                }
-            }
-        });
-    }
-
-    public showRewardedVideo(onReward: () => void) {
-        if (!this.ysdk) {
-            // В дев-режиме сразу даем награду для теста
-            console.log('[DEV] Mock Reward Video watched');
-            onReward();
-            return;
-        }
-        this.ysdk.adv.showRewardedVideo({
-            callbacks: {
-                onOpen: () => {
-                    // Можно поставить игру на паузу
-                },
-                onRewarded: () => {
-                    onReward();
-                },
-                onClose: () => {
-                    // Снять с паузы
-                },
-                onError: (e: any) => {
-                    console.error('Reward video error', e);
-                }
-            }
-        });
     }
 
     public async saveData(data: YandexData) {
@@ -118,10 +81,56 @@ export class YandexSDK {
         }
     }
 
+    public gameReady() {
+        if (this.ysdk && this.ysdk.features && this.ysdk.features.LoadingAPI) {
+            this.ysdk.features.LoadingAPI.ready();
+            console.log('Game Ready sent');
+        } else {
+            console.log('[DEV] Game Ready (mock)');
+        }
+    }
+
+    public showFullscreenAdv(onClose: () => void) {
+        if (!this.ysdk) {
+            onClose();
+            return;
+        }
+        this.ysdk.adv.showFullscreenAdv({
+            callbacks: {
+                onClose: (_wasShown: boolean) => {
+                    onClose();
+                },
+                onError: (error: any) => {
+                    console.error('Adv error', error);
+                    onClose();
+                }
+            }
+        });
+    }
+
+    public showRewardedVideo(onReward: () => void) {
+        if (!this.ysdk) {
+            console.log('[DEV] Mock Reward Video watched');
+            onReward();
+            return;
+        }
+        this.ysdk.adv.showRewardedVideo({
+            callbacks: {
+                onOpen: () => { },
+                onRewarded: () => {
+                    onReward();
+                },
+                onClose: () => { },
+                onError: (e: any) => {
+                    console.error('Reward video error', e);
+                }
+            }
+        });
+    }
+
     public async setLeaderboardScore(score: number) {
         if (!this.ysdk || !this.leaderboard) return;
         try {
-            // 'maxWave' - название лидерборда в консоли Яндекса
             await this.leaderboard.setLeaderboardScore('maxWave', score);
         } catch (e) {
             console.error('Leaderboard set error', e);
@@ -129,4 +138,4 @@ export class YandexSDK {
     }
 }
 
-export const yandex = new YandexSDK();
+export const yaSdk = new YandexSDK();
