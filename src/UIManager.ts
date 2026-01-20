@@ -231,44 +231,127 @@ export class UIManager {
         const subSize = this.isMobile ? '14px' : '18px';
         const gap = this.isMobile ? '20px' : '40px';
         
+        // Левая часть (заголовок + старт)
+        // Правая часть (лидерборд)
+        // Снизу справа (настройки)
+        
         div.innerHTML = `
-            <div style="text-align: center; padding: 20px;">
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%;">
                 <h1 style="font-size: ${titleSize}; color: #3498db; margin: 0; text-transform: uppercase; letter-spacing: 5px; font-weight: 900;">${this.t('game_title')}</h1>
                 <p style="color: #7f8c8d; margin-bottom: ${gap}; font-size: ${subSize}; letter-spacing: 2px;">${this.t('subtitle')}</p>
                 
-                <div style="display: flex; gap: 15px; margin-bottom: ${gap}; justify-content: center;">
-                    <button id="lang-en" style="padding: 10px 20px; cursor: pointer; background: ${this.lang==='en'?'#3498db':'#1a1a1a'}; border: 1px solid #3498db; color: white; border-radius: 4px;">EN</button>
-                    <button id="lang-ru" style="padding: 10px 20px; cursor: pointer; background: ${this.lang==='ru'?'#3498db':'#1a1a1a'}; border: 1px solid #3498db; color: white; border-radius: 4px;">RU</button>
-                </div>
-
-                <label style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: ${gap}; cursor: pointer; font-size: 16px;">
-                    <input type="checkbox" id="tut-toggle" ${this.showTutorialFlag ? 'checked' : ''} style="width: 20px; height: 20px;">
-                    ${this.t('tutorial_toggle')}
-                </label>
+                <button id="start-btn" style="padding: ${this.isMobile ? '12px 40px' : '18px 60px'}; font-size: ${this.isMobile ? '18px' : '24px'}; cursor: pointer; background: rgba(52, 152, 219, 0.1); color: #3498db; border: 2px solid #3498db; borderRadius: 4px; text-transform: uppercase; letter-spacing: 4px; font-weight: bold; transition: all 0.2s;">
+                    ${this.t('start')}
+                </button>
             </div>
+
+            <!-- ЛИДЕРБОРД СПРАВА -->
+            <div id="main-leaderboard" style="position: absolute; top: 50%; right: 40px; transform: translateY(-50%); width: 250px; background: rgba(0,0,0,0.5); padding: 20px; border-radius: 8px; border: 1px solid #444; ${this.isMobile ? 'display: none;' : ''}">
+                <h3 style="margin-top: 0; color: #f1c40f; text-align: center;">🏆 TOP 5</h3>
+                <div id="lb-list" style="font-size: 14px; min-height: 100px;">Loading...</div>
+            </div>
+
+            <!-- НАСТРОЙКИ -->
+            <button id="settings-btn" style="position: absolute; bottom: 20px; right: 20px; background: none; border: none; font-size: 30px; cursor: pointer;">⚙️</button>
         `;
 
-        const startBtn = document.createElement('button');
-        startBtn.innerText = this.t('start');
-        Object.assign(startBtn.style, {
-            padding: this.isMobile ? '12px 40px' : '18px 60px',
-            fontSize: this.isMobile ? '18px' : '24px',
-            cursor: 'pointer',
-            background: 'rgba(52, 152, 219, 0.1)', color: '#3498db', border: '2px solid #3498db',
-            borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '4px',
-            transition: 'all 0.2s', fontWeight: 'bold'
-        });
-
+        const startBtn = div.querySelector('#start-btn') as HTMLButtonElement;
         startBtn.onclick = () => {
             div.style.display = 'none';
             if (this.onStartGame) this.onStartGame(!this.showTutorialFlag);
         };
 
-        div.appendChild(startBtn);
+        const settingsBtn = div.querySelector('#settings-btn') as HTMLButtonElement;
+        settingsBtn.onclick = () => this.showSettings();
+        
+        // Загружаем лидерборд
+        this.loadEmbeddedLeaderboard(div.querySelector('#lb-list') as HTMLElement);
+    }
+    
+    private async loadEmbeddedLeaderboard(container: HTMLElement) {
+        const entries = await yaSdk.getLeaderboardEntries(5);
+        let html = '';
+        entries.forEach(e => {
+            html += `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span style="color: #aaa">#${e.rank} ${e.player.name}</span>
+                <span style="color: white">${e.score}</span>
+            </div>`;
+        });
+        
+        // Показываем игрока, если он не в топе (заглушка, так как API отдает топ)
+        // В реальном API нужно запрашивать { includeUser: true }
+        
+        container.innerHTML = html || '<div style="text-align: center; color: #555">No Data</div>';
+    }
 
-        div.querySelector('#lang-en')?.addEventListener('click', (e) => { e.stopPropagation(); this.lang = 'en'; this.refreshUI(); });
-        div.querySelector('#lang-ru')?.addEventListener('click', (e) => { e.stopPropagation(); this.lang = 'ru'; this.refreshUI(); });
-        div.querySelector('#tut-toggle')?.addEventListener('change', (e: any) => { this.showTutorialFlag = e.target.checked; });
+    private showSettings() {
+        const overlay = document.createElement('div');
+        Object.assign(overlay.style, {
+            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+            background: 'rgba(0,0,0,0.85)', zIndex: 10005,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            color: 'white', fontFamily: "'Segoe UI', sans-serif"
+        });
+        
+        overlay.innerHTML = `
+            <h2>SETTINGS</h2>
+            <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                <button id="set-en" style="padding: 10px 20px; cursor: pointer; background: ${this.lang==='en'?'#3498db':'#333'}; border: 1px solid #3498db; color: white;">EN</button>
+                <button id="set-ru" style="padding: 10px 20px; cursor: pointer; background: ${this.lang==='ru'?'#3498db':'#333'}; border: 1px solid #3498db; color: white;">RU</button>
+            </div>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 18px; margin-bottom: 30px;">
+                <input type="checkbox" id="set-tut" ${this.showTutorialFlag ? 'checked' : ''} style="width: 20px; height: 20px;">
+                ${this.t('tutorial_toggle')}
+            </label>
+            <button id="set-close" style="padding: 10px 30px; background: #27ae60; border: none; color: white; border-radius: 4px; cursor: pointer;">OK</button>
+        `;
+        
+        document.body.appendChild(overlay);
+        
+        overlay.querySelector('#set-en')?.addEventListener('click', () => { this.lang = 'en'; this.refreshUI(); document.body.removeChild(overlay); this.showSettings(); });
+        overlay.querySelector('#set-ru')?.addEventListener('click', () => { this.lang = 'ru'; this.refreshUI(); document.body.removeChild(overlay); this.showSettings(); });
+        overlay.querySelector('#set-tut')?.addEventListener('change', (e: any) => { this.showTutorialFlag = e.target.checked; });
+        overlay.querySelector('#set-close')?.addEventListener('click', () => document.body.removeChild(overlay));
+    }
+
+    private async showLeaderboard() {
+        const overlay = document.createElement('div');
+        Object.assign(overlay.style, {
+            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+            background: 'rgba(0,0,0,0.85)', zIndex: 10002,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            color: 'white', fontFamily: "'Segoe UI', sans-serif", backdropFilter: 'blur(5px)'
+        });
+
+        overlay.innerHTML = `<div style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">Loading...</div>`;
+        document.body.appendChild(overlay);
+
+        const entries = await yaSdk.getLeaderboardEntries();
+
+        let listHtml = '';
+        entries.forEach(entry => {
+            listHtml += `
+                <div style="display: flex; justify-content: space-between; width: 100%; padding: 8px; border-bottom: 1px solid #444;">
+                    <span style="color: #f1c40f; font-weight: bold; width: 30px;">#${entry.rank}</span>
+                    <span style="flex: 1; text-align: left;">${entry.player.name}</span>
+                    <span style="color: #3498db; font-weight: bold;">${entry.score} 🌊</span>
+                </div>
+            `;
+        });
+
+        overlay.innerHTML = `
+            <div style="background: #1e272e; padding: 30px; borderRadius: 12px; width: 90%; max-width: 400px; text-align: center; border: 1px solid #8e44ad;">
+                <h2 style="margin-top: 0; color: #8e44ad;">🏆 ${this.t('leaderboard')}</h2>
+                <div style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;">
+                    ${listHtml || '<div style="color: #aaa; padding: 20px;">No records yet</div>'}
+                </div>
+                <button id="close-lb" style="padding: 10px 30px; cursor: pointer; background: #3498db; color: white; border: none; borderRadius: 4px;">${this.t('shop_close')}</button>
+            </div>
+        `;
+
+        overlay.querySelector('#close-lb')?.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+        });
     }
 
     private refreshUI() {
@@ -306,53 +389,14 @@ export class UIManager {
         const sky = document.getElementById('hud-time-sky');
         if (sky) sky.style.transform = `rotate(${progress * 360}deg)`;
     }
-
-    public updateButtonsState() {
-        this.items.forEach(item => {
-            const btn = this.buttons.get(item.type);
-            if (!btn) return;
-
-            let locked = false;
-            
-            // Проверка по волне (если есть)
-            // if (item.minWave && currentWave < item.minWave) locked = true; // Можно оставить или убрать, если технологии заменят это
-
-            // Проверка по технологии
-            if (this.checkUnlock && !this.checkUnlock(item.type)) {
-                locked = true;
-            }
-
-            if (locked) {
-                btn.disabled = true;
-                btn.style.opacity = '0.3';
-                btn.style.filter = 'grayscale(1)';
-                // Добавляем иконку замка, если ее нет
-                if (!btn.querySelector('.lock-icon')) {
-                    const lock = document.createElement('div');
-                    lock.className = 'lock-icon';
-                    lock.innerText = '🔒';
-                    Object.assign(lock.style, {
-                        position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                        fontSize: '24px', textShadow: '0 0 5px black'
-                    });
-                    btn.appendChild(lock);
-                }
-            } else {
-                btn.disabled = false;
-                btn.style.opacity = '1.0';
-                btn.style.filter = 'none';
-                const lock = btn.querySelector('.lock-icon');
-                if (lock) lock.remove();
-            }
-        });
+    
+    public updateScore(score: number) {
+        const el = document.getElementById('hud-score');
+        if (el) el.innerText = `${score}`;
     }
 
-    public updateWave(_wave: number) {
-        // Мы перенесли логику блокировки в updateButtonsState, 
-        // но если нужно оставить minWave, можно передать wave туда.
-        // Пока просто вызываем обновление состояния.
-        this.updateButtonsState();
-    }
+    public updateWave(wave: number) {
+
 
     public showBuildingInfo(data: { name: string, hp: number, maxHp: number, damage?: number, energy?: string } | null) {
         if (!data) {

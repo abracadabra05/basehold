@@ -43,6 +43,7 @@ export class BuildingSystem {
     private thornsDamage: number = 0;
 
     public onBuildingDestroyed?: (x: number, y: number) => void;
+    public checkUnlock?: (type: string) => boolean; // Добавлено
 
     constructor(app: Application, world: Container) {
         this.app = app;
@@ -368,6 +369,12 @@ export class BuildingSystem {
         if (!this.canBuildAt(x, y)) return;
         const type = this.selectedTool;
         if (type === 'repair' || type === 'demolish') return;
+
+        // Проверка блокировки
+        if (this.checkUnlock && !this.checkUnlock(type)) {
+            // Можно добавить звук ошибки
+            return;
+        }
 
         const cost = BUILDING_COSTS[type as BuildingType];
         

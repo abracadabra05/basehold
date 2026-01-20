@@ -62,6 +62,8 @@ export class Game {
     private isGameStarted: boolean = false; 
     private currentMineMultiplier: number = 1;
     
+    public score: number = 0; // Добавлено
+
     private gridSize = GameConfig.GAME.GRID_SIZE;
     private mapWidthTiles = GameConfig.GAME.MAP_WIDTH_TILES; 
     private mapSizePixel = 0; 
@@ -171,12 +173,14 @@ export class Game {
                 // 8. Магазин и волны
                         this.upgradeManager = new UpgradeManager(this.uiManager, this.resourceManager);
                         
-                        // Связываем проверку технологий с UI
-                        this.uiManager.checkUnlock = (type) => this.upgradeManager.isBuildingUnlocked(type);
-                        this.uiManager.updateButtonsState(); // Обновляем сразу при старте
-                
-                                this.upgradeManager.onUnlock = () => {
-                                    this.uiManager.updateButtonsState();
+                                // Связываем проверку технологий с UI и Системой строительства
+                                const checkUnlock = (type: string) => this.upgradeManager.isBuildingUnlocked(type);
+                                this.uiManager.checkUnlock = checkUnlock;
+                                this.buildingSystem.checkUnlock = checkUnlock;
+                                
+                                this.uiManager.updateButtonsState(); // Обновляем сразу при старте
+                        
+                                this.upgradeManager.onUnlock = () => {                                    this.uiManager.updateButtonsState();
                                     this.soundManager.playBuild(); // Звук успеха
                                     this.spawnFloatingText(this.player.x, this.player.y - 50, "TECH UNLOCKED!", '#2ecc71', 24);
                                 };                
@@ -801,7 +805,12 @@ export class Game {
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const enemy = this.enemies[i];
             if (enemy.isDead) {
-                // Если это босс
+                // Начисляем очки
+                const scoreReward = GameConfig.ENEMIES[enemy.type.toUpperCase() as keyof typeof GameConfig.ENEMIES]?.score || 10;
+                this.score += scoreReward;
+                this.uiManager.updateScore(this.score); // Нужно добавить метод
+
+                // Если это босс, то выпадать будет Data Core гарантированно
                 if (enemy.type === 'boss') {
                     this.waveManager.isBossActive = false; // Снимаем паузу
                     const drop = new DropItem(enemy.x, enemy.y, 0, 'data_core');
