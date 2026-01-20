@@ -65,7 +65,7 @@ export class YandexSDK {
         } catch (e) {
             console.error('Yandex SDK init failed', e);
             this.isReady = true;
-            this.isYandexEnvironment = false;
+            this.isYandexEnvironment = false; // Принудительно включаем локальный режим
         }
     }
 
@@ -119,7 +119,6 @@ export class YandexSDK {
         if (this.isYandexEnvironment && this.ysdk && this.leaderboard) {
             try {
                 // Получаем топ игроков (maxWave)
-                // Если таблица называется иначе, нужно поменять имя здесь
                 const result = await this.leaderboard.getLeaderboardEntries('maxWave', { quantityTop: limit });
                 return result.entries.map((e: any) => ({
                     rank: e.rank,
@@ -127,41 +126,38 @@ export class YandexSDK {
                     player: { name: e.player.publicName || 'Anonymous' }
                 }));
             } catch (e) {
-                console.error('Failed to get Yandex leaderboard', e);
-                return [];
+                console.warn('Failed to get Yandex leaderboard, falling back to local', e);
+                // Fallback to local logic below
             }
-        } else {
-            // ЛОКАЛЬНЫЙ РЕЖИМ
-            const raw = localStorage.getItem('basehold_leaderboard');
-            let entries = raw ? JSON.parse(raw) : [];
-            
-            // Если пусто, добавим фейковые данные для теста
-            if (entries.length === 0) {
-                entries = [
-                    { name: 'Dev', score: 50 },
-                    { name: 'Tester', score: 25 },
-                    { name: 'Noob', score: 5 }
-                ];
-                localStorage.setItem('basehold_leaderboard', JSON.stringify(entries));
-            }
-
-            entries.sort((a: any, b: any) => b.score - a.score);
-            return entries.slice(0, limit).map((e: any, index: number) => ({
-                rank: index + 1,
-                score: e.score,
-                player: { name: e.name || 'You' }
-            }));
         }
+        
+        // ЛОКАЛЬНЫЙ РЕЖИМ (или если лидерборд недоступен)
+        console.log('[YandexSDK] Fetching local leaderboard. Environment:', this.isYandexEnvironment);
+        const raw = localStorage.getItem('basehold_leaderboard');
+        let entries = raw ? JSON.parse(raw) : [];
+        
+        console.log('[YandexSDK] Entries:', entries);
+
+        entries.sort((a: any, b: any) => b.score - a.score);
+        return entries.slice(0, limit).map((e: any, index: number) => ({
+            rank: index + 1,
+            score: e.score,
+            player: { name: e.name || 'You' }
+        }));
     }
 
     public async setLeaderboardScore(score: number) {
+        let savedOnline = false;
         if (this.isYandexEnvironment && this.ysdk && this.leaderboard) {
             try {
                 await this.leaderboard.setLeaderboardScore('maxWave', score);
+                savedOnline = true;
             } catch (e) {
-                console.error('Leaderboard set error', e);
+                console.warn('Leaderboard set error (fallback to local)', e);
             }
-        } else {
+        } 
+        
+        if (!savedOnline) {
             console.log(`[DEV] Leaderboard score set: ${score}`);
             // Сохраняем локально
             const raw = localStorage.getItem('basehold_leaderboard');

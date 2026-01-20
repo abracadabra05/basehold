@@ -9,6 +9,7 @@ export const Translations: Record<Language, any> = {
         start: 'Начать миссию',
         restart: 'Начать заново',
         leaderboard: 'Лидеры', // Добавлено
+        leaderboard_empty: 'Рекордов нет. Будь первым!', // Добавлено
         game_over: 'МИССИЯ ПРОВАЛЕНА',
         revive: 'ВОСКРЕСНУТЬ', // Добавлено
         tutorial_toggle: 'Обучение',
@@ -93,6 +94,7 @@ export const Translations: Record<Language, any> = {
         start: 'Start Mission',
         restart: 'Restart Game',
         leaderboard: 'Leaders',
+        leaderboard_empty: 'No records yet. Be the first!', // Добавлено
         game_over: 'MISSION FAILED',
         revive: 'REVIVE',
         tutorial_toggle: 'Show Tutorial',

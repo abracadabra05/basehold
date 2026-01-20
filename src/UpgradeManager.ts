@@ -38,6 +38,24 @@ export class UpgradeManager {
         document.body.appendChild(this.container);
     }
 
+    public reset() {
+        this.damageLevel = 1;
+        this.mineSpeedLevel = 1;
+        this.moveSpeedLevel = 1;
+        this.regenLevel = 0;
+        this.magnetLevel = 0;
+        this.thornsLevel = 0;
+        
+        // Сбрасываем открытые технологии до дефолтных
+        this.unlockedBuildings.clear();
+        for (const [key, val] of Object.entries(GameConfig.BUILDINGS)) {
+            if ((val as any).unlocked) this.unlockedBuildings.add(key);
+        }
+        
+        // Перерисовываем UI, чтобы сбросить цены и кнопки
+        this.createUI();
+    }
+
     public isBuildingUnlocked(type: string): boolean {
         return this.unlockedBuildings.has(type);
     }

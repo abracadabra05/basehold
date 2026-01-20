@@ -227,6 +227,7 @@ export class Game {
         };
         
         this.uiManager.onRevive = () => this.revivePlayer();
+        this.uiManager.onRestart = () => this.restartGame();
 
         // 9. Освещение, Миникарта и основной цикл
         this.miniMap = new MiniMap(this.app, this.mapSizePixel);
@@ -445,6 +446,67 @@ export class Game {
     }
     
     // reasonCore: true если взорвалось ядро
+
+    public restartGame() {
+        this.isGameOver = false;
+        this.isGameStarted = true;
+        this.score = 0;
+        this.canRevive = true;
+        
+        // Очистка
+        this.enemies.forEach(e => this.world.removeChild(e));
+        this.enemies = [];
+        
+        this.projectiles.forEach(p => this.world.removeChild(p));
+        this.projectiles = []; 
+        
+        this.particles.forEach(p => this.world.removeChild(p));
+        this.particles = []; // Пул сам разберется, если мы просто скроем или переиспользуем? 
+        // Лучше не удалять из world, а вернуть в пул. Но у нас нет метода returnAll.
+        // Просто скроем и сбросим флаг isDead? Нет, лучше удалить и пусть пул наполнится заново или просто очистить массив.
+        // Пул объектов у нас простой.
+        
+        this.dropItems.forEach(d => this.world.removeChild(d));
+        this.dropItems = [];
+        
+        this.floatingTexts.forEach(f => this.world.removeChild(f));
+        this.floatingTexts = [];
+        
+        // Сброс зданий
+        this.buildingSystem.reset(); 
+        
+        // Сброс ресурсов и камней
+        this.resources.forEach(r => this.world.removeChild(r));
+        this.resources = [];
+        this.rocks.forEach(r => this.world.removeChild(r));
+        this.rocks = [];
+        
+        // Генерация нового мира
+        this.generateResources();
+        this.generateRocks();
+        
+        // Сброс игрока
+        const coreGridX = Math.floor((this.mapSizePixel / 2) / 40) * 40;
+        const coreGridY = Math.floor((this.mapSizePixel / 2) / 40) * 40;
+        this.coreBuilding = this.buildingSystem.spawnCore(coreGridX, coreGridY);
+        
+        this.player.x = coreGridX + 20;
+        this.player.y = coreGridY + 80;
+        this.player.hp = this.player.maxHp = GameConfig.PLAYER.START_HP; // Сброс HP и макс HP (если были апгрейды)
+        this.player.visible = true;
+        
+        // Сброс менеджеров
+        this.resourceManager.reset(); 
+        this.waveManager.reset(); 
+        this.upgradeManager.reset();
+        
+        this.isGameStarted = false; // Останавливаем игру
+        this.uiManager.showMenu(); // Показываем главное меню
+        
+        this.uiManager.updateHUD({ hp: this.player.hp, maxHp: this.player.maxHp }, { hp: this.coreBuilding.hp, maxHp: this.coreBuilding.maxHp });
+        this.uiManager.updateScore(0);
+        this.uiManager.updateWave(1);
+    }
 
     public spawnFloatingText(x: number, y: number, text: string, color: string = '#ffffff', size: number = 16) {
         const ft = new FloatingText(x, y, text, color, size);

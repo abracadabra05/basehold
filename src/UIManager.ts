@@ -34,7 +34,8 @@ export class UIManager {
     public onStartGame?: (skipTutorial: boolean) => void;
     public onLanguageChange?: (lang: Language) => void;
     public checkUnlock?: (type: string) => boolean; 
-    public onRevive?: () => void; // Колбек воскрешения
+    public onRevive?: () => void; 
+    public onRestart?: () => void; // Добавлено
     
     private items: ToolItem[] = [
         { type: 'wall', key: 'tool_wall', icon: '🧱', cost: 10 },
@@ -42,9 +43,9 @@ export class UIManager {
         { type: 'generator', key: 'tool_generator', icon: '⚡', cost: 100 },
         { type: 'battery', key: 'tool_battery', icon: '🔋', cost: 150 },
         { type: 'turret', key: 'tool_turret', icon: '🔫', cost: 30 },
-        { type: 'sniper', key: 'tool_sniper', icon: '🎯', cost: 75, minWave: 3 },
-        { type: 'minigun', key: 'tool_minigun', icon: '🌪️', cost: 120, minWave: 5 },
-        { type: 'laser', key: 'tool_laser', icon: '🔥', cost: 200, minWave: 7 },
+        { type: 'sniper', key: 'tool_sniper', icon: '🎯', cost: 75 },
+        { type: 'minigun', key: 'tool_minigun', icon: '🌪️', cost: 120 },
+        { type: 'laser', key: 'tool_laser', icon: '🔥', cost: 200 },
         { type: 'repair', key: 'tool_repair', icon: '🔧', color: '#f1c40f' },
         { type: 'demolish', key: 'tool_remove', icon: '❌', color: '#e74c3c' },
     ];
@@ -52,7 +53,7 @@ export class UIManager {
     constructor(onSelect: (type: ToolType) => void) {
         this.onSelect = onSelect;
         this.detectPlatform();
-        this.lang = yaSdk.lang; // Берем язык из SDK
+        this.lang = yaSdk.lang;
         
         this.mainMenu = this.createMainMenu();
         document.body.appendChild(this.mainMenu);
@@ -103,10 +104,16 @@ export class UIManager {
         this.mainMenu.style.display = 'none';
     }
 
+    public showMenu() {
+        this.mainMenu.style.display = 'flex';
+        // Скрываем HUD, если он был виден (хотя он не мешает под меню, но лучше скрыть)
+        // this.container.style.display = 'none'; 
+        // Или просто пусть меню перекрывает все (z-index 9999).
+        this.updateMainMenuContent(this.mainMenu); // Обновляем контент (лидерборд и т.д.)
+    }
+
     public resize() {
-        // Если что-то нужно пересчитать при ресайзе
         this.detectPlatform();
-        // Можно обновить размеры кнопок, если они зависят от платформы
     }
 
     public showGameOver(canRevive: boolean = true) {
@@ -138,9 +145,7 @@ export class UIManager {
 
         if (reviveBtn) {
             reviveBtn.onclick = (e) => {
-                e.preventDefault(); 
-                e.stopPropagation();
-                
+                e.preventDefault(); e.stopPropagation();
                 yaSdk.showRewardedVideo(() => {
                     document.body.removeChild(overlay);
                     if (this.onRevive) this.onRevive();
@@ -148,7 +153,11 @@ export class UIManager {
             };
         }
 
-        restartBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); window.location.reload(); };
+        restartBtn.onclick = (e) => {
+            e.preventDefault(); e.stopPropagation();
+            document.body.removeChild(overlay);
+            if (this.onRestart) this.onRestart();
+        };
     }
 
     public showTutorial(onComplete: () => void) {
@@ -231,10 +240,6 @@ export class UIManager {
         const subSize = this.isMobile ? '14px' : '18px';
         const gap = this.isMobile ? '20px' : '40px';
         
-        // Левая часть (заголовок + старт)
-        // Правая часть (лидерборд)
-        // Снизу справа (настройки)
-        
         div.innerHTML = `
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%;">
                 <h1 style="font-size: ${titleSize}; color: #3498db; margin: 0; text-transform: uppercase; letter-spacing: 5px; font-weight: 900;">${this.t('game_title')}</h1>
@@ -247,7 +252,7 @@ export class UIManager {
 
             <!-- ЛИДЕРБОРД СПРАВА -->
             <div id="main-leaderboard" style="position: absolute; top: 50%; right: 40px; transform: translateY(-50%); width: 250px; background: rgba(0,0,0,0.5); padding: 20px; border-radius: 8px; border: 1px solid #444; ${this.isMobile ? 'display: none;' : ''}">
-                <h3 style="margin-top: 0; color: #f1c40f; text-align: center;">🏆 TOP 5</h3>
+                <h3 style="margin-top: 0; color: #f1c40f; text-align: center;">🏆 ${this.t('leaderboard')}</h3>
                 <div id="lb-list" style="font-size: 14px; min-height: 100px;">Loading...</div>
             </div>
 
@@ -264,7 +269,6 @@ export class UIManager {
         const settingsBtn = div.querySelector('#settings-btn') as HTMLButtonElement;
         settingsBtn.onclick = () => this.showSettings();
         
-        // Загружаем лидерборд
         this.loadEmbeddedLeaderboard(div.querySelector('#lb-list') as HTMLElement);
     }
     
@@ -277,11 +281,7 @@ export class UIManager {
                 <span style="color: white">${e.score}</span>
             </div>`;
         });
-        
-        // Показываем игрока, если он не в топе (заглушка, так как API отдает топ)
-        // В реальном API нужно запрашивать { includeUser: true }
-        
-        container.innerHTML = html || '<div style="text-align: center; color: #555">No Data</div>';
+        container.innerHTML = html || `<div style="text-align: center; color: #555; padding: 10px; font-size: 12px;">${this.t('leaderboard_empty')}</div>`;
     }
 
     private showSettings() {
@@ -314,52 +314,12 @@ export class UIManager {
         overlay.querySelector('#set-close')?.addEventListener('click', () => document.body.removeChild(overlay));
     }
 
-    private async showLeaderboard() {
-        const overlay = document.createElement('div');
-        Object.assign(overlay.style, {
-            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-            background: 'rgba(0,0,0,0.85)', zIndex: 10002,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            color: 'white', fontFamily: "'Segoe UI', sans-serif", backdropFilter: 'blur(5px)'
-        });
-
-        overlay.innerHTML = `<div style="font-size: 24px; font-weight: bold; margin-bottom: 20px;">Loading...</div>`;
-        document.body.appendChild(overlay);
-
-        const entries = await yaSdk.getLeaderboardEntries();
-
-        let listHtml = '';
-        entries.forEach(entry => {
-            listHtml += `
-                <div style="display: flex; justify-content: space-between; width: 100%; padding: 8px; border-bottom: 1px solid #444;">
-                    <span style="color: #f1c40f; font-weight: bold; width: 30px;">#${entry.rank}</span>
-                    <span style="flex: 1; text-align: left;">${entry.player.name}</span>
-                    <span style="color: #3498db; font-weight: bold;">${entry.score} 🌊</span>
-                </div>
-            `;
-        });
-
-        overlay.innerHTML = `
-            <div style="background: #1e272e; padding: 30px; borderRadius: 12px; width: 90%; max-width: 400px; text-align: center; border: 1px solid #8e44ad;">
-                <h2 style="margin-top: 0; color: #8e44ad;">🏆 ${this.t('leaderboard')}</h2>
-                <div style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;">
-                    ${listHtml || '<div style="color: #aaa; padding: 20px;">No records yet</div>'}
-                </div>
-                <button id="close-lb" style="padding: 10px 30px; cursor: pointer; background: #3498db; color: white; border: none; borderRadius: 4px;">${this.t('shop_close')}</button>
-            </div>
-        `;
-
-        overlay.querySelector('#close-lb')?.addEventListener('click', () => {
-            document.body.removeChild(overlay);
-        });
-    }
-
     private refreshUI() {
         this.updateMainMenuContent(this.mainMenu);
         this.createButtons(); 
         this.initCoreHUD(); 
         this.initPlayerHUD();
-        this.updateButtonsState(); // Добавлено: блокируем кнопки заново
+        this.updateButtonsState(); 
         if (this.onLanguageChange) this.onLanguageChange(this.lang);
     }
 
@@ -395,8 +355,43 @@ export class UIManager {
         if (el) el.innerText = `${score}`;
     }
 
-    public updateWave(wave: number) {
+    public updateButtonsState() {
+        this.items.forEach(item => {
+            const btn = this.buttons.get(item.type);
+            if (!btn) return;
 
+            let locked = false;
+            if (this.checkUnlock && !this.checkUnlock(item.type)) {
+                if (item.type !== 'demolish') locked = true;
+            }
+
+            if (locked) {
+                btn.disabled = true;
+                btn.style.opacity = '0.3';
+                btn.style.filter = 'grayscale(1)';
+                if (!btn.querySelector('.lock-icon')) {
+                    const lock = document.createElement('div');
+                    lock.className = 'lock-icon';
+                    lock.innerText = '🔒';
+                    Object.assign(lock.style, {
+                        position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                        fontSize: '24px', textShadow: '0 0 5px black'
+                    });
+                    btn.appendChild(lock);
+                }
+            } else {
+                btn.disabled = false;
+                btn.style.opacity = '1.0';
+                btn.style.filter = 'none';
+                const lock = btn.querySelector('.lock-icon');
+                if (lock) lock.remove();
+            }
+        });
+    }
+
+    public updateWave(_wave: number) {
+        this.updateButtonsState();
+    }
 
     public showBuildingInfo(data: { name: string, hp: number, maxHp: number, damage?: number, energy?: string } | null) {
         if (!data) {
@@ -447,17 +442,15 @@ export class UIManager {
         this.hudTime.style.height = '50px';
         this.applyPanelStyle(this.hudTime);
         this.hudTime.style.borderRadius = '50%';
-        this.hudTime.style.overflow = 'hidden'; // Маска
+        this.hudTime.style.overflow = 'hidden'; 
         this.hudTime.style.border = '2px solid #555';
-        this.hudTime.style.background = 'linear-gradient(to bottom, #87CEEB 0%, #2c3e50 100%)'; // Небо
+        this.hudTime.style.background = 'linear-gradient(to bottom, #87CEEB 0%, #2c3e50 100%)'; 
 
         this.hudTime.innerHTML = `
             <div id="hud-time-sky" style="width: 100%; height: 100%; position: relative; transition: transform 0.1s linear;">
-                <!-- Солнце и Луна разнесены по вертикали на 40px от центра -->
                 <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); font-size: 20px;">☀️</div>
                 <div style="position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); font-size: 20px;">🌙</div>
             </div>
-            <!-- Горизонт (полоска снизу, чтобы скрыть "подземную" часть) -->
             <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 40%; background: #222; z-index: 2;"></div>
         `;
     }
@@ -483,7 +476,7 @@ export class UIManager {
         this.hudPlayer.style.top = '20px'; 
         this.hudPlayer.style.left = '20px';
         this.hudPlayer.style.width = '200px'; 
-        this.hudPlayer.style.boxSizing = 'border-box'; // Добавлено
+        this.hudPlayer.style.boxSizing = 'border-box';
         this.applyPanelStyle(this.hudPlayer);
         this.hudPlayer.style.padding = '10px';
         this.hudPlayer.style.zIndex = '1000';
@@ -495,12 +488,16 @@ export class UIManager {
             <div style="width: 100%; height: 8px; background: #222; border-radius: 4px; overflow: hidden;">
                 <div id="hud-player-bar" style="width: 100%; height: 100%; background: #2ecc71;"></div>
             </div>
+            <!-- ОЧКИ -->
+            <div style="margin-top: 5px; font-size: 14px; font-weight: bold; color: #f1c40f; text-align: right;">
+                <span id="hud-score">0</span>
+            </div>
         `;
     }
 
     private initToolbarStyles() {
         this.container.style.position = 'absolute';
-        this.container.style.bottom = '30px'; // Было 20px
+        this.container.style.bottom = '30px'; 
         this.container.style.left = '50%';
         this.container.style.transform = 'translateX(-50%)';
         this.container.style.display = 'flex';
@@ -513,29 +510,27 @@ export class UIManager {
 
     private initInfoStyles() {
         this.infoPanel.style.position = 'fixed';
-        this.infoPanel.style.bottom = '140px'; // Было 80px
+        this.infoPanel.style.bottom = '140px'; 
         this.infoPanel.style.left = '50%';
         this.infoPanel.style.transform = 'translateX(-50%)';
         this.applyPanelStyle(this.infoPanel);
         this.infoPanel.style.padding = '8px 12px';
         this.infoPanel.style.display = 'none';
         this.infoPanel.style.minWidth = '120px';
-        this.infoPanel.style.background = 'rgba(10, 10, 10, 0.5)'; // Было 0.8
-        this.infoPanel.style.backdropFilter = 'blur(6px)'; // Чуть больше блюра для читаемости
+        this.infoPanel.style.background = 'rgba(10, 10, 10, 0.5)'; 
+        this.infoPanel.style.backdropFilter = 'blur(6px)'; 
         this.infoPanel.style.zIndex = '1000';
     }
 
     private createButtons() {
         this.container.innerHTML = '';
-        // Уменьшаем размер кнопок для мобильных, чтобы не было громоздко
-        const btnSize = this.isMobile ? '40px' : '48px'; // Было 56px для мобильных
+        const btnSize = this.isMobile ? '40px' : '48px'; 
         const iconSize = this.isMobile ? '20px' : '18px';
 
         this.items.forEach((item, index) => {
             const btn = document.createElement('button');
             const costHtml = item.cost ? `<div style="font-size: 9px; opacity: 0.8; display: flex; align-items: center; gap: 2px;">${Icons.METAL.replace('width="24"', 'width="10"').replace('height="24"', 'height="10"')} ${item.cost}</div>` : '';
             
-            // Хоткей (только для ПК)
             const hotkeyHtml = !this.isMobile && index < 9 ? 
                 `<div style="position: absolute; top: 2px; right: 4px; font-size: 10px; color: #aaa; font-weight: bold;">${index + 1}</div>` : '';
 
@@ -546,16 +541,15 @@ export class UIManager {
                 width: btnSize, height: btnSize, cursor: 'pointer', color: 'white',
                 border: '1px solid #444', borderRadius: '4px', background: 'transparent',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                transition: 'all 0.1s', position: 'relative' // Для абсолютного позиционирования цифры
+                transition: 'all 0.1s', position: 'relative' 
             });
             
             if (item.color) btn.style.borderColor = item.color;
-            btn.dataset.type = item.type; // Храним тип в дата-атрибуте
+            btn.dataset.type = item.type; 
             this.container.appendChild(btn);
             this.buttons.set(item.type, btn);
         });
         
-        // Делегированная обработка для всего контейнера
         const handleInteraction = (e: Event) => {
             const target = (e.target as HTMLElement).closest('button');
             if (target && target.dataset.type) {
@@ -571,18 +565,15 @@ export class UIManager {
             }
         };
 
-        // Удаляем старые листенеры если есть (нет, мы создаем кнопки заново)
         this.container.onpointerdown = handleInteraction;
-        // Дублируем touchstart для гарантии
         this.container.ontouchstart = handleInteraction; 
-        
-        this.updateButtonsState(); // Обновляем состояние (замки)
+        this.updateButtonsState(); 
     }
 
     public selectByIndex(index: number) {
         if (index >= 0 && index < this.items.length) {
             const type = this.items[index].type;
-            if (!this.buttons.get(type)?.disabled) {
+            if (!this.buttons.get(type)?.disabled || type === 'demolish') {
                 this.onSelect(type);
                 this.highlightButton(type);
             }

@@ -30,6 +30,16 @@ export class ResourceManager {
         this.updateUI();
     }
 
+    public reset() {
+        this.metal = 100;
+        this.biomass = 0;
+        this.batteryCharge = 0;
+        this.energyProduced = 0;
+        this.energyConsumed = 0;
+        this.isBlackout = false;
+        this.updateUI();
+    }
+
     public setLanguage(lang: Language) {
         this.lang = lang;
         this.updateUI();

@@ -75,6 +75,18 @@ export class BuildingSystem {
         this.ghost.visible = !paused;
     }
 
+    public reset() {
+        this.buildings.forEach(b => this.world.removeChild(b));
+        this.buildings.clear();
+        this.ghost.visible = true;
+        this.isPaused = false;
+        // Параметры регенерации сбрасывать не обязательно, если они сохраняются как прокачка
+        // Но если прокачка должна сбрасываться при рестарте (рогалик), то сбрасываем.
+        // Пока сбросим.
+        this.regenAmount = 0;
+        this.thornsDamage = 0;
+    }
+
     public update(
         ticker: Ticker, 
         enemies: Enemy[], 

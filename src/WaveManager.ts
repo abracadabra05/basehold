@@ -147,6 +147,17 @@ export class WaveManager {
         return (Translations[lang] as any)[key] || key;
     }
 
+    public reset() {
+        this.waveCount = 1;
+        this.waveTimer = 0;
+        this.isPaused = false;
+        this.isBossActive = false;
+        this.isPrepPhase = true;
+        this.prepTime = 30000;
+        this.timeBetweenWaves = 10000;
+        this.update(new Ticker()); // Обновляем UI сразу
+    }
+
     public update(ticker: Ticker) {
         if (this.isPaused) {
             this.skipButton.style.display = 'none';
