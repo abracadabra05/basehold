@@ -39,8 +39,9 @@ export class Camera {
         const screenCenterX = this.appScreen.width / 2;
         const screenCenterY = this.appScreen.height / 2;
 
-        let targetX = -this.target.x + screenCenterX;
-        let targetY = -this.target.y + screenCenterY;
+        // Учитываем зум при расчете позиции мира
+        let targetX = -this.target.x * this.zoom + screenCenterX;
+        let targetY = -this.target.y * this.zoom + screenCenterY;
 
         // Применяем тряску
         if (this.shakeTimer > 0) {

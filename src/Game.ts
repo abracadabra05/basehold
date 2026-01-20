@@ -67,6 +67,7 @@ export class Game {
     private mapSizePixel = 0; 
     private voidDamageTimer: number = 0;
     private lowHpTimer: number = 0;
+    private canRevive: boolean = true; // Один раз за игру
     
     private magnetRadius: number = 0;
 
@@ -277,8 +278,8 @@ export class Game {
             }
             
             this.camera.update(ticker);
-            this.miniMap.resize(this.app.screen.width); // Обновляем позицию каждый кадр (дешевая операция)
-            this.miniMap.update(this.player, this.enemies, this.resources);
+            this.miniMap.resize(this.app.screen.width); 
+            this.miniMap.update(this.player, this.enemies, this.resources, this.coreBuilding);
             
             this.buildingSystem.update(ticker, this.enemies, (x, y, tx, ty, damage) => {
                 this.spawnProjectile(x, y, tx, ty, damage);
@@ -316,6 +317,9 @@ export class Game {
 
             this.lightingSystem.update(ticker.deltaMS, this.app.screen.width, this.app.screen.height);
             this.lightingSystem.clearLights();
+            
+            // Обновляем темноту миникарты
+            this.miniMap.setDarkness(this.lightingSystem.currentAlpha);
             
             const pScreen = this.world.toGlobal({x: this.player.x, y: this.player.y});
             this.lightingSystem.renderLight(pScreen.x, pScreen.y, 350, this.player.rotationAngle, 1.2); 
@@ -403,24 +407,37 @@ export class Game {
     }
 
     private revivePlayer() {
-        this.isGameOver = false;
+        this.canRevive = false; // Одно воскрешение за сессию
         this.player.visible = true;
         this.player.hp = this.player.maxHp * 0.5;
         this.player.x = this.coreBuilding ? this.coreBuilding.x + 20 : this.mapSizePixel / 2;
         this.player.y = this.coreBuilding ? this.coreBuilding.y + 80 : this.mapSizePixel / 2;
-        
-        // Очищаем врагов
+        this.player.setInvulnerable(300); // 5 секунд
+
+        // 2. Восстанавливаем ядро
+        if (this.coreBuilding) {
+            this.coreBuilding.isDestroyed = false;
+            this.coreBuilding.hp = this.coreBuilding.maxHp * 0.5;
+            this.coreBuilding.visible = true;
+            this.coreBuilding.tint = 0xFFFFFF;
+            this.coreBuilding.updateHpBar(); // Сброс визуального состояния полоски
+        }
+
+        // 3. Очищаем врагов
         this.enemies.forEach(e => {
             this.createExplosion(e.x, e.y, 0xFF0000, 10);
             this.world.removeChild(e);
         });
         this.enemies = [];
         
-        // Перезапускаем волну
+        // 4. Перезапускаем волну
         this.waveManager.resetWave();
         
         this.soundManager.playBuild();
         this.spawnFloatingText(this.player.x, this.player.y - 50, "REVIVED!", '#e67e22', 30);
+        
+        // 5. Снимаем флаг Game Over
+        this.isGameOver = false;
     }
     
     // reasonCore: true если взорвалось ядро
@@ -607,11 +624,22 @@ export class Game {
             p.update(ticker);
 
             if (p.isEnemy) {
+                // Попадание в игрока
                 const dx = this.player.x - p.x;
                 const dy = this.player.y - p.y;
                 if (Math.sqrt(dx * dx + dy * dy) < 20) {
                     this.player.takeDamage(p.damage);
                     p.shouldDestroy = true;
+                }
+                
+                // Попадание в здания
+                if (!p.shouldDestroy) {
+                    const building = this.buildingSystem.getBuildingAt(p.x, p.y);
+                    if (building) {
+                        building.takeDamage(p.damage);
+                        p.shouldDestroy = true;
+                        this.createParticle(p.x, p.y, 0x00FF00, 'spark');
+                    }
                 }
             } else {
                 for (const enemy of this.enemies) {
@@ -730,7 +758,7 @@ export class Game {
         yaSdk.setLeaderboardScore(this.waveManager.waveCount);
         
         setTimeout(() => {
-            this.uiManager.showGameOver();
+            this.uiManager.showGameOver(this.canRevive);
         }, 2500); 
     }
 

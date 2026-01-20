@@ -109,14 +109,14 @@ export class UIManager {
         // Можно обновить размеры кнопок, если они зависят от платформы
     }
 
-    public showGameOver() {
+    public showGameOver(canRevive: boolean = true) {
         const overlay = document.createElement('div');
         Object.assign(overlay.style, {
             position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
             background: 'rgba(0,0,0,0.7)', zIndex: 10001,
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             color: 'white', fontFamily: "'Segoe UI', sans-serif",
-            backdropFilter: 'blur(10px)', // Размытие фона
+            backdropFilter: 'blur(10px)', 
             opacity: '0', transition: 'opacity 1s ease-in'
         });
         
@@ -124,53 +124,40 @@ export class UIManager {
             <div style="text-align: center; transform: translateY(-20px);">
                 <h1 style="font-size: 80px; color: #e74c3c; margin: 0 0 40px 0; text-transform: uppercase; letter-spacing: 15px; font-weight: 900; text-shadow: 0 0 30px rgba(231, 76, 60, 0.5);">${this.t('game_over')}</h1>
                 <div style="display: flex; gap: 20px; justify-content: center;">
-                    <button id="revive-btn" style="padding: 18px 40px; font-size: 20px; cursor: pointer; background: #e67e22; color: white; border: none; border-radius: 4px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; transition: all 0.3s;">🎬 ${this.t('revive')}</button>
+                    ${canRevive ? `<button id="revive-btn" style="padding: 18px 40px; font-size: 20px; cursor: pointer; background: #e67e22; color: white; border: none; border-radius: 4px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; transition: all 0.3s;">🎬 ${this.t('revive')}</button>` : ''}
                     <button id="restart-btn" style="padding: 18px 40px; font-size: 20px; cursor: pointer; background: transparent; color: #3498db; border: 2px solid #3498db; border-radius: 4px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; transition: all 0.3s;">${this.t('restart')}</button>
                 </div>
             </div>
         `;
         
         document.body.appendChild(overlay);
-        
-        // Плавное появление
         setTimeout(() => overlay.style.opacity = '1', 10);
 
-        const reviveBtn = overlay.querySelector('#revive-btn') as HTMLButtonElement;
+        const reviveBtn = overlay.querySelector('#revive-btn') as HTMLButtonElement | null;
         const restartBtn = overlay.querySelector('#restart-btn') as HTMLButtonElement;
 
-        reviveBtn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            yaSdk.showRewardedVideo(() => {
+        if (reviveBtn) {
+            reviveBtn.onclick = (e) => {
+                e.preventDefault(); e.stopPropagation();
                 document.body.removeChild(overlay);
                 if (this.onRevive) this.onRevive();
-            });
-        };
+            };
+        }
 
-        restartBtn.onmouseenter = () => {
-            restartBtn.style.background = '#3498db';
-            restartBtn.style.color = 'white';
-            restartBtn.style.boxShadow = '0 0 20px rgba(52, 152, 219, 0.5)';
-        };
-        restartBtn.onmouseleave = () => {
-            restartBtn.style.background = 'transparent';
-            restartBtn.style.color = '#3498db';
-            restartBtn.style.boxShadow = 'none';
-        };
-        restartBtn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            window.location.reload();
-        };
+        restartBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); window.location.reload(); };
     }
 
     public showTutorial(onComplete: () => void) {
-        const steps = [
+        const steps = this.isMobile ? [
+            { text: this.t('tut_move_mobile'), icon: "🕹️" },
+            { text: this.t('tut_shoot_mobile'), icon: "🎯" },
+            { text: this.t('tut_mine_mobile'), icon: "⛏️" },
+            { text: this.t('tut_build'), icon: "🧱" },
+        ] : [
             { text: this.t('tut_move'), icon: "🏃" },
             { text: this.t('tut_shoot'), icon: "🔫" },
             { text: this.t('tut_build'), icon: "🧱" },
             { text: this.t('tut_core'), icon: "💎" },
-            { text: this.t('tut_drill'), icon: "⚙️" },
         ];
         
         let stepIndex = 0;
@@ -445,9 +432,10 @@ export class UIManager {
 
     private initPlayerHUD() {
         this.hudPlayer.style.position = 'absolute';
-        this.hudPlayer.style.top = '20px'; // Переместим наверх слева (было bottom 20px)
+        this.hudPlayer.style.top = '20px'; 
         this.hudPlayer.style.left = '20px';
-        this.hudPlayer.style.width = '180px';
+        this.hudPlayer.style.width = '200px'; 
+        this.hudPlayer.style.boxSizing = 'border-box'; // Добавлено
         this.applyPanelStyle(this.hudPlayer);
         this.hudPlayer.style.padding = '10px';
         this.hudPlayer.style.zIndex = '1000';

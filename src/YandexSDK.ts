@@ -31,31 +31,30 @@ export class YandexSDK {
                 this.ysdk = await window.YaGames.init();
                 this.isReady = true;
                 
-                // Определение языка
                 const env = this.ysdk.environment;
                 if (env && env.i18n && env.i18n.lang === 'ru') {
                     this.lang = 'ru';
                 }
                 console.log(`Yandex SDK initialized. Lang: ${this.lang}`);
                 
-                // Авторизация
                 try {
-                    this.player = await this.ysdk.getPlayer(); // Присваиваем
+                    await this.ysdk.getPlayer();
                 } catch (e) {
-                    console.warn('Player not authorized', e);
+                    console.warn('Player not authorized (local dev?)', e);
                 }
 
-                // Лидерборды
                 try {
+                    // Используем getLeaderboards() как раньше, но с защитой
                     this.leaderboard = await this.ysdk.getLeaderboards();
                 } catch (e) {
-                    console.warn('Leaderboard error', e);
+                    console.warn('Leaderboard error (local dev?)', e);
                 }
             } else {
                 console.warn('Yandex SDK not found (local dev mode)');
             }
         } catch (e) {
-            console.error('Yandex SDK init failed', e);
+            console.error('Yandex SDK init failed (offline?)', e);
+            // Не блокируем игру, если SDK не загрузился
         }
     }
 

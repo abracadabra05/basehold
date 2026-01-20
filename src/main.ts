@@ -17,8 +17,12 @@ import { yaSdk } from "./YandexSDK";
 
   document.body.appendChild(app.canvas);
 
-  // Сначала инициализируем SDK (ожидаем загрузки языка и окружения)
-  await yaSdk.init();
+  // Сначала инициализируем SDK, но не блокируем игру насмерть
+  try {
+      await yaSdk.init();
+  } catch (e) {
+      console.warn('SDK init failed, starting game anyway:', e);
+  }
 
   // Инициализируем игру
   const game = new Game(app);

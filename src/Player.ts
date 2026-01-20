@@ -114,6 +114,10 @@ export class Player extends Container {
         }
     }
 
+    public setInvulnerable(time: number) {
+        this.invulnerableTimer = time;
+    }
+
     public takeDamage(amount: number) {
         if (this.invulnerableTimer > 0) return; 
         this.hp -= amount;

@@ -229,7 +229,8 @@ export class BuildingSystem {
         if (typeof document === 'undefined') return false;
         const el = document.elementFromPoint(e.global.x, e.global.y);
         if (!el) return false;
-        return el !== this.app.view && el.tagName !== 'CANVAS';
+        // Используем canvas вместо view для v8
+        return el !== this.app.canvas && el.tagName !== 'CANVAS';
     }
 
     private updateGhost(e: FederatedPointerEvent) {

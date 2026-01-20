@@ -28,6 +28,9 @@ export const Translations: Record<Language, any> = {
         
         tut_move: 'Двигайся на WASD',
         tut_shoot: 'ЛКМ - Стрелять, Стой рядом с ресурсом для добычи',
+        tut_move_mobile: 'Используй левый джойстик для движения',
+        tut_shoot_mobile: 'Используй правый джойстик для стрельбы',
+        tut_mine_mobile: 'Стой рядом с ресурсом для добычи',
         tut_build: 'Выбирай здания на панели снизу',
         tut_core: 'Защищай ядро любой ценой',
         tut_drill: 'Ставь буры на синие точки',
@@ -108,6 +111,9 @@ export const Translations: Record<Language, any> = {
         
         tut_move: 'Use WASD to Move',
         tut_shoot: 'LMB to Shoot, stand near node to mine',
+        tut_move_mobile: 'Use left joystick to move',
+        tut_shoot_mobile: 'Use right joystick to shoot',
+        tut_mine_mobile: 'Stand near resource nodes to mine',
         tut_build: 'Select buildings from the bottom bar',
         tut_core: 'Protect the Core at all costs',
         tut_drill: 'Place drills on blue nodes to mine metal',

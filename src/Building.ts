@@ -230,7 +230,18 @@ export class Building extends Container {
 
         if (this.hp <= 0) this.isDestroyed = true; 
     }
-    private updateHpBar() { if (this.hp < this.maxHp) { this.hpBar.visible = true; this.hpBar.clear(); this.hpBar.rect(-2, -2, 44, 8).fill({color:0x000000, alpha:0.8}); const pct = Math.max(0, this.hp / this.maxHp); const color = pct > 0.5 ? 0x00FF00 : pct > 0.25 ? 0xFFFF00 : 0xFF0000; this.hpBar.rect(0, 0, 40 * pct, 4).fill(color); } else { this.hpBar.visible = false; } }
+    public updateHpBar() { 
+        if (this.hp < this.maxHp) { 
+            this.hpBar.visible = true; 
+            this.hpBar.clear(); 
+            this.hpBar.rect(-2, -2, 44, 8).fill({color:0x000000, alpha:0.8}); 
+            const pct = Math.max(0, this.hp / this.maxHp); 
+            const color = pct > 0.5 ? 0x00FF00 : pct > 0.25 ? 0xFFFF00 : 0xFF0000; 
+            this.hpBar.rect(0, 0, 40 * pct, 4).fill(color); 
+        } else { 
+            this.hpBar.visible = false; 
+        } 
+    }
 
     public update(
         ticker: Ticker, 
