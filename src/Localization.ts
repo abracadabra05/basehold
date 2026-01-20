@@ -9,6 +9,7 @@ export const Translations: Record<Language, any> = {
         start: 'Начать миссию',
         restart: 'Начать заново',
         game_over: 'МИССИЯ ПРОВАЛЕНА',
+        revive: 'ВОСКРЕСНУТЬ', // Добавлено
         tutorial_toggle: 'Обучение',
         
         hud_hp: 'Здоровье', // Было Целостность
@@ -88,6 +89,7 @@ export const Translations: Record<Language, any> = {
         start: 'Start Mission',
         restart: 'Restart Game',
         game_over: 'MISSION FAILED',
+        revive: 'REVIVE',
         tutorial_toggle: 'Show Tutorial',
         
         hud_hp: 'HP', // Was Integrity

@@ -105,6 +105,10 @@ export class Game {
              this.buildingSystem.setTool('wall');
         };
         
+        this.inputSystem.onNumberPressed = (index) => {
+            this.uiManager.selectByIndex(index);
+        };
+
         // Убрали сброс на ПКМ, так как это стрельба
         /*
         this.inputSystem.onRightClick = () => {
@@ -379,7 +383,15 @@ export class Game {
         // Принудительно обновляем размеры рендера, если они рассинхронизировались
         this.app.renderer.resize(width, height);
         
-        if (this.camera) this.camera.resize(width, height);
+        if (this.camera) {
+            this.camera.resize(width, height);
+            // Если экран узкий (мобилка), отдаляем камеру, чтобы видеть больше
+            if (width < 800) {
+                this.camera.setZoom(0.7);
+            } else {
+                this.camera.setZoom(1.0);
+            }
+        }
         if (this.miniMap) this.miniMap.resize(width);
         if (this.inputSystem) this.inputSystem.init(this.app.screen); // Обновляем хитбокс
         if (this.voidOverlay) {

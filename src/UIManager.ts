@@ -124,7 +124,7 @@ export class UIManager {
             <div style="text-align: center; transform: translateY(-20px);">
                 <h1 style="font-size: 80px; color: #e74c3c; margin: 0 0 40px 0; text-transform: uppercase; letter-spacing: 15px; font-weight: 900; text-shadow: 0 0 30px rgba(231, 76, 60, 0.5);">${this.t('game_over')}</h1>
                 <div style="display: flex; gap: 20px; justify-content: center;">
-                    <button id="revive-btn" style="padding: 18px 40px; font-size: 20px; cursor: pointer; background: #e67e22; color: white; border: none; border-radius: 4px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; transition: all 0.3s;">🎬 REVIVE</button>
+                    <button id="revive-btn" style="padding: 18px 40px; font-size: 20px; cursor: pointer; background: #e67e22; color: white; border: none; border-radius: 4px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; transition: all 0.3s;">🎬 ${this.t('revive')}</button>
                     <button id="restart-btn" style="padding: 18px 40px; font-size: 20px; cursor: pointer; background: transparent; color: #3498db; border: 2px solid #3498db; border-radius: 4px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; transition: all 0.3s;">${this.t('restart')}</button>
                 </div>
             </div>
@@ -495,17 +495,22 @@ export class UIManager {
         const btnSize = this.isMobile ? '40px' : '48px'; // Было 56px для мобильных
         const iconSize = this.isMobile ? '20px' : '18px';
 
-        this.items.forEach(item => {
+        this.items.forEach((item, index) => {
             const btn = document.createElement('button');
             const costHtml = item.cost ? `<div style="font-size: 9px; opacity: 0.8; display: flex; align-items: center; gap: 2px;">${Icons.METAL.replace('width="24"', 'width="10"').replace('height="24"', 'height="10"')} ${item.cost}</div>` : '';
-            btn.innerHTML = `<div style="font-size: ${iconSize};">${item.icon}</div>${costHtml}`;
+            
+            // Хоткей (только для ПК)
+            const hotkeyHtml = !this.isMobile && index < 9 ? 
+                `<div style="position: absolute; top: 2px; right: 4px; font-size: 10px; color: #aaa; font-weight: bold;">${index + 1}</div>` : '';
+
+            btn.innerHTML = `${hotkeyHtml}<div style="font-size: ${iconSize};">${item.icon}</div>${costHtml}`;
             btn.title = this.t(item.key); 
             
             Object.assign(btn.style, {
                 width: btnSize, height: btnSize, cursor: 'pointer', color: 'white',
                 border: '1px solid #444', borderRadius: '4px', background: 'transparent',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                transition: 'all 0.1s'
+                transition: 'all 0.1s', position: 'relative' // Для абсолютного позиционирования цифры
             });
             
             if (item.color) btn.style.borderColor = item.color;
@@ -536,6 +541,16 @@ export class UIManager {
         this.container.ontouchstart = handleInteraction; 
         
         this.updateButtonsState(); // Обновляем состояние (замки)
+    }
+
+    public selectByIndex(index: number) {
+        if (index >= 0 && index < this.items.length) {
+            const type = this.items[index].type;
+            if (!this.buttons.get(type)?.disabled) {
+                this.onSelect(type);
+                this.highlightButton(type);
+            }
+        }
     }
 
     private highlightButton(type: ToolType) {

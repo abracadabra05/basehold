@@ -8,6 +8,8 @@ export class Camera {
     // Параметры тряски
     private shakeTimer: number = 0;
     private shakeIntensity: number = 0;
+    
+    public zoom: number = 1.0;
 
     constructor(world: Container, appScreen: { width: number, height: number }) {
         this.world = world;
@@ -16,6 +18,11 @@ export class Camera {
 
   public follow(target: Container) {
     this.target = target;
+  }
+  
+  public setZoom(zoom: number) {
+      this.zoom = zoom;
+      this.world.scale.set(zoom);
   }
 
     // Метод запуска тряски

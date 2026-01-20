@@ -16,6 +16,7 @@ export class InputSystem {
   public onSpacePressed?: () => void;
   public onToggleBuildMode?: () => void;
   public onRightClick?: () => void; // Добавлено
+  public onNumberPressed?: (index: number) => void; // Добавлено
 
   constructor(stage: Container) {
     this.stage = stage;
@@ -90,16 +91,23 @@ export class InputSystem {
       this.keys = {};
     });
 
-    // --- KEYBOARD ---
-    window.addEventListener("keydown", (e) => {
-      this.keys[e.code] = true;
-      if (e.code === "Space") {
-        if (this.onSpacePressed) this.onSpacePressed();
-      }
-      if (e.code === "Escape") {
-        if (this.onToggleBuildMode) this.onToggleBuildMode(); // Сброс инструмента
-      }
-    });
+        // --- KEYBOARD ---
+        window.addEventListener('keydown', (e) => {
+            this.keys[e.code] = true;
+            if (e.code === 'Space') {
+                if (this.onSpacePressed) this.onSpacePressed();
+            }
+            if (e.code === 'Escape') {
+                if (this.onToggleBuildMode) this.onToggleBuildMode(); 
+            }
+            // Цифры 1-9
+            if (e.code.startsWith('Digit')) {
+                const num = parseInt(e.code.replace('Digit', ''));
+                if (!isNaN(num) && num > 0 && num <= 9) {
+                    if (this.onNumberPressed) this.onNumberPressed(num - 1); // Индекс 0-8
+                }
+            }
+        });
     window.addEventListener("keyup", (e) => {
       this.keys[e.code] = false;
     });
