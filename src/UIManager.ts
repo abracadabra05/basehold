@@ -303,8 +303,8 @@ export class UIManager {
         let listHtml = '';
         entries.forEach(e => {
             listHtml += `<div style="display: flex; justify-content: space-between; width: 100%; padding: 8px; border-bottom: 1px solid #444; font-size: 14px;">
-                <span style="color: #f1c40f;">#${e.rank} ${e.player.name}</span>
-                <span style="flex: 1; text-align: left; margin-left: 10px;"></span>
+                <span style="color: #f1c40f;">#${e.rank}</span>
+                <span style="flex: 1; text-align: left; margin-left: 10px;">${e.player.name}</span>
                 <span style="color: #3498db;">${e.score}</span>
             </div>`;
         });
@@ -319,6 +319,32 @@ export class UIManager {
             </div>
         `;
         overlay.querySelector('#close-lb')?.addEventListener('click', () => document.body.removeChild(overlay));
+    }
+
+    private toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.warn(`Error attempting to enable fullscreen: ${err.message}`);
+            });
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    }
+
+    private async loadEmbeddedLeaderboard(container: HTMLElement) {
+        if (!container) return;
+        const entries = await yaSdk.getLeaderboardEntries(5);
+        let listHtml = '';
+        entries.forEach(e => {
+            listHtml += `<div style="display: flex; justify-content: space-between; width: 100%; margin-bottom: 5px;">
+                <span style="color: #f1c40f;">#${e.rank}</span>
+                <span style="flex: 1; text-align: left; margin-left: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${e.player.name}</span>
+                <span style="color: #3498db;">${e.score}</span>
+            </div>`;
+        });
+        container.innerHTML = listHtml || `<div style="color: #777; text-align: center;">${this.t('leaderboard_empty')}</div>`;
     }
 
     private showSettings() {
