@@ -236,30 +236,32 @@ export class UIManager {
     }
 
     private updateMainMenuContent(div: HTMLDivElement) {
-        const titleSize = this.isMobile ? '40px' : '80px';
-        const subSize = this.isMobile ? '14px' : '18px';
-        const gap = this.isMobile ? '20px' : '40px';
+        const titleSize = this.isMobile ? '40px' : '70px'; // Чуть меньше для ПК
+        const subSize = this.isMobile ? '12px' : '16px';
+        const gap = this.isMobile ? '15px' : '30px';
         
         div.innerHTML = `
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%;">
-                <h1 style="font-size: ${titleSize}; color: #3498db; margin: 0; text-transform: uppercase; letter-spacing: 5px; font-weight: 900;">${this.t('game_title')}</h1>
-                <p style="color: #7f8c8d; margin-bottom: ${gap}; font-size: ${subSize}; letter-spacing: 2px;">${this.t('subtitle')}</p>
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%; z-index: 10;">
+                <h1 style="font-size: ${titleSize}; color: #3498db; margin: 0; text-transform: uppercase; letter-spacing: 5px; font-weight: 900; text-shadow: 0 4px 10px rgba(0,0,0,0.5);">${this.t('game_title')}</h1>
+                <p style="color: #aaa; margin-bottom: ${gap}; font-size: ${subSize}; letter-spacing: 2px;">${this.t('subtitle')}</p>
                 
-                <button id="start-btn" style="padding: ${this.isMobile ? '12px 40px' : '18px 60px'}; font-size: ${this.isMobile ? '18px' : '24px'}; cursor: pointer; background: rgba(52, 152, 219, 0.1); color: #3498db; border: 2px solid #3498db; borderRadius: 4px; text-transform: uppercase; letter-spacing: 4px; font-weight: bold; transition: all 0.2s;">
+                <button id="start-btn" style="padding: ${this.isMobile ? '12px 40px' : '16px 50px'}; font-size: ${this.isMobile ? '18px' : '22px'}; cursor: pointer; background: rgba(52, 152, 219, 0.15); color: #3498db; border: 2px solid #3498db; borderRadius: 4px; text-transform: uppercase; letter-spacing: 3px; font-weight: bold; transition: all 0.2s; backdrop-filter: blur(4px);">
                     ${this.t('start')}
                 </button>
             </div>
 
-            <!-- ЛИДЕРБОРД СПРАВА -->
-            <div id="main-leaderboard" style="position: absolute; top: 50%; right: 40px; transform: translateY(-50%); width: 250px; background: rgba(0,0,0,0.5); padding: 20px; border-radius: 8px; border: 1px solid #444; ${this.isMobile ? 'display: none;' : ''}">
-                <h3 style="margin-top: 0; color: #f1c40f; text-align: center;">🏆 ${this.t('leaderboard')}</h3>
-                <div id="lb-list" style="font-size: 14px; min-height: 100px;">Loading...</div>
-            </div>
+            <!-- ЛИДЕРБОРД (Виджет для ПК) -->
+            ${!this.isMobile ? `
+            <div id="main-leaderboard" style="position: absolute; top: 50%; right: 20px; transform: translateY(-50%); width: 220px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(5px);">
+                <h4 style="margin: 0 0 10px 0; color: #f1c40f; text-align: center; text-transform: uppercase; font-size: 14px;">🏆 ${this.t('leaderboard')}</h4>
+                <div id="lb-list" style="font-size: 12px; min-height: 80px;">Loading...</div>
+            </div>` : ''}
 
-            <!-- НАСТРОЙКИ -->
-            <div style="position: absolute; bottom: 20px; right: 20px; display: flex; gap: 10px;">
-                ${(window.self === window.top) ? `<button id="fullscreen-btn" style="background: none; border: none; font-size: 30px; cursor: pointer;">⛶</button>` : ''}
-                <button id="settings-btn" style="background: none; border: none; font-size: 30px; cursor: pointer;">⚙️</button>
+            <!-- КНОПКИ (Настройки, Фуллскрин, Лидерборд на моб) -->
+            <div style="position: absolute; bottom: 20px; right: 20px; display: flex; gap: 15px; z-index: 20;">
+                ${this.isMobile ? `<button id="mob-lb-btn" style="background: none; border: none; font-size: 28px; cursor: pointer;">🏆</button>` : ''}
+                ${(window.self === window.top && !this.isMobile) ? `<button id="fullscreen-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">⛶</button>` : ''}
+                <button id="settings-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">⚙️</button>
             </div>
         `;
 
@@ -273,36 +275,50 @@ export class UIManager {
         settingsBtn.onclick = () => this.showSettings();
         
         const fsBtn = div.querySelector('#fullscreen-btn') as HTMLButtonElement | null;
-        if (fsBtn) {
-            fsBtn.onclick = () => this.toggleFullscreen();
-        }
-        
-        // Загружаем лидерборд
-        this.loadEmbeddedLeaderboard(div.querySelector('#lb-list') as HTMLElement);
-    }
+        if (fsBtn) fsBtn.onclick = () => this.toggleFullscreen();
 
-    private toggleFullscreen() {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => {
-                console.warn(`Error attempting to enable fullscreen: ${err.message}`);
-            });
-        } else {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            }
+        // Мобильная кнопка лидерборда
+        const mobLbBtn = div.querySelector('#mob-lb-btn') as HTMLButtonElement | null;
+        if (mobLbBtn) mobLbBtn.onclick = () => this.showLeaderboardModal();
+        
+        // Загружаем виджет только на ПК
+        if (!this.isMobile) {
+            this.loadEmbeddedLeaderboard(div.querySelector('#lb-list') as HTMLElement);
         }
     }
     
-    private async loadEmbeddedLeaderboard(container: HTMLElement) {
-        const entries = await yaSdk.getLeaderboardEntries(5);
-        let html = '';
+    // Метод для модального окна лидерборда (мобилки)
+    private async showLeaderboardModal() {
+        const overlay = document.createElement('div');
+        Object.assign(overlay.style, {
+            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+            background: 'rgba(0,0,0,0.85)', zIndex: 10005,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            color: 'white', fontFamily: "'Segoe UI', sans-serif", backdropFilter: 'blur(5px)'
+        });
+        overlay.innerHTML = `<div style="font-size: 20px;">Loading...</div>`;
+        document.body.appendChild(overlay);
+        
+        const entries = await yaSdk.getLeaderboardEntries();
+        let listHtml = '';
         entries.forEach(e => {
-            html += `<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                <span style="color: #aaa">#${e.rank} ${e.player.name}</span>
-                <span style="color: white">${e.score}</span>
+            listHtml += `<div style="display: flex; justify-content: space-between; width: 100%; padding: 8px; border-bottom: 1px solid #444; font-size: 14px;">
+                <span style="color: #f1c40f;">#${e.rank} ${e.player.name}</span>
+                <span style="flex: 1; text-align: left; margin-left: 10px;"></span>
+                <span style="color: #3498db;">${e.score}</span>
             </div>`;
         });
-        container.innerHTML = html || `<div style="text-align: center; color: #555; padding: 10px; font-size: 12px;">${this.t('leaderboard_empty')}</div>`;
+
+        overlay.innerHTML = `
+            <div style="background: #1e272e; padding: 20px; borderRadius: 12px; width: 85%; max-width: 350px; text-align: center; border: 1px solid #444;">
+                <h3 style="margin-top: 0; color: #f1c40f;">🏆 ${this.t('leaderboard')}</h3>
+                <div style="max-height: 60vh; overflow-y: auto; margin-bottom: 15px;">
+                    ${listHtml || `<div style="color: #777;">${this.t('leaderboard_empty')}</div>`}
+                </div>
+                <button id="close-lb" style="padding: 10px 30px; background: #3498db; border: none; color: white; borderRadius: 4px; cursor: pointer;">OK</button>
+            </div>
+        `;
+        overlay.querySelector('#close-lb')?.addEventListener('click', () => document.body.removeChild(overlay));
     }
 
     private showSettings() {
@@ -496,11 +512,19 @@ export class UIManager {
         this.hudPlayer.style.position = 'absolute';
         this.hudPlayer.style.top = '20px'; 
         this.hudPlayer.style.left = '20px';
-        this.hudPlayer.style.width = '200px'; 
+        
+        // Уменьшаем ширину на мобильных
+        this.hudPlayer.style.width = this.isMobile ? '140px' : '200px';
+        this.hudPlayer.style.fontSize = this.isMobile ? '10px' : '12px';
+        
         this.hudPlayer.style.boxSizing = 'border-box';
         this.applyPanelStyle(this.hudPlayer);
         this.hudPlayer.style.padding = '10px';
         this.hudPlayer.style.zIndex = '1000';
+        
+        if (this.isMobile) {
+            this.hudPlayer.style.background = 'rgba(15, 15, 15, 0.6)'; // Прозрачнее
+        }
         this.hudPlayer.innerHTML = `
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 11px; color: #aaa; font-weight: bold;">
                 <span>${this.t('hud_hp')}</span>
@@ -525,6 +549,8 @@ export class UIManager {
         this.container.style.gap = '6px';
         this.container.style.padding = '10px';
         this.applyPanelStyle(this.container);
+        this.container.style.background = 'transparent'; // Прозрачный фон
+        this.container.style.border = 'none'; // Без рамки
         this.container.style.pointerEvents = 'auto'; 
         this.container.style.zIndex = '1001';
     }
@@ -560,9 +586,12 @@ export class UIManager {
             
             Object.assign(btn.style, {
                 width: btnSize, height: btnSize, cursor: 'pointer', color: 'white',
-                border: '1px solid #444', borderRadius: '4px', background: 'transparent',
+                border: '1px solid rgba(255,255,255,0.2)', // Тонкая рамка
+                borderRadius: '6px', 
+                background: this.isMobile ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.5)', // Прозрачнее
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                transition: 'all 0.1s', position: 'relative' 
+                transition: 'all 0.1s', position: 'relative',
+                backdropFilter: 'blur(4px)'
             });
             
             if (item.color) btn.style.borderColor = item.color;

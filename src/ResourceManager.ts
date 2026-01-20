@@ -16,14 +16,20 @@ export class ResourceManager {
     constructor() {
         this.uiElement = document.createElement('div');
         
+        const isMobile = window.innerWidth <= 800; // Простая проверка
+        const width = isMobile ? '140px' : '200px';
+        const top = isMobile ? '70px' : '80px';
+        const fontSize = isMobile ? '10px' : '13px';
+        
         Object.assign(this.uiElement.style, {
-            position: 'absolute', top: '80px', left: '20px', padding: '12px 15px', 
-            background: 'rgba(15, 15, 15, 0.95)', border: '1px solid #333', borderRadius: '4px',
-            color: 'white', fontFamily: "'Segoe UI', sans-serif", fontSize: '13px',
-            boxShadow: '0 10px 20px rgba(0,0,0,0.4)', pointerEvents: 'none',
-            width: '200px', 
-            boxSizing: 'border-box', // Добавлено
-            lineHeight: '1.5', zIndex: '1000'
+            position: 'absolute', top: top, left: '20px', padding: '10px', 
+            background: isMobile ? 'rgba(15, 15, 15, 0.6)' : 'rgba(15, 15, 15, 0.95)', 
+            border: '1px solid #333', borderRadius: '4px',
+            color: 'white', fontFamily: "'Segoe UI', sans-serif", fontSize: fontSize,
+            boxShadow: '0 5px 10px rgba(0,0,0,0.3)', pointerEvents: 'none',
+            width: width, 
+            boxSizing: 'border-box',
+            lineHeight: '1.4', zIndex: '1000'
         });
         
         document.body.appendChild(this.uiElement);
