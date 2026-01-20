@@ -257,7 +257,10 @@ export class UIManager {
             </div>
 
             <!-- НАСТРОЙКИ -->
-            <button id="settings-btn" style="position: absolute; bottom: 20px; right: 20px; background: none; border: none; font-size: 30px; cursor: pointer;">⚙️</button>
+            <div style="position: absolute; bottom: 20px; right: 20px; display: flex; gap: 10px;">
+                ${!yaSdk.isYandexEnvironment ? `<button id="fullscreen-btn" style="background: none; border: none; font-size: 30px; cursor: pointer;">⛶</button>` : ''}
+                <button id="settings-btn" style="background: none; border: none; font-size: 30px; cursor: pointer;">⚙️</button>
+            </div>
         `;
 
         const startBtn = div.querySelector('#start-btn') as HTMLButtonElement;
@@ -269,7 +272,25 @@ export class UIManager {
         const settingsBtn = div.querySelector('#settings-btn') as HTMLButtonElement;
         settingsBtn.onclick = () => this.showSettings();
         
+        const fsBtn = div.querySelector('#fullscreen-btn') as HTMLButtonElement | null;
+        if (fsBtn) {
+            fsBtn.onclick = () => this.toggleFullscreen();
+        }
+        
+        // Загружаем лидерборд
         this.loadEmbeddedLeaderboard(div.querySelector('#lb-list') as HTMLElement);
+    }
+
+    private toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.warn(`Error attempting to enable fullscreen: ${err.message}`);
+            });
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
     }
     
     private async loadEmbeddedLeaderboard(container: HTMLElement) {
