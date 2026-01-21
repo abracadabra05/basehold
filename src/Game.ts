@@ -96,6 +96,15 @@ export class Game {
     }
 
     public init() {
+        // Обработка сворачивания (Требование 1.3)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                this.pauseGame();
+            } else {
+                this.resumeGame();
+            }
+        });
+
         // 1. Сначала базовые системы без зависимостей
         this.inputSystem = new InputSystem(this.app.stage);
         this.inputSystem.init(this.app.screen);
@@ -171,20 +180,11 @@ export class Game {
                 this.coreBuilding = this.buildingSystem.spawnCore(coreGridX, coreGridY);
         
                 // 8. Магазин и волны
-                        this.upgradeManager = new UpgradeManager(this.uiManager, this.resourceManager);
-                        
-                                // Связываем проверку технологий с UI и Системой строительства
-                                const checkUnlock = (type: string) => this.upgradeManager.isBuildingUnlocked(type);
-                                this.uiManager.checkUnlock = checkUnlock;
-                                this.buildingSystem.checkUnlock = checkUnlock;
-                                
-                                this.uiManager.updateButtonsState(); // Обновляем сразу при старте
-                        
-                                this.upgradeManager.onUnlock = () => {                                    this.uiManager.updateButtonsState();
-                                    this.soundManager.playBuild(); // Звук успеха
-                                    this.spawnFloatingText(this.player.x, this.player.y - 50, "TECH UNLOCKED!", '#2ecc71', 24);
-                                };                
-                        this.upgradeManager.onUpgrade = (type: string) => {
+        this.upgradeManager = new UpgradeManager(this.uiManager, this.resourceManager);
+        this.upgradeManager.onPauseRequest = () => { if (this.soundManager) this.soundManager.setMute(true); };
+        this.upgradeManager.onResumeRequest = () => { if (this.soundManager) this.soundManager.setMute(false); };
+        
+        this.upgradeManager.onUpgrade = (type: string) => {
                             if (type === 'damage') this.player.damage += 1;
                             if (type === 'mine') this.currentMineMultiplier += 0.5;
                             if (type === 'speed') this.player.moveSpeed += 0.5;
@@ -228,6 +228,9 @@ export class Game {
         
         this.uiManager.onRevive = () => this.revivePlayer();
         this.uiManager.onRestart = () => this.restartGame();
+        this.uiManager.onPause = () => this.pauseGame();
+        this.uiManager.onResume = () => this.resumeGame();
+        this.uiManager.onMute = (muted) => this.soundManager.setMute(muted);
 
         // 9. Освещение, Миникарта и основной цикл
         this.miniMap = new MiniMap(this.app, this.mapSizePixel);
@@ -386,6 +389,19 @@ export class Game {
     public startGame() {
         this.isGameStarted = true;
         this.uiManager.hideMenu();
+    }
+
+    public pauseGame() {
+        this.isGameStarted = false;
+        if (this.soundManager) this.soundManager.pause();
+    }
+
+    public resumeGame() {
+        // Возобновляем только если не Game Over и не открыты меню
+        if (!this.isGameOver && !this.uiManager.isSettingsOpen && !this.waveManager.isShopOpen) {
+            this.isGameStarted = true;
+            if (this.soundManager) this.soundManager.resume();
+        }
     }
 
     public resize(width: number, height: number) {

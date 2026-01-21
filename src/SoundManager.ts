@@ -130,4 +130,26 @@ export class SoundManager {
         setTimeout(() => this.playTone(250, "triangle", 0.5, 0.2, 150, 'ui'), 400);
         setTimeout(() => this.playTone(200, "triangle", 1.0, 0.2, 50, 'ui'), 800);
     }
+
+    public setMute(muted: boolean) {
+        this.isMuted = muted;
+        if (muted) {
+            this.ctx.suspend();
+        } else {
+            this.ctx.resume();
+        }
+    }
+
+    public toggleMute(): boolean {
+        this.setMute(!this.isMuted);
+        return this.isMuted;
+    }
+
+    public pause() {
+        if (this.ctx.state === 'running') this.ctx.suspend();
+    }
+
+    public resume() {
+        if (!this.isMuted && this.ctx.state === 'suspended') this.ctx.resume();
+    }
 }

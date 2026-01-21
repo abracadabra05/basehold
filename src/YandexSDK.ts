@@ -95,24 +95,29 @@ export class YandexSDK {
         }
     }
 
-    public showRewardedVideo(onReward: () => void) {
-        if (this.isYandexEnvironment && this.ysdk) {
-            this.ysdk.adv.showRewardedVideo({
-                callbacks: {
-                    onOpen: () => { },
-                    onRewarded: () => {
-                        onReward();
-                    },
-                    onClose: () => { },
-                    onError: (e: any) => {
-                        console.error('Reward video error', e);
-                    }
-                }
-            });
-        } else {
-            console.log('[DEV] Mock Reward Video watched -> REWARD GRANTED');
-            onReward();
+    public showRewardedVideo(onReward: () => void, onOpen?: () => void, onClose?: () => void) {
+        if (!this.ysdk) {
+            console.log('[DEV] Mock Reward Video watched');
+            if (onOpen) onOpen();
+            setTimeout(() => {
+                onReward();
+                if (onClose) onClose();
+            }, 1000);
+            return;
         }
+        this.ysdk.adv.showRewardedVideo({
+            callbacks: {
+                onOpen: () => { if (onOpen) onOpen(); },
+                onRewarded: () => {
+                    onReward();
+                },
+                onClose: () => { if (onClose) onClose(); },
+                onError: (e: any) => {
+                    console.error('Reward video error', e);
+                    if (onClose) onClose();
+                }
+            }
+        });
     }
 
     public async getLeaderboardEntries(limit: number = 10): Promise<LeaderboardEntry[]> {

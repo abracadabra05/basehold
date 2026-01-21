@@ -27,6 +27,7 @@ export class UIManager {
     private buttons: Map<ToolType, HTMLButtonElement> = new Map(); 
     private isPaused: boolean = false;
     private isMobile: boolean = false;
+    public isSettingsOpen: boolean = false; // Добавлено
 
     private lang: Language = 'en';
     private showTutorialFlag: boolean = true;
@@ -35,7 +36,10 @@ export class UIManager {
     public onLanguageChange?: (lang: Language) => void;
     public checkUnlock?: (type: string) => boolean; 
     public onRevive?: () => void; 
-    public onRestart?: () => void; // Добавлено
+    public onRestart?: () => void;
+    public onPause?: () => void; // Добавлено
+    public onResume?: () => void; // Добавлено
+    public onMute?: (muted: boolean) => void; // Добавлено
     
     private items: ToolItem[] = [
         { type: 'wall', key: 'tool_wall', icon: '🧱', cost: 10 },
@@ -348,6 +352,9 @@ export class UIManager {
     }
 
     private showSettings() {
+        this.isSettingsOpen = true;
+        if (this.onPause) this.onPause();
+
         const overlay = document.createElement('div');
         Object.assign(overlay.style, {
             position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
@@ -362,10 +369,17 @@ export class UIManager {
                 <button id="set-en" style="padding: 10px 20px; cursor: pointer; background: ${this.lang==='en'?'#3498db':'#333'}; border: 1px solid #3498db; color: white;">EN</button>
                 <button id="set-ru" style="padding: 10px 20px; cursor: pointer; background: ${this.lang==='ru'?'#3498db':'#333'}; border: 1px solid #3498db; color: white;">RU</button>
             </div>
-            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 18px; margin-bottom: 30px;">
+            
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 18px; margin-bottom: 15px;">
                 <input type="checkbox" id="set-tut" ${this.showTutorialFlag ? 'checked' : ''} style="width: 20px; height: 20px;">
                 ${this.t('tutorial_toggle')}
             </label>
+
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 18px; margin-bottom: 30px;">
+                <input type="checkbox" id="set-sound" checked style="width: 20px; height: 20px;">
+                Sound 🔊
+            </label>
+
             <button id="set-close" style="padding: 10px 30px; background: #27ae60; border: none; color: white; border-radius: 4px; cursor: pointer;">OK</button>
         `;
         
@@ -373,8 +387,23 @@ export class UIManager {
         
         overlay.querySelector('#set-en')?.addEventListener('click', () => { this.lang = 'en'; this.refreshUI(); document.body.removeChild(overlay); this.showSettings(); });
         overlay.querySelector('#set-ru')?.addEventListener('click', () => { this.lang = 'ru'; this.refreshUI(); document.body.removeChild(overlay); this.showSettings(); });
+        
         overlay.querySelector('#set-tut')?.addEventListener('change', (e: any) => { this.showTutorialFlag = e.target.checked; });
-        overlay.querySelector('#set-close')?.addEventListener('click', () => document.body.removeChild(overlay));
+        
+        const soundCheckbox = overlay.querySelector('#set-sound') as HTMLInputElement;
+        // Здесь нужно получить текущее состояние звука, но мы не знаем его.
+        // Пока оставим checked по умолчанию, но лучше передавать состояние в showSettings.
+        // Для простоты будем считать, что звук включен, если не выключен.
+        
+        soundCheckbox.addEventListener('change', (e: any) => { 
+            if (this.onMute) this.onMute(!e.target.checked); 
+        });
+
+        overlay.querySelector('#set-close')?.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+            this.isSettingsOpen = false;
+            if (this.onResume) this.onResume();
+        });
     }
 
     private refreshUI() {

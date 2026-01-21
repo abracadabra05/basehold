@@ -18,7 +18,10 @@ export class UpgradeManager {
     public thornsLevel: number = 0;
 
     public onUpgrade?: (type: string) => void;
-    public onUnlock?: (type: string) => void; // Колбек разблокировки
+    public onUnlock?: (type: string) => void; 
+    
+    public onPauseRequest?: () => void;
+    public onResumeRequest?: () => void;
 
     // Список открытых зданий (изначально берем из конфига)
     private unlockedBuildings: Set<string> = new Set();
@@ -331,9 +334,11 @@ export class UpgradeManager {
         };
 
         adBtn.onclick = () => {
-            yaSdk.showRewardedVideo(() => {
-                doUnlock();
-            });
+            yaSdk.showRewardedVideo(
+                () => { doUnlock(); },
+                () => { if (this.onPauseRequest) this.onPauseRequest(); },
+                () => { if (this.onResumeRequest) this.onResumeRequest(); }
+            );
         };
 
         updateState();
