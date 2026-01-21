@@ -64,6 +64,9 @@ export const Translations: Record<Language, any> = {
         shop_subtitle: 'Тратьте биомассу на развитие технологий',
         shop_close: 'Закрыть',
         
+        settings_sound: 'Звук', // Добавлено
+        settings_exit: 'Выйти в меню', // Добавлено
+        
         // Wave statuses
         wave_prep: 'ДО СЛЕДУЮЩЕЙ ВОЛНЫ',
         wave_active: 'ВОЛНА',
@@ -148,6 +151,9 @@ export const Translations: Record<Language, any> = {
         shop_title: 'Research & Upgrades',
         shop_subtitle: 'Spend biomass to upgrade systems',
         shop_close: 'Close',
+
+        settings_sound: 'Sound',
+        settings_exit: 'Exit to Menu',
 
         // Wave statuses
         wave_prep: 'NEXT WAVE IN',

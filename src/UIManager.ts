@@ -101,6 +101,19 @@ export class UIManager {
         document.body.appendChild(this.hudPlayer);
         document.body.appendChild(this.hudCore);
         document.body.appendChild(this.hudTime);
+        
+        // Кнопка настроек в игре
+        const inGameSettings = document.createElement('button');
+        inGameSettings.innerHTML = '⚙️';
+        Object.assign(inGameSettings.style, {
+            position: 'absolute', top: '20px', right: '20px',
+            background: 'rgba(0,0,0,0.5)', border: '1px solid #444', borderRadius: '4px',
+            color: 'white', fontSize: '24px', cursor: 'pointer', padding: '5px 10px',
+            zIndex: '1000'
+        });
+        inGameSettings.onclick = () => this.showSettings();
+        document.body.appendChild(inGameSettings);
+
         this.updateWave(1);
     }
 
@@ -261,11 +274,10 @@ export class UIManager {
                 <div id="lb-list" style="font-size: 12px; min-height: 80px;">Loading...</div>
             </div>` : ''}
 
-            <!-- КНОПКИ (Настройки, Фуллскрин, Лидерборд на моб) -->
-            <div style="position: absolute; bottom: 20px; right: 20px; display: flex; gap: 15px; z-index: 20;">
-                ${this.isMobile ? `<button id="mob-lb-btn" style="background: none; border: none; font-size: 28px; cursor: pointer;">🏆</button>` : ''}
-                ${(window.self === window.top && !this.isMobile) ? `<button id="fullscreen-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">⛶</button>` : ''}
-                <button id="settings-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">⚙️</button>
+            <!-- НАСТРОЙКИ -->
+            <div style="position: absolute; bottom: 20px; right: 20px; display: flex; gap: 10px;">
+                ${(window.self === window.top || this.isMobile) ? `<button id="fullscreen-btn" style="background: none; border: none; font-size: 30px; cursor: pointer;">⛶</button>` : ''}
+                <button id="settings-btn" style="background: none; border: none; font-size: 30px; cursor: pointer;">⚙️</button>
             </div>
         `;
 
@@ -377,14 +389,29 @@ export class UIManager {
 
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 18px; margin-bottom: 30px;">
                 <input type="checkbox" id="set-sound" checked style="width: 20px; height: 20px;">
-                Sound 🔊
+                ${this.t('settings_sound')} 🔊
             </label>
+
+            <!-- Кнопка выхода в меню, если мы в игре -->
+            <button id="set-exit" style="padding: 10px 30px; background: #c0392b; border: none; color: white; border-radius: 4px; cursor: pointer; margin-bottom: 10px; display: none;">${this.t('settings_exit')}</button>
 
             <button id="set-close" style="padding: 10px 30px; background: #27ae60; border: none; color: white; border-radius: 4px; cursor: pointer;">OK</button>
         `;
         
         document.body.appendChild(overlay);
         
+        // Показываем кнопку выхода только если игра идет (меню скрыто)
+        const exitBtn = overlay.querySelector('#set-exit') as HTMLButtonElement;
+        if (this.mainMenu.style.display === 'none') {
+            exitBtn.style.display = 'block';
+        }
+        
+        exitBtn.onclick = () => {
+            document.body.removeChild(overlay);
+            this.isSettingsOpen = false;
+            if (this.onRestart) this.onRestart(); // Используем рестарт для выхода в меню
+        };
+
         overlay.querySelector('#set-en')?.addEventListener('click', () => { this.lang = 'en'; this.refreshUI(); document.body.removeChild(overlay); this.showSettings(); });
         overlay.querySelector('#set-ru')?.addEventListener('click', () => { this.lang = 'ru'; this.refreshUI(); document.body.removeChild(overlay); this.showSettings(); });
         
