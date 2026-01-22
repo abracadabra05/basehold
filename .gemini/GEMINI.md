@@ -129,4 +129,6 @@ After completing a task, provide:
 - [ ] Commit message is meaningful
 - [ ] Push to GitHub completed
 
-**Mandatory Rule:** ALWAYS run `npm run build` and `npm run lint` (if available) before reporting that a task is complete. No exceptions.
+**Mandatory Rule:** ALWAYS run `npm run build` and `npm run lint` (if available) before reporting that a task is complete. No exceptions. 
+
+**CRITICAL:** If you (the agent) say "Ready" or "Done" without having run the build check in the same turn, you have failed your primary mandate. ALWAYS VERIFY FIRST.

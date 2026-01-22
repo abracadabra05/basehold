@@ -277,28 +277,34 @@ export class UIManager {
                 <div id="lb-list" style="font-size: 12px; min-height: 80px;">Loading...</div>
             </div>` : ''}
 
-            <!-- НАСТРОЙКИ -->
-            <div style="position: absolute; bottom: 20px; right: 20px; display: flex; gap: 10px;">
-                ${(window.self === window.top || this.isMobile) ? `<button id="fullscreen-btn" style="background: none; border: none; font-size: 30px; cursor: pointer;">⛶</button>` : ''}
-                <button id="settings-btn" style="background: none; border: none; font-size: 30px; cursor: pointer;">⚙️</button>
+            <!-- КНОПКИ (Настройки, Фуллскрин) - ПЕРЕНЕСЕНЫ В ВЕРХНИЙ ПРАВЫЙ УГОЛ -->
+            <div style="position: absolute; top: 20px; right: 20px; display: flex; gap: 15px; z-index: 20;">
+                ${this.isMobile ? `<button id="mob-lb-btn" style="background: none; border: none; font-size: 28px; cursor: pointer;">🏆</button>` : ''}
+                ${(window.self === window.top || this.isMobile) ? `<button id="fullscreen-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">⛶</button>` : ''}
+                <button id="settings-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">⚙️</button>
             </div>
         `;
 
         const startBtn = div.querySelector('#start-btn') as HTMLButtonElement;
-        startBtn.onclick = () => {
-            div.style.display = 'none';
-            if (this.onStartGame) this.onStartGame(!this.showTutorialFlag);
+        const bindBtn = (btn: HTMLElement | null, action: () => void) => {
+            if (!btn) return;
+            const handler = (e: Event) => {
+                e.preventDefault();
+                e.stopPropagation();
+                action();
+            };
+            btn.onclick = handler;
+            btn.ontouchstart = handler;
         };
 
-        const settingsBtn = div.querySelector('#settings-btn') as HTMLButtonElement;
-        settingsBtn.onclick = () => this.showSettings();
-        
-        const fsBtn = div.querySelector('#fullscreen-btn') as HTMLButtonElement | null;
-        if (fsBtn) fsBtn.onclick = () => this.toggleFullscreen();
+        bindBtn(startBtn, () => {
+            div.style.display = 'none';
+            if (this.onStartGame) this.onStartGame(!this.showTutorialFlag);
+        });
 
-        // Мобильная кнопка лидерборда
-        const mobLbBtn = div.querySelector('#mob-lb-btn') as HTMLButtonElement | null;
-        if (mobLbBtn) mobLbBtn.onclick = () => this.showLeaderboardModal();
+        bindBtn(div.querySelector('#settings-btn'), () => this.showSettings());
+        bindBtn(div.querySelector('#fullscreen-btn'), () => this.toggleFullscreen());
+        bindBtn(div.querySelector('#mob-lb-btn'), () => this.showLeaderboardModal());
         
         // Загружаем виджет только на ПК
         if (!this.isMobile) {
