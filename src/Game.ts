@@ -139,12 +139,13 @@ export class Game {
 
         // 3. Системы управления ресурсами и UI
                 this.resourceManager = new ResourceManager();
-                this.uiManager = new UIManager((tool) => this.buildingSystem.setTool(tool));
-                this.uiManager.init();
-                        this.uiManager.onLanguageChange = (lang) => {
-                            this.resourceManager.setLanguage(lang);
-                            this.waveManager.setLanguage(); // Добавлено
-                        };
+        this.uiManager = new UIManager((tool) => this.buildingSystem.setTool(tool));
+        // this.uiManager.init(); // Убрали отсюда
+        
+        this.uiManager.onLanguageChange = (lang) => {
+            this.resourceManager.setLanguage(lang);
+            this.waveManager.setLanguage(); 
+        };
                         this.resourceManager.setLanguage(this.uiManager.currentLang);        
                 // 4. BuildingSystem (нужна для игрока и врагов)
                 this.buildingSystem = new BuildingSystem(this.app, this.world);
@@ -208,7 +209,15 @@ export class Game {
                     }
                 );
                 
-                this.upgradeManager.setOnClose(() => {
+                // Связываем проверку технологий с UI
+                const checkUnlock = (type: string) => this.upgradeManager.isBuildingUnlocked(type);
+                this.uiManager.checkUnlock = checkUnlock;
+                this.buildingSystem.checkUnlock = checkUnlock;
+                
+                // Инициализируем UI только теперь, когда checkUnlock настроен
+                this.uiManager.init(); 
+
+                this.upgradeManager.onUnlock = () => {
                     this.uiManager.setPaused(false);
                     this.buildingSystem.setPaused(false);
                     this.waveManager.resume();

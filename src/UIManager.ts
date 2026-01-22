@@ -77,8 +77,9 @@ export class UIManager {
         this.hudTime = document.createElement('div');
         this.initTimeHUD();
 
-        this.createButtons(); 
-        this.highlightButton('wall');
+        // createButtons перенесен в init
+        // this.createButtons(); 
+        // this.highlightButton('wall');
     }
 
     public get currentLang(): Language { return this.lang; }
@@ -92,6 +93,8 @@ export class UIManager {
     }
 
     public init() {
+        this.createButtons();
+        this.highlightButton('wall');
         this.showGameHUD();
     }
 
