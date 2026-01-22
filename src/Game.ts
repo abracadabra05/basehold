@@ -416,6 +416,7 @@ export class Game {
     public startGame() {
         this.isGameStarted = true;
         this.uiManager.hideMenu();
+        this.inputSystem.showControls();
     }
 
     public pauseGame() {
@@ -495,6 +496,7 @@ export class Game {
         this.isGameStarted = true;
         this.score = 0;
         this.canRevive = true;
+        this.inputSystem.hideControls(); // Скрываем
         
         // Очистка
         this.enemies.forEach(e => this.world.removeChild(e));

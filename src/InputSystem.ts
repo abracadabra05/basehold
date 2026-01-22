@@ -121,43 +121,58 @@ export class InputSystem {
     this.isMobile = this.isMobile || "ontouchstart" in window;
   }
 
-  private createMobileControls() {
-    if (!this.isMobile) return;
+    private leftJoystickContainer!: HTMLDivElement;
+    private rightJoystickContainer!: HTMLDivElement;
 
-    const leftJoystickContainer = document.createElement("div");
-    leftJoystickContainer.style.width = "120px";
-    leftJoystickContainer.style.height = "120px";
-    leftJoystickContainer.style.position = "absolute";
-    leftJoystickContainer.style.bottom = "40px";
-    leftJoystickContainer.style.left = "40px";
+    private createMobileControls() {
+        if (!this.isMobile) return;
 
-    leftJoystickContainer.style.pointerEvents = "auto";
-    leftJoystickContainer.style.touchAction = "none";
-    leftJoystickContainer.style.zIndex = "950";
+        this.leftJoystickContainer = document.createElement('div');
+        this.leftJoystickContainer.style.width = '120px';
+        this.leftJoystickContainer.style.height = '120px';
+        this.leftJoystickContainer.style.position = 'absolute';
+        this.leftJoystickContainer.style.bottom = '40px';
+        this.leftJoystickContainer.style.left = '40px';
 
-    document.body.appendChild(leftJoystickContainer);
+        this.leftJoystickContainer.style.pointerEvents = 'auto';
+        this.leftJoystickContainer.style.touchAction = 'none';
+        this.leftJoystickContainer.style.zIndex = '950';
+        this.leftJoystickContainer.style.display = 'none'; // Скрыты по умолчанию
 
-    const rightJoystickContainer = document.createElement("div");
-    rightJoystickContainer.style.width = "120px";
-    rightJoystickContainer.style.height = "120px";
-    rightJoystickContainer.style.position = "absolute";
-    rightJoystickContainer.style.bottom = "40px";
-    rightJoystickContainer.style.right = "40px";
+        document.body.appendChild(this.leftJoystickContainer);
 
-    rightJoystickContainer.style.pointerEvents = "auto";
-    rightJoystickContainer.style.touchAction = "none";
-    rightJoystickContainer.style.zIndex = "950";
+        this.rightJoystickContainer = document.createElement('div');
+        this.rightJoystickContainer.style.width = '120px';
+        this.rightJoystickContainer.style.height = '120px';
+        this.rightJoystickContainer.style.position = 'absolute';
+        this.rightJoystickContainer.style.bottom = '40px';
+        this.rightJoystickContainer.style.right = '40px';
 
-    document.body.appendChild(rightJoystickContainer);
+        this.rightJoystickContainer.style.pointerEvents = 'auto';
+        this.rightJoystickContainer.style.touchAction = 'none';
+        this.rightJoystickContainer.style.zIndex = '950';
+        this.rightJoystickContainer.style.display = 'none'; // Скрыты по умолчанию
 
-    this.leftJoystick = new VirtualJoystick(leftJoystickContainer, "left");
-    this.leftJoystick.show();
+        document.body.appendChild(this.rightJoystickContainer);
 
-    this.rightJoystick = new VirtualJoystick(rightJoystickContainer, "right");
-    this.rightJoystick.show();
+        this.leftJoystick = new VirtualJoystick(this.leftJoystickContainer, 'left');
+        this.leftJoystick.show();
 
-    // Кнопка Build удалена по просьбе
-  }
+        this.rightJoystick = new VirtualJoystick(this.rightJoystickContainer, 'right');
+        this.rightJoystick.show();
+    }
+
+    public showControls() {
+        if (!this.isMobile) return;
+        if (this.leftJoystickContainer) this.leftJoystickContainer.style.display = 'block';
+        if (this.rightJoystickContainer) this.rightJoystickContainer.style.display = 'block';
+    }
+
+    public hideControls() {
+        if (!this.isMobile) return;
+        if (this.leftJoystickContainer) this.leftJoystickContainer.style.display = 'none';
+        if (this.rightJoystickContainer) this.rightJoystickContainer.style.display = 'none';
+    }
 
   public getMovementVector(): { x: number; y: number } {
     const v = { x: 0, y: 0 };

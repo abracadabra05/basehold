@@ -277,8 +277,8 @@ export class UIManager {
                 <div id="lb-list" style="font-size: 12px; min-height: 80px;">Loading...</div>
             </div>` : ''}
 
-            <!-- КНОПКИ (Настройки, Фуллскрин) - ПЕРЕНЕСЕНЫ В ВЕРХНИЙ ПРАВЫЙ УГОЛ -->
-            <div style="position: absolute; top: 20px; right: 20px; display: flex; gap: 15px; z-index: 20;">
+            <!-- КНОПКИ (Настройки, Фуллскрин) - ВЕРНУЛИ ВНИЗ -->
+            <div style="position: absolute; bottom: 20px; right: 20px; display: flex; gap: 15px; z-index: 20;">
                 ${this.isMobile ? `<button id="mob-lb-btn" style="background: none; border: none; font-size: 28px; cursor: pointer;">🏆</button>` : ''}
                 ${(window.self === window.top || this.isMobile) ? `<button id="fullscreen-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">⛶</button>` : ''}
                 <button id="settings-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">⚙️</button>
