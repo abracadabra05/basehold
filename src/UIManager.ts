@@ -599,37 +599,69 @@ export class UIManager {
         `;
     }
 
-    private initPlayerHUD() {
-        this.hudPlayer.style.position = 'absolute';
-        this.hudPlayer.style.top = '20px'; 
-        this.hudPlayer.style.left = '20px';
-        
-        // Уменьшаем ширину на мобильных
-        this.hudPlayer.style.width = this.isMobile ? '140px' : '200px';
-        this.hudPlayer.style.fontSize = this.isMobile ? '10px' : '12px';
-        
-        this.hudPlayer.style.boxSizing = 'border-box';
-        this.applyPanelStyle(this.hudPlayer);
-        this.hudPlayer.style.padding = '10px';
-        this.hudPlayer.style.zIndex = '1000';
-        
-        if (this.isMobile) {
-            this.hudPlayer.style.background = 'rgba(15, 15, 15, 0.6)'; // Прозрачнее
+        private initPlayerHUD() {
+
+            this.hudPlayer.style.position = 'absolute';
+
+            this.hudPlayer.style.top = '20px'; 
+
+            this.hudPlayer.style.left = '20px';
+
+            
+
+            // Уменьшаем ширину на мобильных
+
+            this.hudPlayer.style.width = this.isMobile ? '140px' : '200px';
+
+            this.hudPlayer.style.fontSize = this.isMobile ? '10px' : '12px';
+
+            
+
+            this.hudPlayer.style.boxSizing = 'border-box';
+
+            this.applyPanelStyle(this.hudPlayer);
+
+            this.hudPlayer.style.padding = '10px';
+
+            this.hudPlayer.style.zIndex = '1000';
+
+            
+
+            if (this.isMobile) {
+
+                this.hudPlayer.style.background = 'rgba(15, 15, 15, 0.6)';
+
+            }
+
+    
+
+            this.hudPlayer.innerHTML = `
+
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 11px; color: #aaa; font-weight: bold;">
+
+                    <span>${this.t('hud_hp')}</span>
+
+                    <span id="hud-player-text">100</span>
+
+                </div>
+
+                <div style="width: 100%; height: 8px; background: #222; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
+
+                    <div id="hud-player-bar" style="width: 100%; height: 100%; background: #2ecc71;"></div>
+
+                </div>
+
+                <!-- ОЧКИ -->
+
+                <div style="font-size: 14px; font-weight: bold; color: #f1c40f; text-align: center;">
+
+                    <span id="hud-score">0</span> 🏆
+
+                </div>
+
+            `;
+
         }
-        this.hudPlayer.innerHTML = `
-            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 11px; color: #aaa; font-weight: bold;">
-                <span>${this.t('hud_hp')}</span>
-                <span id="hud-player-text">100</span>
-            </div>
-            <div style="width: 100%; height: 8px; background: #222; border-radius: 4px; overflow: hidden;">
-                <div id="hud-player-bar" style="width: 100%; height: 100%; background: #2ecc71;"></div>
-            </div>
-            <!-- ОЧКИ -->
-            <div style="margin-top: 5px; font-size: 14px; font-weight: bold; color: #f1c40f; text-align: right;">
-                <span id="hud-score">0</span>
-            </div>
-        `;
-    }
 
     private initToolbarStyles() {
         this.container.style.position = 'absolute';

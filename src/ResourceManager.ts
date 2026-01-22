@@ -18,7 +18,7 @@ export class ResourceManager {
         
         const isMobile = window.innerWidth <= 800; // Простая проверка
         const width = isMobile ? '140px' : '200px';
-        const top = isMobile ? '70px' : '80px';
+        const top = isMobile ? '100px' : '110px'; // Сдвинули ниже (было 70/80)
         const fontSize = isMobile ? '10px' : '13px';
         
         Object.assign(this.uiElement.style, {
@@ -94,25 +94,26 @@ export class ResourceManager {
 
         const chargePct = this.batteryCapacity > 0 ? Math.floor((this.batteryCharge / this.batteryCapacity) * 100) : 0;
 
+        // Используем font-family: monospace для цифр, чтобы не прыгали
         this.uiElement.innerHTML = `
             <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
                 <span style="color: #aaa">🔩 ${this.t('res_metal')}</span>
-                <span style="font-weight: bold;">${Math.floor(this.metal)}</span>
+                <span style="font-weight: bold; font-family: monospace;">${Math.floor(this.metal)}</span>
             </div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                 <span style="color: #aaa">🧬 ${this.t('res_biomass')}</span>
-                <span style="font-weight: bold;">${Math.floor(this.biomass)}</span>
+                <span style="font-weight: bold; font-family: monospace;">${Math.floor(this.biomass)}</span>
             </div>
             <div style="border-top: 1px solid #333; padding-top: 8px;">
                 <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
                     <span style="color: #3498db; font-weight: bold;">${this.t('res_energy')}</span>
-                    <span>${Math.floor(this.energyConsumed)} / ${Math.floor(this.energyProduced)}</span>
+                    <span style="font-family: monospace;">${Math.floor(this.energyConsumed)} / ${Math.floor(this.energyProduced)}</span>
                 </div>
                 <div style="width: 100%; background: #222; height: 6px; border-radius: 3px; margin-bottom: 4px; overflow: hidden; border: 1px solid #333;">
                     <div style="width: ${chargePct}%; background: #3498db; height: 100%; transition: width 0.3s;"></div>
                 </div>
                 <div style="display: flex; justify-content: space-between; font-size: 11px;">
-                    <span style="color: #aaa">${this.t('res_battery')}: ${Math.floor(this.batteryCharge)}</span>
+                    <span style="color: #aaa">${this.t('res_battery')}: <span style="font-family: monospace;">${Math.floor(this.batteryCharge)}</span></span>
                     <span style="font-weight: bold;">${energyStatus}</span>
                 </div>
             </div>
