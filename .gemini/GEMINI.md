@@ -121,10 +121,12 @@ After completing a task, provide:
 
 - [ ] Execution plan created
 - [ ] Code written and tested
-- [ ] No errors or warnings
+- [ ] No errors or warnings (`npm run build` and `npm run lint` pass)
 - [ ] Code meets project standards
 - [ ] Necessary documentation added
 - [ ] Files saved
 - [ ] Work report compiled
 - [ ] Commit message is meaningful
 - [ ] Push to GitHub completed
+
+**Mandatory Rule:** ALWAYS run `npm run build` and `npm run lint` (if available) before reporting that a task is complete. No exceptions.

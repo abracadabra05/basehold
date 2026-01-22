@@ -214,34 +214,52 @@ export class Game {
                 this.uiManager.checkUnlock = checkUnlock;
                 this.buildingSystem.checkUnlock = checkUnlock;
                 
-                // Инициализируем UI только теперь, когда checkUnlock настроен
-                this.uiManager.init(); 
-
-                this.upgradeManager.onUnlock = () => {
-                    this.uiManager.setPaused(false);
-                    this.buildingSystem.setPaused(false);
-                    this.waveManager.resume();
-                });
-        
-                        this.inputSystem.onSpacePressed = () => {
-                            if (this.waveManager && this.waveManager.isPrepPhase) {
-                                this.waveManager.skipWait();
-                            }
-                        };        
-                this.uiManager.onStartGame = (skipTutorial) => {
-            // Убеждаемся что при старте язык тоже верный
-            this.resourceManager.setLanguage(this.uiManager.currentLang);
-            if (skipTutorial) this.startGame();
-            else this.uiManager.showTutorial(() => this.startGame());
-        };
-        
-        this.uiManager.onRevive = () => this.revivePlayer();
-        this.uiManager.onRestart = () => this.restartGame();
-        this.uiManager.onPause = () => this.pauseGame();
-        this.uiManager.onResume = () => this.resumeGame();
-        this.uiManager.onMute = (muted) => this.soundManager.setMute(muted);
-
-        // 9. Освещение, Миникарта и основной цикл
+                                // Инициализируем UI только теперь, когда checkUnlock настроен
+                                this.uiManager.init(); 
+                
+                                this.upgradeManager.onUnlock = () => {
+                                    this.uiManager.updateButtonsState();
+                                    this.soundManager.playBuild(); // Звук успеха
+                                    this.spawnFloatingText(this.player.x, this.player.y - 50, "TECH UNLOCKED!", '#2ecc71', 24);
+                                };
+                
+                                this.upgradeManager.onUpgrade = (type: string) => {
+                                    if (type === 'damage') this.player.damage += 1;
+                                    if (type === 'mine') this.currentMineMultiplier += 0.5;
+                                    if (type === 'speed') this.player.moveSpeed += 0.5;
+                                    if (type === 'regen') this.buildingSystem.setRegenAmount(1);
+                                    if (type === 'thorns') this.buildingSystem.setThornsDamage(1);
+                                    if (type === 'magnet') this.magnetRadius += 100;
+                                };
+                
+                                                this.upgradeManager.setOnClose(() => {
+                                                    this.uiManager.setPaused(false);
+                                                    this.buildingSystem.setPaused(false);
+                                                    this.waveManager.resume();
+                                                });
+                                
+                                                this.inputSystem.onSpacePressed = () => {
+                                                    if (this.waveManager && this.waveManager.isPrepPhase) {
+                                                        this.waveManager.skipWait();
+                                                    }
+                                                };
+                                
+                                                this.uiManager.onStartGame = (skipTutorial) => {
+                                                    this.resourceManager.setLanguage(this.uiManager.currentLang);
+                                                    if (skipTutorial) this.startGame();
+                                                    else this.uiManager.showTutorial(() => this.startGame());
+                                                };
+                                
+                                                this.uiManager.onLanguageChange = (lang) => {
+                                                    this.resourceManager.setLanguage(lang);
+                                                    this.waveManager.setLanguage(); 
+                                                };
+                                
+                                                this.uiManager.onRevive = () => this.revivePlayer();
+                                                this.uiManager.onRestart = () => this.restartGame();
+                                                this.uiManager.onPause = () => this.pauseGame();
+                                                this.uiManager.onResume = () => this.resumeGame();
+                                                this.uiManager.onMute = (muted) => this.soundManager.setMute(muted);        // 9. Освещение, Миникарта и основной цикл
         this.miniMap = new MiniMap(this.app, this.mapSizePixel);
         this.perkManager = new PerkManager(this.uiManager); // Добавлено
         
