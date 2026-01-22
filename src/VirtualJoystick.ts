@@ -1,3 +1,5 @@
+import { TOUCH_SIZES, Z_INDEX } from './UIConstants';
+
 export class VirtualJoystick {
     public static activeTouchIds: Set<number> = new Set();
     public static activeJoysticks: Set<VirtualJoystick> = new Set();
@@ -14,42 +16,50 @@ export class VirtualJoystick {
     private knob: HTMLElement;
     private touchId: number | null = null;
     private pointerId: number | null = null;
-    
+
     public value: { x: number, y: number } = { x: 0, y: 0 };
     public isActive: boolean = false;
-    
+
     private centerX: number = 0;
     private centerY: number = 0;
-    private maxRadius: number = 50;
+    private maxRadius: number = 55;
 
     constructor(parent: HTMLElement, side: 'left' | 'right') {
+        const joystickSize = `${TOUCH_SIZES.JOYSTICK}px`;
+        const knobSize = `${TOUCH_SIZES.JOYSTICK_KNOB}px`;
+
         this.container = document.createElement('div');
-        this.container.style.position = 'absolute';
-        this.container.style.width = '120px';
-        this.container.style.height = '120px';
-        this.container.style.borderRadius = '50%';
-        this.container.style.background = 'rgba(255, 255, 255, 0.02)';
-        this.container.style.border = '2px solid rgba(255, 255, 255, 0.06)';
-        this.container.style.touchAction = 'none'; 
-        this.container.style.pointerEvents = 'auto';
-        this.container.style.zIndex = '3000';
-        this.container.style.display = 'none'; 
-        
-        // Позиционирование
-        this.container.style.bottom = '0px';
+        Object.assign(this.container.style, {
+            position: 'absolute',
+            width: joystickSize,
+            height: joystickSize,
+            borderRadius: '50%',
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '2px solid rgba(255, 255, 255, 0.1)',
+            touchAction: 'none',
+            pointerEvents: 'auto',
+            zIndex: `${Z_INDEX.JOYSTICKS + 10}`,
+            display: 'none',
+            bottom: '0px'
+        });
+
         if (side === 'left') this.container.style.left = '0px';
         else this.container.style.right = '0px';
 
         this.knob = document.createElement('div');
-        this.knob.style.position = 'absolute';
-        this.knob.style.width = '50px';
-        this.knob.style.height = '50px';
-        this.knob.style.borderRadius = '50%';
-        this.knob.style.background = 'rgba(255, 255, 255, 0.15)';
-        this.knob.style.left = '50%';
-        this.knob.style.top = '50%';
-        this.knob.style.transform = 'translate(-50%, -50%)';
-        this.knob.style.pointerEvents = 'none';
+        Object.assign(this.knob.style, {
+            position: 'absolute',
+            width: knobSize,
+            height: knobSize,
+            borderRadius: '50%',
+            background: 'rgba(255, 255, 255, 0.2)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+        });
 
         this.container.appendChild(this.knob);
         parent.appendChild(this.container);

@@ -264,13 +264,13 @@ export class Game {
         this.perkManager = new PerkManager(this.uiManager); // Добавлено
         
         this.lightingSystem = new LightingSystem();
-        this.lightingSystem.darknessOverlay.zIndex = 9999;
+        this.lightingSystem.darknessOverlay.zIndex = 5000; // Below UI elements
         this.app.stage.sortableChildren = true;
         this.app.stage.addChild(this.lightingSystem.darknessOverlay);
 
         this.voidOverlay = new Graphics();
         this.voidOverlay.rect(0, 0, this.app.screen.width, this.app.screen.height).fill({ color: 0xFF0000, alpha: 0 });
-        this.voidOverlay.zIndex = 10000; // Поверх всего
+        this.voidOverlay.zIndex = 8000; // Above game, below UI
         this.voidOverlay.visible = false;
         this.app.stage.addChild(this.voidOverlay);
 

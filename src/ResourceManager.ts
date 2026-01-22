@@ -1,37 +1,46 @@
 import { Translations, type Language } from './Localization';
+import { Z_INDEX, COLORS, BREAKPOINTS } from './UIConstants';
 
 export class ResourceManager {
     private metal: number = 100;
     private biomass: number = 0;
-    
+
     private energyProduced: number = 0;
     private energyConsumed: number = 0;
     public batteryCharge: number = 0;
-    public batteryCapacity: number = 0; 
-    public isBlackout: boolean = false; 
+    public batteryCapacity: number = 0;
+    public isBlackout: boolean = false;
 
     private uiElement: HTMLElement;
     private lang: Language = 'en';
 
     constructor() {
         this.uiElement = document.createElement('div');
-        
-        const isMobile = window.innerWidth <= 800; // Простая проверка
-        const width = isMobile ? '140px' : '200px';
-        const top = isMobile ? '100px' : '110px'; // Сдвинули ниже (было 70/80)
-        const fontSize = isMobile ? '10px' : '13px';
-        
+
+        const isMobile = window.innerWidth <= BREAKPOINTS.MOBILE;
+        const width = isMobile ? '130px' : '180px';
+        const top = isMobile ? '90px' : '100px';
+        const fontSize = isMobile ? '10px' : '12px';
+
         Object.assign(this.uiElement.style, {
-            position: 'absolute', top: top, left: '20px', padding: '10px', 
-            background: isMobile ? 'rgba(15, 15, 15, 0.6)' : 'rgba(15, 15, 15, 0.95)', 
-            border: '1px solid #333', borderRadius: '4px',
-            color: 'white', fontFamily: "'Segoe UI', sans-serif", fontSize: fontSize,
-            boxShadow: '0 5px 10px rgba(0,0,0,0.3)', pointerEvents: 'none',
-            width: width, 
+            position: 'absolute',
+            top: `calc(${top}px + env(safe-area-inset-top, 0px))`,
+            left: `calc(15px + env(safe-area-inset-left, 0px))`,
+            padding: isMobile ? '8px' : '10px',
+            background: isMobile ? COLORS.PANEL_BG_MOBILE : COLORS.PANEL_BG,
+            border: `1px solid ${COLORS.PANEL_BORDER}`,
+            borderRadius: '6px',
+            color: COLORS.TEXT_PRIMARY,
+            fontFamily: "'Segoe UI', sans-serif",
+            fontSize: fontSize,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+            pointerEvents: 'none',
+            width: width,
             boxSizing: 'border-box',
-            lineHeight: '1.4', zIndex: '1000'
+            lineHeight: '1.4',
+            zIndex: `${Z_INDEX.HUD_PANELS}`
         });
-        
+
         document.body.appendChild(this.uiElement);
         this.updateUI();
     }

@@ -2,6 +2,7 @@ import type { BuildingType } from './Building';
 import { Icons } from './Icons';
 import { Translations, type Language } from './Localization';
 import { yaSdk } from './YandexSDK';
+import { Z_INDEX, TOUCH_SIZES, COLORS } from './UIConstants';
 
 export type ToolType = BuildingType | 'repair' | 'demolish';
 
@@ -105,16 +106,31 @@ export class UIManager {
         document.body.appendChild(this.hudCore);
         document.body.appendChild(this.hudTime);
         
-        // Кнопка настроек в игре
+        // Кнопка настроек в игре - позиционируем под миникартой (minimap: 120px + отступ)
         const inGameSettings = document.createElement('button');
+        inGameSettings.id = 'ingame-settings-btn';
         inGameSettings.innerHTML = '⚙️';
+        const settingsTop = this.isMobile ? '100px' : '150px'; // Под миникартой
         Object.assign(inGameSettings.style, {
-            position: 'absolute', top: '20px', right: '20px',
-            background: 'rgba(0,0,0,0.5)', border: '1px solid #444', borderRadius: '4px',
-            color: 'white', fontSize: '24px', cursor: 'pointer', padding: '5px 10px',
-            zIndex: '1000'
+            position: 'absolute',
+            top: settingsTop,
+            right: '20px',
+            width: `${TOUCH_SIZES.MIN_BUTTON}px`,
+            height: `${TOUCH_SIZES.MIN_BUTTON}px`,
+            background: COLORS.PANEL_BG_MOBILE,
+            border: `1px solid ${COLORS.PANEL_BORDER}`,
+            borderRadius: '50%',
+            color: 'white',
+            fontSize: '20px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: `${Z_INDEX.SETTINGS_BUTTON}`,
+            touchAction: 'manipulation'
         });
         inGameSettings.onclick = () => this.showSettings();
+        inGameSettings.ontouchstart = (e) => { e.preventDefault(); this.showSettings(); };
         document.body.appendChild(inGameSettings);
 
         this.updateWave(1);
@@ -563,21 +579,31 @@ export class UIManager {
     }
 
     private initTimeHUD() {
+        // На мобилках скрываем часы (конфликт с джойстиком), на десктопе показываем под миникартой
         this.hudTime.style.position = 'absolute';
-        this.hudTime.style.bottom = '20px'; 
-        this.hudTime.style.right = '20px';
-        this.hudTime.style.width = '50px';
-        this.hudTime.style.height = '50px';
+
+        if (this.isMobile) {
+            // Скрываем на мобилках - место занято джойстиком
+            this.hudTime.style.display = 'none';
+        } else {
+            // На ПК - под кнопкой настроек (справа)
+            this.hudTime.style.top = '200px';
+            this.hudTime.style.right = '25px';
+        }
+
+        this.hudTime.style.width = '40px';
+        this.hudTime.style.height = '40px';
         this.applyPanelStyle(this.hudTime);
         this.hudTime.style.borderRadius = '50%';
-        this.hudTime.style.overflow = 'hidden'; 
+        this.hudTime.style.overflow = 'hidden';
         this.hudTime.style.border = '2px solid #555';
-        this.hudTime.style.background = 'linear-gradient(to bottom, #87CEEB 0%, #2c3e50 100%)'; 
+        this.hudTime.style.background = 'linear-gradient(to bottom, #87CEEB 0%, #2c3e50 100%)';
+        this.hudTime.style.zIndex = `${Z_INDEX.HUD_PANELS}`;
 
         this.hudTime.innerHTML = `
             <div id="hud-time-sky" style="width: 100%; height: 100%; position: relative; transition: transform 0.1s linear;">
-                <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); font-size: 20px;">☀️</div>
-                <div style="position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); font-size: 20px;">🌙</div>
+                <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); font-size: 16px;">☀️</div>
+                <div style="position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%); font-size: 16px;">🌙</div>
             </div>
             <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 40%; background: #222; z-index: 2;"></div>
         `;
@@ -585,97 +611,91 @@ export class UIManager {
 
     private initCoreHUD() {
         this.hudCore.id = 'hud-core-container';
+        const barWidth = this.isMobile ? '140px' : '200px';
+
         Object.assign(this.hudCore.style, {
-            position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)',
-            display: 'flex', alignItems: 'center', gap: '10px',
-            padding: '8px 15px', background: 'rgba(0,0,0,0.5)', borderRadius: '4px',
-            border: 'none', boxShadow: 'none', zIndex: '1000'
+            position: 'absolute',
+            top: `calc(15px + env(safe-area-inset-top, 0px))`,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: this.isMobile ? '6px' : '10px',
+            padding: this.isMobile ? '6px 10px' : '8px 15px',
+            background: COLORS.PANEL_BG_MOBILE,
+            borderRadius: '20px',
+            border: 'none',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+            zIndex: `${Z_INDEX.HUD_PANELS}`
         });
+
         this.hudCore.innerHTML = `
-            <span style="font-weight: bold; color: #00FFFF; font-size: 14px; white-space: nowrap;">${this.t('hud_core_short')}</span>
-            <div style="width: 200px; height: 8px; background: #222; border-radius: 4px; overflow: hidden; border: 1px solid #333;">
+            <span style="font-weight: bold; color: #00FFFF; font-size: ${this.isMobile ? '12px' : '14px'}; white-space: nowrap;">${this.t('hud_core_short')}</span>
+            <div style="width: ${barWidth}; height: 8px; background: #222; border-radius: 4px; overflow: hidden; border: 1px solid #333;">
                 <div id="hud-core-bar" style="width: 100%; height: 100%; background-color: #00FFFF; transition: width 0.3s ease-out;"></div>
             </div>
         `;
     }
 
-        private initPlayerHUD() {
+    private initPlayerHUD() {
+        const width = this.isMobile ? '130px' : '180px';
 
-            this.hudPlayer.style.position = 'absolute';
+        Object.assign(this.hudPlayer.style, {
+            position: 'absolute',
+            top: `calc(15px + env(safe-area-inset-top, 0px))`,
+            left: `calc(15px + env(safe-area-inset-left, 0px))`,
+            width: width,
+            fontSize: this.isMobile ? '10px' : '12px',
+            boxSizing: 'border-box',
+            padding: this.isMobile ? '8px' : '10px',
+            zIndex: `${Z_INDEX.HUD_PANELS}`,
+            background: this.isMobile ? COLORS.PANEL_BG_MOBILE : COLORS.PANEL_BG,
+            border: `1px solid ${COLORS.PANEL_BORDER}`,
+            borderRadius: '6px',
+            color: 'white',
+            fontFamily: "'Segoe UI', sans-serif",
+            pointerEvents: 'none'
+        });
 
-            this.hudPlayer.style.top = '20px'; 
-
-            this.hudPlayer.style.left = '20px';
-
-            
-
-            // Уменьшаем ширину на мобильных
-
-            this.hudPlayer.style.width = this.isMobile ? '140px' : '200px';
-
-            this.hudPlayer.style.fontSize = this.isMobile ? '10px' : '12px';
-
-            
-
-            this.hudPlayer.style.boxSizing = 'border-box';
-
-            this.applyPanelStyle(this.hudPlayer);
-
-            this.hudPlayer.style.padding = '10px';
-
-            this.hudPlayer.style.zIndex = '1000';
-
-            
-
-            if (this.isMobile) {
-
-                this.hudPlayer.style.background = 'rgba(15, 15, 15, 0.6)';
-
-            }
-
-    
-
-            this.hudPlayer.innerHTML = `
-
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 11px; color: #aaa; font-weight: bold;">
-
-                    <span>${this.t('hud_hp')}</span>
-
-                    <span id="hud-player-text">100</span>
-
-                </div>
-
-                <div style="width: 100%; height: 8px; background: #222; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
-
-                    <div id="hud-player-bar" style="width: 100%; height: 100%; background: #2ecc71;"></div>
-
-                </div>
-
-                <!-- ОЧКИ -->
-
-                <div style="font-size: 14px; font-weight: bold; color: #f1c40f; text-align: center;">
-
-                    <span id="hud-score">0</span> 🏆
-
-                </div>
-
-            `;
-
-        }
+        this.hudPlayer.innerHTML = `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; color: #aaa; font-weight: bold;">
+                <span>${this.t('hud_hp')}</span>
+                <span id="hud-player-text">100</span>
+            </div>
+            <div style="width: 100%; height: 6px; background: #222; border-radius: 3px; overflow: hidden; margin-bottom: 6px;">
+                <div id="hud-player-bar" style="width: 100%; height: 100%; background: ${COLORS.SUCCESS}; transition: width 0.3s;"></div>
+            </div>
+            <div style="font-size: ${this.isMobile ? '12px' : '14px'}; font-weight: bold; color: ${COLORS.WARNING}; text-align: center;">
+                <span id="hud-score">0</span> 🏆
+            </div>
+        `;
+    }
 
     private initToolbarStyles() {
-        this.container.style.position = 'absolute';
-        this.container.style.bottom = '30px'; 
-        this.container.style.left = '50%';
-        this.container.style.transform = 'translateX(-50%)';
-        this.container.style.display = 'flex';
-        this.container.style.gap = '6px';
-        this.container.style.padding = '10px';
-        this.applyPanelStyle(this.container);
-        this.container.style.background = 'transparent'; // Прозрачный фон
-        this.container.style.border = 'none'; // Без рамки
-        this.container.style.pointerEvents = 'auto'; 
-        this.container.style.zIndex = '1001';
+        // Safe area padding for notched devices
+        const bottomPadding = this.isMobile ? '20px' : '25px';
+
+        Object.assign(this.container.style, {
+            position: 'absolute',
+            bottom: `calc(${bottomPadding} + env(safe-area-inset-bottom, 0px))`,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            gap: this.isMobile ? '4px' : '6px',
+            padding: this.isMobile ? '6px' : '10px',
+            background: 'transparent',
+            border: 'none',
+            pointerEvents: 'auto',
+            zIndex: `${Z_INDEX.TOOLBAR}`,
+            maxWidth: '95vw',
+            flexWrap: 'nowrap',
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch'
+        });
+
+        // Hide scrollbar but allow scrolling
+        this.container.style.scrollbarWidth = 'none';
+        (this.container.style as any).msOverflowStyle = 'none';
     }
 
     private initInfoStyles() {
@@ -694,31 +714,44 @@ export class UIManager {
 
     private createButtons() {
         this.container.innerHTML = '';
-        const btnSize = this.isMobile ? '40px' : '48px'; 
-        const iconSize = this.isMobile ? '20px' : '18px';
+        // Minimum 44px for touch-friendly buttons (Apple HIG)
+        const btnSize = this.isMobile ? `${TOUCH_SIZES.MIN_BUTTON}px` : '50px';
+        const iconSize = this.isMobile ? '18px' : '20px';
+        const costFontSize = this.isMobile ? '8px' : '9px';
 
         this.items.forEach((item, index) => {
             const btn = document.createElement('button');
-            const costHtml = item.cost ? `<div style="font-size: 9px; opacity: 0.8; display: flex; align-items: center; gap: 2px;">${Icons.METAL.replace('width="24"', 'width="10"').replace('height="24"', 'height="10"')} ${item.cost}</div>` : '';
-            
-            const hotkeyHtml = !this.isMobile && index < 9 ? 
+            const costHtml = item.cost ? `<div style="font-size: ${costFontSize}; opacity: 0.8; display: flex; align-items: center; gap: 2px;">${Icons.METAL.replace('width="24"', 'width="10"').replace('height="24"', 'height="10"')} ${item.cost}</div>` : '';
+
+            const hotkeyHtml = !this.isMobile && index < 9 ?
                 `<div style="position: absolute; top: 2px; right: 4px; font-size: 10px; color: #aaa; font-weight: bold;">${index + 1}</div>` : '';
 
             btn.innerHTML = `${hotkeyHtml}<div style="font-size: ${iconSize};">${item.icon}</div>${costHtml}`;
-            btn.title = this.t(item.key); 
-            
+            btn.title = this.t(item.key);
+
             Object.assign(btn.style, {
-                width: btnSize, height: btnSize, cursor: 'pointer', color: 'white',
-                border: '1px solid rgba(255,255,255,0.2)', // Тонкая рамка
-                borderRadius: '6px', 
-                background: this.isMobile ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.5)', // Прозрачнее
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                transition: 'all 0.1s', position: 'relative',
-                backdropFilter: 'blur(4px)'
+                width: btnSize,
+                height: btnSize,
+                minWidth: btnSize,
+                minHeight: btnSize,
+                cursor: 'pointer',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '8px',
+                background: this.isMobile ? COLORS.PANEL_BG_MOBILE : 'rgba(0,0,0,0.5)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.1s',
+                position: 'relative',
+                backdropFilter: 'blur(4px)',
+                touchAction: 'manipulation',
+                WebkitTapHighlightColor: 'transparent'
             });
-            
+
             if (item.color) btn.style.borderColor = item.color;
-            btn.dataset.type = item.type; 
+            btn.dataset.type = item.type;
             this.container.appendChild(btn);
             this.buttons.set(item.type, btn);
         });

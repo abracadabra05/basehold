@@ -2,72 +2,94 @@ import { Ticker } from 'pixi.js';
 import type { ResourceManager } from './ResourceManager';
 import type { UIManager } from './UIManager';
 import { Translations } from './Localization';
+import { Z_INDEX, TOUCH_SIZES, COLORS } from './UIConstants';
 
 export class WaveManager {
     private spawnCallback: (waveNum: number, count: number) => void;
     private onOpenShopCallback: () => void;
-    private resourceManager: ResourceManager; 
-    private uiManager: UIManager; // Добавлено
-    
+    private resourceManager: ResourceManager;
+    private uiManager: UIManager;
+
     private waveTimer: number = 0;
-    private timeBetweenWaves: number = 10000; 
-    private prepTime: number = 30000;         
-    
+    private timeBetweenWaves: number = 10000;
+    private prepTime: number = 30000;
+
     public waveCount: number = 1;
-    
+
     // UI
     private container: HTMLDivElement;
     private timerText: HTMLDivElement;
-    private skipButton: HTMLButtonElement; 
-    
+    private skipButton: HTMLButtonElement;
+
     private isPaused: boolean = false;
     public isPrepPhase: boolean = true;
-    public isBossActive: boolean = false; 
+    public isBossActive: boolean = false;
 
     constructor(
-        resourceManager: ResourceManager, 
-        uiManager: UIManager, // Добавлен аргумент
+        resourceManager: ResourceManager,
+        uiManager: UIManager,
         spawnCallback: (waveNum: number, count: number) => void,
         onOpenShopCallback: () => void
     ) {
         this.resourceManager = resourceManager;
-        this.uiManager = uiManager; // Сохранили
+        this.uiManager = uiManager;
         this.spawnCallback = spawnCallback;
         this.onOpenShopCallback = onOpenShopCallback;
-        
-        // Главный контейнер (Панель)
+
+        // Main container
         this.container = document.createElement('div');
         Object.assign(this.container.style, {
-            position: 'absolute', top: '60px', left: '50%', transform: 'translateX(-50%)',
-            display: 'flex', flexDirection: 'column', alignItems: 'center',
-            pointerEvents: 'none', zIndex: '1000'
+            position: 'absolute',
+            top: '55px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            pointerEvents: 'none',
+            zIndex: `${Z_INDEX.WAVE_PANEL}`
         });
         document.body.appendChild(this.container);
 
-        // Текст таймера
+        // Timer text
         this.timerText = document.createElement('div');
         Object.assign(this.timerText.style, {
-            fontSize: '20px', fontWeight: '900', color: 'white', // 24 -> 20
-            textShadow: '0 2px 4px rgba(0,0,0,0.8)', letterSpacing: '1px',
+            fontSize: '18px',
+            fontWeight: '900',
+            color: 'white',
+            textShadow: '0 2px 6px rgba(0,0,0,0.9)',
+            letterSpacing: '1px',
             fontFamily: "'Segoe UI', sans-serif",
             textAlign: 'center'
         });
         this.container.appendChild(this.timerText);
 
-        // Кнопка пропуска
+        // Skip button - touch-friendly size
         this.skipButton = document.createElement('button');
         this.skipButton.innerText = "SKIP >>";
         Object.assign(this.skipButton.style, {
-            marginTop: '5px', padding: '4px 12px', fontSize: '12px', cursor: 'pointer',
-            backgroundColor: 'rgba(39, 174, 96, 0.5)', color: 'white', border: '1px solid rgba(46, 204, 113, 0.5)', // 0.8 -> 0.5
-            borderRadius: '12px', transition: 'all 0.2s', pointerEvents: 'auto',
-            backdropFilter: 'blur(4px)', textTransform: 'uppercase', fontWeight: 'bold'
+            marginTop: '8px',
+            padding: '8px 16px',
+            minHeight: `${TOUCH_SIZES.MIN_BUTTON}px`,
+            fontSize: '12px',
+            cursor: 'pointer',
+            backgroundColor: 'rgba(39, 174, 96, 0.6)',
+            color: 'white',
+            border: `1px solid ${COLORS.SUCCESS}`,
+            borderRadius: '20px',
+            transition: 'all 0.2s',
+            pointerEvents: 'auto',
+            backdropFilter: 'blur(4px)',
+            textTransform: 'uppercase',
+            fontWeight: 'bold',
+            touchAction: 'manipulation'
         });
-        
-        this.skipButton.onmouseenter = () => this.skipButton.style.backgroundColor = '#2ecc71';
-        this.skipButton.onmouseleave = () => this.skipButton.style.backgroundColor = '#27ae60';
-        this.skipButton.onclick = () => this.skipWait();
-        
+
+        this.skipButton.onpointerdown = () => this.skipButton.style.backgroundColor = COLORS.SUCCESS;
+        this.skipButton.onpointerup = () => this.skipButton.style.backgroundColor = 'rgba(39, 174, 96, 0.6)';
+        this.skipButton.onclick = (e) => { e.preventDefault(); this.skipWait(); };
+        this.skipButton.ontouchstart = (e) => { e.preventDefault(); this.skipWait(); };
+
         this.container.appendChild(this.skipButton);
     }
 

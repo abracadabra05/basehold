@@ -1,5 +1,6 @@
 import { FederatedPointerEvent, Container, Rectangle } from "pixi.js";
 import { VirtualJoystick } from "./VirtualJoystick";
+import { Z_INDEX, TOUCH_SIZES } from "./UIConstants";
 
 export class InputSystem {
   private stage: Container;
@@ -127,32 +128,37 @@ export class InputSystem {
     private createMobileControls() {
         if (!this.isMobile) return;
 
+        const joystickSize = `${TOUCH_SIZES.JOYSTICK}px`;
+        // Position joysticks above safe area and toolbar
+        const bottomOffset = 'calc(90px + env(safe-area-inset-bottom, 0px))';
+        const sideOffset = '20px';
+
         this.leftJoystickContainer = document.createElement('div');
-        this.leftJoystickContainer.style.width = '120px';
-        this.leftJoystickContainer.style.height = '120px';
-        this.leftJoystickContainer.style.position = 'absolute';
-        this.leftJoystickContainer.style.bottom = '40px';
-        this.leftJoystickContainer.style.left = '40px';
-
-        this.leftJoystickContainer.style.pointerEvents = 'auto';
-        this.leftJoystickContainer.style.touchAction = 'none';
-        this.leftJoystickContainer.style.zIndex = '950';
-        this.leftJoystickContainer.style.display = 'none'; // Скрыты по умолчанию
-
+        Object.assign(this.leftJoystickContainer.style, {
+            width: joystickSize,
+            height: joystickSize,
+            position: 'absolute',
+            bottom: bottomOffset,
+            left: sideOffset,
+            pointerEvents: 'auto',
+            touchAction: 'none',
+            zIndex: `${Z_INDEX.JOYSTICKS}`,
+            display: 'none'
+        });
         document.body.appendChild(this.leftJoystickContainer);
 
         this.rightJoystickContainer = document.createElement('div');
-        this.rightJoystickContainer.style.width = '120px';
-        this.rightJoystickContainer.style.height = '120px';
-        this.rightJoystickContainer.style.position = 'absolute';
-        this.rightJoystickContainer.style.bottom = '40px';
-        this.rightJoystickContainer.style.right = '40px';
-
-        this.rightJoystickContainer.style.pointerEvents = 'auto';
-        this.rightJoystickContainer.style.touchAction = 'none';
-        this.rightJoystickContainer.style.zIndex = '950';
-        this.rightJoystickContainer.style.display = 'none'; // Скрыты по умолчанию
-
+        Object.assign(this.rightJoystickContainer.style, {
+            width: joystickSize,
+            height: joystickSize,
+            position: 'absolute',
+            bottom: bottomOffset,
+            right: sideOffset,
+            pointerEvents: 'auto',
+            touchAction: 'none',
+            zIndex: `${Z_INDEX.JOYSTICKS}`,
+            display: 'none'
+        });
         document.body.appendChild(this.rightJoystickContainer);
 
         this.leftJoystick = new VirtualJoystick(this.leftJoystickContainer, 'left');

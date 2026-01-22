@@ -3,22 +3,27 @@ import type { Player } from './Player';
 import type { Enemy } from './Enemy';
 import type { ResourceNode } from './ResourceNode';
 import type { Building } from './Building';
+import { Z_INDEX } from './UIConstants';
 
 export class MiniMap {
     private container: Container;
     private bg: Graphics;
     private dots: Graphics;
-    private nightOverlay: Graphics; // Затемнение карты
-    private size: number = 120; // Уменьшил со 150 до 120
+    private nightOverlay: Graphics;
+    private size: number;
     private scale: number;
+    private isMobile: boolean;
 
     constructor(app: Application, mapSize: number) {
+        // Adaptive size based on screen width
+        this.isMobile = app.screen.width <= 800;
+        this.size = this.isMobile ? 80 : 120;
         this.scale = this.size / mapSize;
 
         this.container = new Container();
-        this.container.x = app.screen.width - this.size - 20;
-        this.container.y = 20;
-        this.container.zIndex = 10000;
+        this.container.x = app.screen.width - this.size - 15;
+        this.container.y = 15;
+        this.container.zIndex = Z_INDEX.MINIMAP;
         
         // Маска для круглой формы
         const mask = new Graphics();
@@ -78,6 +83,9 @@ export class MiniMap {
     }
     
     public resize(width: number) {
-        this.container.x = width - this.size - 20;
+        // Recalculate size based on screen width
+        this.isMobile = width <= 800;
+        // Keep same size for now, just reposition
+        this.container.x = width - this.size - 15;
     }
 }

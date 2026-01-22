@@ -29,5 +29,6 @@ dist-ssr
 *.sw?
 
 # AI Assistant artifacts
+.gemini/
 .gemini-clipboard/
-.gemini/tmp/
+.claude/
