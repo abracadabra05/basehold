@@ -411,10 +411,9 @@ export class UIManager {
                 <h2 style="margin: 0 0 20px 0; text-align: center; color: #3498db; font-size: 22px; text-transform: uppercase; letter-spacing: 2px;">${this.t('settings_title')}</h2>
 
                 <div style="margin-bottom: 20px;">
-                    <div style="color: #aaa; font-size: 12px; margin-bottom: 8px; text-transform: uppercase;">${this.t('settings_language')}</div>
-                    <div style="display: flex; gap: 10px;">
-                        <button id="set-en" style="flex: 1; padding: 10px; cursor: pointer; background: ${this.lang==='en'?'#3498db':'rgba(51,51,51,0.8)'}; border: 1px solid ${this.lang==='en'?'#3498db':'#555'}; color: white; border-radius: 6px; font-weight: ${this.lang==='en'?'bold':'normal'}; transition: all 0.2s;">English</button>
-                        <button id="set-ru" style="flex: 1; padding: 10px; cursor: pointer; background: ${this.lang==='ru'?'#3498db':'rgba(51,51,51,0.8)'}; border: 1px solid ${this.lang==='ru'?'#3498db':'#555'}; color: white; border-radius: 6px; font-weight: ${this.lang==='ru'?'bold':'normal'}; transition: all 0.2s;">Русский</button>
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <button id="set-en" style="padding: 12px 24px; cursor: pointer; background: ${this.lang==='en'?'#3498db':'rgba(51,51,51,0.8)'}; border: 2px solid ${this.lang==='en'?'#3498db':'#555'}; border-radius: 8px; font-size: 28px; transition: all 0.2s; transform: ${this.lang==='en'?'scale(1.1)':'scale(1)'};">🇺🇸</button>
+                        <button id="set-ru" style="padding: 12px 24px; cursor: pointer; background: ${this.lang==='ru'?'#3498db':'rgba(51,51,51,0.8)'}; border: 2px solid ${this.lang==='ru'?'#3498db':'#555'}; border-radius: 8px; font-size: 28px; transition: all 0.2s; transform: ${this.lang==='ru'?'scale(1.1)':'scale(1)'};">🇷🇺</button>
                     </div>
                 </div>
 
