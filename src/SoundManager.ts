@@ -135,6 +135,16 @@ export class SoundManager {
         return this.isMuted;
     }
 
+    public setVolume(volume: number) {
+        // volume: 0.0 to 1.0
+        this.masterGain.gain.value = volume * 0.3; // 0.3 - базовая громкость
+        this.isMuted = volume === 0;
+    }
+
+    public getVolume(): number {
+        return this.masterGain.gain.value / 0.3;
+    }
+
     public setMute(muted: boolean) {
         this.isMuted = muted;
         if (muted) {

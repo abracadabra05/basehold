@@ -27,6 +27,9 @@ export class YandexSDK {
     public isYandexEnvironment: boolean = false;
     public lang: 'ru' | 'en' = 'en';
 
+    public onPause?: () => void;
+    public onResume?: () => void;
+
     constructor() {}
 
     public async init(): Promise<void> {
@@ -55,6 +58,17 @@ export class YandexSDK {
                 } catch (e) {
                     console.warn('Leaderboard not available');
                 }
+
+                // Подписываемся на события паузы/возобновления
+                this.ysdk.on('game_api_pause', () => {
+                    console.log('Yandex pause event received');
+                    if (this.onPause) this.onPause();
+                });
+
+                this.ysdk.on('game_api_resume', () => {
+                    console.log('Yandex resume event received');
+                    if (this.onResume) this.onResume();
+                });
             } else {
                 console.log('[YandexSDK] Running in Local/Dev environment. Mocking SDK.');
                 this.isYandexEnvironment = false;

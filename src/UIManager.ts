@@ -44,8 +44,10 @@ export class UIManager {
     public onPause?: () => void; // Добавлено
     public onResume?: () => void; // Добавлено
     public onMute?: (muted: boolean) => void; // Добавлено
+    public onVolumeChange?: (volume: number) => void; // Изменение громкости (0-1)
     public onShowLocked?: () => void; // Показать сообщение "заблокировано"
     public getMutedState?: () => boolean; // Получить состояние звука
+    public getVolume?: () => number; // Получить громкость (0-1)
     
     private items: ToolItem[] = [
         { type: 'wall', key: 'tool_wall', icon: '🧱', cost: 10 },
@@ -433,11 +435,13 @@ export class UIManager {
                         <span>${this.t('tutorial_toggle')}</span>
                     </label>
 
-                    <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 16px; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.05);">
-                        <input type="checkbox" id="set-sound" ${this.getMutedState && !this.getMutedState() ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: #3498db;">
-                        <span>${this.t('settings_sound')}</span>
-                        <span style="margin-left: auto;">${this.getMutedState && this.getMutedState() ? '🔇' : '🔊'}</span>
-                    </label>
+                    <div style="padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.05);">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                            <span style="font-size: 16px;">${this.t('settings_sound')}</span>
+                            <span id="volume-icon" style="margin-left: auto; font-size: 20px;">🔊</span>
+                        </div>
+                        <input type="range" id="volume-slider" min="0" max="100" value="${this.getVolume ? Math.round(this.getVolume() * 100) : 100}" style="width: 100%; accent-color: #3498db; cursor: pointer;">
+                    </div>
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
@@ -465,14 +469,19 @@ export class UIManager {
         overlay.querySelector('#set-ru')?.addEventListener('click', () => { this.lang = 'ru'; this.refreshUI(); document.body.removeChild(overlay); this.showSettings(); });
         
         overlay.querySelector('#set-tut')?.addEventListener('change', (e: any) => { this.showTutorialFlag = e.target.checked; });
-        
-        const soundCheckbox = overlay.querySelector('#set-sound') as HTMLInputElement;
-        // Здесь нужно получить текущее состояние звука, но мы не знаем его.
-        // Пока оставим checked по умолчанию, но лучше передавать состояние в showSettings.
-        // Для простоты будем считать, что звук включен, если не выключен.
-        
-        soundCheckbox.addEventListener('change', (e: any) => { 
-            if (this.onMute) this.onMute(!e.target.checked); 
+
+        const volumeSlider = overlay.querySelector('#volume-slider') as HTMLInputElement;
+        const volumeIcon = overlay.querySelector('#volume-icon') as HTMLElement;
+
+        volumeSlider?.addEventListener('input', (e: any) => {
+            const volume = parseInt(e.target.value) / 100;
+            if (this.onVolumeChange) this.onVolumeChange(volume);
+
+            // Обновляем иконку
+            if (volume === 0) volumeIcon.innerText = '🔇';
+            else if (volume < 0.33) volumeIcon.innerText = '🔈';
+            else if (volume < 0.66) volumeIcon.innerText = '🔉';
+            else volumeIcon.innerText = '🔊';
         });
 
         overlay.querySelector('#set-close')?.addEventListener('click', () => {
@@ -587,7 +596,11 @@ export class UIManager {
         
         html += `<div style="display: flex; gap: 8px; font-size: 10px;">`;
         if (data.damage) html += `<span>⚔️ <span style="color: #e74c3c">${data.damage}</span></span>`;
-        if (data.energy) html += `<span>⚡ <span style="color: #f1c40f">${data.energy}</span></span>`;
+        if (data.energy) {
+            // Переводим "Cap" в энергии
+            const translatedEnergy = data.energy.replace(/Cap:/g, this.t('res_capacity') + ':');
+            html += `<span>⚡ <span style="color: #f1c40f">${translatedEnergy}</span></span>`;
+        }
         html += `</div>`;
         
         this.infoPanel.innerHTML = html;

@@ -260,7 +260,9 @@ export class Game {
                                                 this.uiManager.onPause = () => this.pauseGame();
                                                 this.uiManager.onResume = () => this.resumeGame();
                                                 this.uiManager.onMute = (muted) => this.soundManager.setMute(muted);
+                                                this.uiManager.onVolumeChange = (volume) => this.soundManager.setVolume(volume);
                                                 this.uiManager.getMutedState = () => this.soundManager.getMuted();
+                                                this.uiManager.getVolume = () => this.soundManager.getVolume();
                                                 this.uiManager.setYandexEnvironment(yaSdk.isYandexEnvironment);
                                                 this.uiManager.onShowLocked = () => {
                                                     this.soundManager.playError();
@@ -269,6 +271,11 @@ export class Game {
                                                 this.uiManager.onDeselect = () => {
                                                     this.buildingSystem.setToolActive(false);
                                                 };
+
+        // Подключаем обработчики паузы/возобновления от Яндекс SDK
+        yaSdk.onPause = () => this.pauseGame();
+        yaSdk.onResume = () => this.resumeGame();
+
         // 9. Освещение, Миникарта и основной цикл
         this.miniMap = new MiniMap(this.app, this.mapSizePixel);
         this.perkManager = new PerkManager(this.uiManager); // Добавлено
