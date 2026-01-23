@@ -263,7 +263,11 @@ export class Game {
                                                 this.uiManager.onShowLocked = () => {
                                                     this.soundManager.playError();
                                                     this.spawnFloatingText(this.player.x, this.player.y - 50, this.t('locked'), '#e74c3c', 20);
-                                                };        // 9. Освещение, Миникарта и основной цикл
+                                                };
+                                                this.uiManager.onDeselect = () => {
+                                                    this.buildingSystem.setToolActive(false);
+                                                };
+        // 9. Освещение, Миникарта и основной цикл
         this.miniMap = new MiniMap(this.app, this.mapSizePixel);
         this.perkManager = new PerkManager(this.uiManager); // Добавлено
         

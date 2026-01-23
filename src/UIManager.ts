@@ -17,6 +17,7 @@ interface ToolItem {
 
 export class UIManager {
     private onSelect: (type: ToolType) => void;
+    public onDeselect?: () => void; // Вызывается когда инструмент деактивирован
     
     private container: HTMLDivElement;
     private infoPanel: HTMLDivElement;
@@ -762,7 +763,7 @@ export class UIManager {
                 // Переключение: если нажали на уже выбранный инструмент - деактивируем (ничего в руках)
                 if (this.currentTool === type) {
                     this.currentTool = null;
-                    this.onSelect('wall'); // BuildingSystem получит wall, но визуально ничего не выбрано
+                    if (this.onDeselect) this.onDeselect(); // Отключаем инструмент в BuildingSystem
                     this.highlightButton(null); // Снимаем выделение со всех кнопок
                 } else {
                     this.currentTool = type;
@@ -795,7 +796,7 @@ export class UIManager {
             // Переключение: если нажали на уже выбранный - деактивируем (ничего в руках)
             if (this.currentTool === type) {
                 this.currentTool = null;
-                this.onSelect('wall');
+                if (this.onDeselect) this.onDeselect();
                 this.highlightButton(null);
             } else {
                 this.currentTool = type;

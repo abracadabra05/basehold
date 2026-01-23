@@ -30,6 +30,7 @@ export class BuildingSystem {
     private buildings: Map<string, Building>; 
     private player: Container | null = null;
     private selectedTool: ToolType = 'wall';
+    private isToolActive: boolean = true; // false = ничего в руках, клики игнорируются
     private resources: ResourceNode[] = [];
     private rocks: Rock[] = [];
     private resourceManager: ResourceManager | null = null;
@@ -68,7 +69,8 @@ export class BuildingSystem {
     public setRocks(rocks: Rock[]) {
         this.rocks = rocks;
     }
-    public setTool(tool: ToolType) { this.selectedTool = tool; }
+    public setTool(tool: ToolType) { this.selectedTool = tool; this.isToolActive = true; }
+    public setToolActive(active: boolean) { this.isToolActive = active; this.ghost.visible = active && !this.isPaused; }
     public setPlayer(player: Container) { this.player = player; }
     public setPaused(paused: boolean) { 
         this.isPaused = paused; 
@@ -312,6 +314,9 @@ export class BuildingSystem {
     }
 
     private handleAction() {
+        // Если инструмент не активен (ничего в руках) - ничего не делаем
+        if (!this.isToolActive) return;
+
         const { x, y } = this.ghost;
         if (this.selectedTool === 'repair') {
             const building = this.getBuildingAt(x, y);
