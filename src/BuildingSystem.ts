@@ -69,8 +69,15 @@ export class BuildingSystem {
     public setRocks(rocks: Rock[]) {
         this.rocks = rocks;
     }
-    public setTool(tool: ToolType) { this.selectedTool = tool; this.isToolActive = true; }
-    public setToolActive(active: boolean) { this.isToolActive = active; this.ghost.visible = active && !this.isPaused; }
+    public setTool(tool: ToolType) {
+        this.selectedTool = tool;
+        this.isToolActive = true;
+        this.ghost.visible = !this.isPaused; // Восстанавливаем видимость призрака
+    }
+    public setToolActive(active: boolean) {
+        this.isToolActive = active;
+        this.ghost.visible = active && !this.isPaused;
+    }
     public setPlayer(player: Container) { this.player = player; }
     public setPaused(paused: boolean) { 
         this.isPaused = paused; 
