@@ -18,7 +18,7 @@ export class ResourceManager {
         this.uiElement = document.createElement('div');
 
         // Same width as hudPlayer, positioned right below it
-        const width = '150px';
+        const width = '170px';
         const top = '82px'; // Right below hudPlayer (10px + ~70px height + 2px gap)
 
         Object.assign(this.uiElement.style, {
@@ -120,9 +120,9 @@ export class ResourceManager {
                 <div style="width: 100%; background: #222; height: 6px; border-radius: 3px; margin-bottom: 4px; overflow: hidden; border: 1px solid #333;">
                     <div style="width: ${chargePct}%; background: #3498db; height: 100%; transition: width 0.3s;"></div>
                 </div>
-                <div style="display: flex; justify-content: space-between; font-size: 11px;">
+                <div style="display: flex; justify-content: space-between; font-size: 10px; white-space: nowrap;">
                     <span style="color: #aaa">${this.t('res_battery')}: <span style="font-family: monospace;">${Math.floor(this.batteryCharge)}</span></span>
-                    <span style="font-weight: bold;">${energyStatus}</span>
+                    <span style="font-weight: bold; margin-left: 4px;">${energyStatus}</span>
                 </div>
             </div>
         `;

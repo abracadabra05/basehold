@@ -29,7 +29,7 @@ export class UIManager {
     private isPaused: boolean = false;
     private isMobile: boolean = false;
     public isSettingsOpen: boolean = false; // Добавлено
-    private currentTool: ToolType = 'wall'; // Текущий выбранный инструмент
+    private currentTool: ToolType | null = 'wall'; // Текущий выбранный инструмент (null = ничего)
 
     private lang: Language = 'en';
     private showTutorialFlag: boolean = true;
@@ -109,14 +109,16 @@ export class UIManager {
         document.body.appendChild(this.hudCore);
         // hudTime удалён - иконка времени не отображается
 
-        // Settings button - bottom right corner on both devices
+        // Settings button - below minimap on mobile, bottom right on desktop
         const inGameSettings = document.createElement('button');
         inGameSettings.id = 'ingame-settings-btn';
         inGameSettings.innerHTML = '⚙️';
+        const minimapSize = this.isMobile ? 80 : 100;
 
         Object.assign(inGameSettings.style, {
             position: 'absolute',
-            bottom: this.isMobile ? '100px' : '20px',
+            top: this.isMobile ? `${10 + minimapSize + 5}px` : 'auto',
+            bottom: this.isMobile ? 'auto' : '20px',
             right: '10px',
             width: '36px',
             height: '36px',
@@ -518,7 +520,8 @@ export class UIManager {
 
             let locked = false;
             if (this.checkUnlock && !this.checkUnlock(item.type)) {
-                if (item.type !== 'demolish') locked = true;
+                // repair и demolish НИКОГДА не блокируются
+                if (item.type !== 'demolish' && item.type !== 'repair') locked = true;
             }
 
             if (locked) {
@@ -624,8 +627,8 @@ export class UIManager {
     }
 
     private initPlayerHUD() {
-        // Fixed width for both platforms
-        const width = '150px';
+        // Fixed width for both platforms - increased for longer text
+        const width = '170px';
 
         Object.assign(this.hudPlayer.style, {
             position: 'absolute',
@@ -739,44 +742,42 @@ export class UIManager {
 
             if (item.color) btn.style.borderColor = item.color;
             btn.dataset.type = item.type;
+
+            // Привязываем обработчики напрямую к каждой кнопке
+            const handleButtonClick = (e: Event) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (this.isPaused) return;
+
+                const type = item.type;
+                const buttonEl = this.buttons.get(type);
+
+                // Проверяем, заблокирован ли инструмент (repair и demolish НИКОГДА не блокируются)
+                if (buttonEl?.disabled && type !== 'demolish' && type !== 'repair') {
+                    if (this.onShowLocked) this.onShowLocked();
+                    return;
+                }
+
+                // Переключение: если нажали на уже выбранный инструмент - деактивируем (ничего в руках)
+                if (this.currentTool === type) {
+                    this.currentTool = null;
+                    this.onSelect('wall'); // BuildingSystem получит wall, но визуально ничего не выбрано
+                    this.highlightButton(null); // Снимаем выделение со всех кнопок
+                } else {
+                    this.currentTool = type;
+                    this.onSelect(type);
+                    this.highlightButton(type);
+                }
+            };
+
+            btn.addEventListener('click', handleButtonClick);
+            btn.addEventListener('touchend', handleButtonClick, { passive: false });
+
             this.container.appendChild(btn);
             this.buttons.set(item.type, btn);
         });
-        
-        const handleInteraction = (e: Event) => {
-            const target = (e.target as HTMLElement).closest('button');
-            if (target && target.dataset.type) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
 
-                if (!this.isPaused) {
-                    const type = target.dataset.type as ToolType;
-                    const btn = this.buttons.get(type);
-
-                    // Проверяем, заблокирован ли инструмент
-                    if (btn?.disabled && type !== 'demolish') {
-                        if (this.onShowLocked) this.onShowLocked();
-                        return;
-                    }
-
-                    // Переключение: если нажали на уже выбранный инструмент - сбрасываем на стену
-                    if (this.currentTool === type && type !== 'wall') {
-                        this.currentTool = 'wall';
-                        this.onSelect('wall');
-                        this.highlightButton('wall');
-                    } else {
-                        this.currentTool = type;
-                        this.onSelect(type);
-                        this.highlightButton(type);
-                    }
-                }
-            }
-        };
-
-        // Используем addEventListener вместо прямого присваивания для лучшей совместимости
-        this.container.addEventListener('pointerdown', handleInteraction, { capture: true });
-        this.container.addEventListener('touchstart', handleInteraction, { capture: true, passive: false });
         this.updateButtonsState(); 
     }
 
@@ -785,17 +786,17 @@ export class UIManager {
             const type = this.items[index].type;
             const btn = this.buttons.get(type);
 
-            // Проверяем, заблокирован ли инструмент
-            if (btn?.disabled && type !== 'demolish') {
+            // Проверяем, заблокирован ли инструмент (repair и demolish НИКОГДА не блокируются)
+            if (btn?.disabled && type !== 'demolish' && type !== 'repair') {
                 if (this.onShowLocked) this.onShowLocked();
                 return;
             }
 
-            // Переключение: если нажали на уже выбранный - сбрасываем на стену
-            if (this.currentTool === type && type !== 'wall') {
-                this.currentTool = 'wall';
+            // Переключение: если нажали на уже выбранный - деактивируем (ничего в руках)
+            if (this.currentTool === type) {
+                this.currentTool = null;
                 this.onSelect('wall');
-                this.highlightButton('wall');
+                this.highlightButton(null);
             } else {
                 this.currentTool = type;
                 this.onSelect(type);
@@ -804,7 +805,8 @@ export class UIManager {
         }
     }
 
-    private highlightButton(type: ToolType) {
+    private highlightButton(type: ToolType | null) {
+        // Сначала снимаем выделение со всех кнопок
         this.buttons.forEach((btn, t) => {
             btn.classList.remove('active');
             const item = this.items.find(i => i.type === t);
@@ -812,6 +814,9 @@ export class UIManager {
             btn.style.borderColor = item?.color || '#444';
             btn.style.transform = 'scale(1)';
         });
+
+        // Если type === null, ничего не выделяем (ничего в руках)
+        if (type === null) return;
 
         const activeBtn = this.buttons.get(type);
         if (activeBtn) {

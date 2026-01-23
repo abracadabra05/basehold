@@ -64,18 +64,19 @@ export class WaveManager {
         });
         this.container.appendChild(this.timerText);
 
-        // Skip button - compact but still touch-friendly
+        // Skip button - very subtle on mobile, more visible on desktop
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || ('ontouchstart' in window);
         this.skipButton = document.createElement('button');
-        this.skipButton.innerText = "SKIP >>";
+        this.skipButton.innerText = isMobile ? ">>" : "SKIP >>";
         Object.assign(this.skipButton.style, {
             marginTop: '4px',
-            padding: '6px 12px',
-            minHeight: '32px',
-            fontSize: '10px',
+            padding: isMobile ? '4px 10px' : '6px 12px',
+            minHeight: isMobile ? '24px' : '32px',
+            fontSize: isMobile ? '9px' : '10px',
             cursor: 'pointer',
-            backgroundColor: 'rgba(39, 174, 96, 0.5)',
-            color: 'white',
-            border: `1px solid rgba(46, 204, 113, 0.6)`,
+            backgroundColor: isMobile ? 'rgba(39, 174, 96, 0.2)' : 'rgba(39, 174, 96, 0.5)',
+            color: isMobile ? 'rgba(255,255,255,0.5)' : 'white',
+            border: isMobile ? '1px solid rgba(46, 204, 113, 0.3)' : '1px solid rgba(46, 204, 113, 0.6)',
             borderRadius: '16px',
             transition: 'all 0.2s',
             pointerEvents: 'auto',
