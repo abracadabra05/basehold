@@ -25,10 +25,11 @@ export class UIManager {
     private hudTime: HTMLDivElement;
     private mainMenu: HTMLDivElement;
     
-    private buttons: Map<ToolType, HTMLButtonElement> = new Map(); 
+    private buttons: Map<ToolType, HTMLButtonElement> = new Map();
     private isPaused: boolean = false;
     private isMobile: boolean = false;
     public isSettingsOpen: boolean = false; // Добавлено
+    private currentTool: ToolType = 'wall'; // Текущий выбранный инструмент
 
     private lang: Language = 'en';
     private showTutorialFlag: boolean = true;
@@ -41,6 +42,7 @@ export class UIManager {
     public onPause?: () => void; // Добавлено
     public onResume?: () => void; // Добавлено
     public onMute?: (muted: boolean) => void; // Добавлено
+    public onShowLocked?: () => void; // Показать сообщение "заблокировано"
     
     private items: ToolItem[] = [
         { type: 'wall', key: 'tool_wall', icon: '🧱', cost: 10 },
@@ -95,6 +97,7 @@ export class UIManager {
 
     public init() {
         this.createButtons();
+        this.currentTool = 'wall'; // Инициализируем текущий инструмент
         this.highlightButton('wall');
         this.showGameHUD();
     }
@@ -106,22 +109,25 @@ export class UIManager {
         document.body.appendChild(this.hudCore);
         document.body.appendChild(this.hudTime);
         
-        // Кнопка настроек в игре - позиционируем под миникартой (minimap: 120px + отступ)
+        // Settings button - positioned below minimap
+        // Minimap: mobile 80px, desktop 100px; top: 10px
         const inGameSettings = document.createElement('button');
         inGameSettings.id = 'ingame-settings-btn';
         inGameSettings.innerHTML = '⚙️';
-        const settingsTop = this.isMobile ? '100px' : '150px'; // Под миникартой
+        const minimapSize = this.isMobile ? 80 : 100;
+        const settingsTop = `${10 + minimapSize + 5}px`; // minimap top + size + gap
+
         Object.assign(inGameSettings.style, {
             position: 'absolute',
             top: settingsTop,
-            right: '20px',
-            width: `${TOUCH_SIZES.MIN_BUTTON}px`,
-            height: `${TOUCH_SIZES.MIN_BUTTON}px`,
-            background: COLORS.PANEL_BG_MOBILE,
+            right: '10px',
+            width: '36px',
+            height: '36px',
+            background: 'rgba(0,0,0,0.6)',
             border: `1px solid ${COLORS.PANEL_BORDER}`,
             borderRadius: '50%',
             color: 'white',
-            fontSize: '20px',
+            fontSize: '18px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -401,26 +407,35 @@ export class UIManager {
         });
         
         overlay.innerHTML = `
-            <h2>SETTINGS</h2>
-            <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-                <button id="set-en" style="padding: 10px 20px; cursor: pointer; background: ${this.lang==='en'?'#3498db':'#333'}; border: 1px solid #3498db; color: white;">EN</button>
-                <button id="set-ru" style="padding: 10px 20px; cursor: pointer; background: ${this.lang==='ru'?'#3498db':'#333'}; border: 1px solid #3498db; color: white;">RU</button>
+            <div style="background: rgba(30,39,46,0.95); padding: 25px 35px; border-radius: 12px; border: 1px solid #3498db; min-width: 280px;">
+                <h2 style="margin: 0 0 20px 0; text-align: center; color: #3498db; font-size: 22px; text-transform: uppercase; letter-spacing: 2px;">${this.t('settings_title')}</h2>
+
+                <div style="margin-bottom: 20px;">
+                    <div style="color: #aaa; font-size: 12px; margin-bottom: 8px; text-transform: uppercase;">${this.t('settings_language')}</div>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="set-en" style="flex: 1; padding: 10px; cursor: pointer; background: ${this.lang==='en'?'#3498db':'rgba(51,51,51,0.8)'}; border: 1px solid ${this.lang==='en'?'#3498db':'#555'}; color: white; border-radius: 6px; font-weight: ${this.lang==='en'?'bold':'normal'}; transition: all 0.2s;">English</button>
+                        <button id="set-ru" style="flex: 1; padding: 10px; cursor: pointer; background: ${this.lang==='ru'?'#3498db':'rgba(51,51,51,0.8)'}; border: 1px solid ${this.lang==='ru'?'#3498db':'#555'}; color: white; border-radius: 6px; font-weight: ${this.lang==='ru'?'bold':'normal'}; transition: all 0.2s;">Русский</button>
+                    </div>
+                </div>
+
+                <div style="border-top: 1px solid #444; padding-top: 15px; margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 16px; margin-bottom: 12px; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.05);">
+                        <input type="checkbox" id="set-tut" ${this.showTutorialFlag ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: #3498db;">
+                        <span>${this.t('tutorial_toggle')}</span>
+                    </label>
+
+                    <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 16px; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.05);">
+                        <input type="checkbox" id="set-sound" checked style="width: 18px; height: 18px; accent-color: #3498db;">
+                        <span>${this.t('settings_sound')}</span>
+                        <span style="margin-left: auto;">🔊</span>
+                    </label>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                    <button id="set-exit" style="padding: 12px; background: #c0392b; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: bold; display: none; transition: all 0.2s;">${this.t('settings_exit')}</button>
+                    <button id="set-close" style="padding: 12px; background: #27ae60; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s;">OK</button>
+                </div>
             </div>
-            
-            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 18px; margin-bottom: 15px;">
-                <input type="checkbox" id="set-tut" ${this.showTutorialFlag ? 'checked' : ''} style="width: 20px; height: 20px;">
-                ${this.t('tutorial_toggle')}
-            </label>
-
-            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 18px; margin-bottom: 30px;">
-                <input type="checkbox" id="set-sound" checked style="width: 20px; height: 20px;">
-                ${this.t('settings_sound')} 🔊
-            </label>
-
-            <!-- Кнопка выхода в меню, если мы в игре -->
-            <button id="set-exit" style="padding: 10px 30px; background: #c0392b; border: none; color: white; border-radius: 4px; cursor: pointer; margin-bottom: 10px; display: none;">${this.t('settings_exit')}</button>
-
-            <button id="set-close" style="padding: 10px 30px; background: #27ae60; border: none; color: white; border-radius: 4px; cursor: pointer;">OK</button>
         `;
         
         document.body.appendChild(overlay);
@@ -579,31 +594,30 @@ export class UIManager {
     }
 
     private initTimeHUD() {
-        // На мобилках скрываем часы (конфликт с джойстиком), на десктопе показываем под миникартой
+        // Time indicator - below settings button on desktop, hidden on mobile
         this.hudTime.style.position = 'absolute';
 
         if (this.isMobile) {
-            // Скрываем на мобилках - место занято джойстиком
             this.hudTime.style.display = 'none';
         } else {
-            // На ПК - под кнопкой настроек (справа)
-            this.hudTime.style.top = '200px';
-            this.hudTime.style.right = '25px';
+            // Desktop: below settings button (minimap 100px + gap 5px + settings 36px + gap 5px)
+            this.hudTime.style.top = '156px';
+            this.hudTime.style.right = '13px';
         }
 
-        this.hudTime.style.width = '40px';
-        this.hudTime.style.height = '40px';
+        this.hudTime.style.width = '30px';
+        this.hudTime.style.height = '30px';
         this.applyPanelStyle(this.hudTime);
         this.hudTime.style.borderRadius = '50%';
         this.hudTime.style.overflow = 'hidden';
-        this.hudTime.style.border = '2px solid #555';
+        this.hudTime.style.border = '2px solid #444';
         this.hudTime.style.background = 'linear-gradient(to bottom, #87CEEB 0%, #2c3e50 100%)';
         this.hudTime.style.zIndex = `${Z_INDEX.HUD_PANELS}`;
 
         this.hudTime.innerHTML = `
             <div id="hud-time-sky" style="width: 100%; height: 100%; position: relative; transition: transform 0.1s linear;">
-                <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); font-size: 16px;">☀️</div>
-                <div style="position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%); font-size: 16px;">🌙</div>
+                <div style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); font-size: 12px;">☀️</div>
+                <div style="position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); font-size: 12px;">🌙</div>
             </div>
             <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 40%; background: #222; z-index: 2;"></div>
         `;
@@ -611,45 +625,46 @@ export class UIManager {
 
     private initCoreHUD() {
         this.hudCore.id = 'hud-core-container';
-        const barWidth = this.isMobile ? '140px' : '200px';
+        const barWidth = this.isMobile ? '120px' : '180px';
 
         Object.assign(this.hudCore.style, {
             position: 'absolute',
-            top: `calc(15px + env(safe-area-inset-top, 0px))`,
+            top: '10px',
             left: '50%',
             transform: 'translateX(-50%)',
             display: 'flex',
             alignItems: 'center',
-            gap: this.isMobile ? '6px' : '10px',
-            padding: this.isMobile ? '6px 10px' : '8px 15px',
-            background: COLORS.PANEL_BG_MOBILE,
-            borderRadius: '20px',
+            gap: this.isMobile ? '5px' : '8px',
+            padding: this.isMobile ? '5px 8px' : '6px 12px',
+            background: 'rgba(0,0,0,0.6)',
+            borderRadius: '16px',
             border: 'none',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
             zIndex: `${Z_INDEX.HUD_PANELS}`
         });
 
         this.hudCore.innerHTML = `
-            <span style="font-weight: bold; color: #00FFFF; font-size: ${this.isMobile ? '12px' : '14px'}; white-space: nowrap;">${this.t('hud_core_short')}</span>
-            <div style="width: ${barWidth}; height: 8px; background: #222; border-radius: 4px; overflow: hidden; border: 1px solid #333;">
+            <span style="font-weight: bold; color: #00FFFF; font-size: ${this.isMobile ? '10px' : '12px'}; white-space: nowrap;">${this.t('hud_core_short')}</span>
+            <div style="width: ${barWidth}; height: 6px; background: #222; border-radius: 3px; overflow: hidden; border: 1px solid #333;">
                 <div id="hud-core-bar" style="width: 100%; height: 100%; background-color: #00FFFF; transition: width 0.3s ease-out;"></div>
             </div>
         `;
     }
 
     private initPlayerHUD() {
-        const width = this.isMobile ? '130px' : '180px';
+        // Fixed width for both platforms
+        const width = '150px';
 
         Object.assign(this.hudPlayer.style, {
             position: 'absolute',
-            top: `calc(15px + env(safe-area-inset-top, 0px))`,
-            left: `calc(15px + env(safe-area-inset-left, 0px))`,
+            top: '10px',
+            left: '10px',
             width: width,
-            fontSize: this.isMobile ? '10px' : '12px',
+            fontSize: this.isMobile ? '10px' : '11px',
             boxSizing: 'border-box',
-            padding: this.isMobile ? '8px' : '10px',
+            padding: '8px',
             zIndex: `${Z_INDEX.HUD_PANELS}`,
-            background: this.isMobile ? COLORS.PANEL_BG_MOBILE : COLORS.PANEL_BG,
+            background: 'rgba(0,0,0,0.6)',
             border: `1px solid ${COLORS.PANEL_BORDER}`,
             borderRadius: '6px',
             color: 'white',
@@ -658,14 +673,14 @@ export class UIManager {
         });
 
         this.hudPlayer.innerHTML = `
-            <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; color: #aaa; font-weight: bold;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 10px; color: #aaa; font-weight: bold;">
                 <span>${this.t('hud_hp')}</span>
                 <span id="hud-player-text">100</span>
             </div>
-            <div style="width: 100%; height: 6px; background: #222; border-radius: 3px; overflow: hidden; margin-bottom: 6px;">
+            <div style="width: 100%; height: 5px; background: #222; border-radius: 3px; overflow: hidden; margin-bottom: 5px;">
                 <div id="hud-player-bar" style="width: 100%; height: 100%; background: ${COLORS.SUCCESS}; transition: width 0.3s;"></div>
             </div>
-            <div style="font-size: ${this.isMobile ? '12px' : '14px'}; font-weight: bold; color: ${COLORS.WARNING}; text-align: center;">
+            <div style="font-size: ${this.isMobile ? '11px' : '12px'}; font-weight: bold; color: ${COLORS.WARNING}; text-align: center;">
                 <span id="hud-score">0</span> 🏆
             </div>
         `;
@@ -762,11 +777,27 @@ export class UIManager {
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
-                
+
                 if (!this.isPaused) {
                     const type = target.dataset.type as ToolType;
-                    this.onSelect(type);
-                    this.highlightButton(type);
+                    const btn = this.buttons.get(type);
+
+                    // Проверяем, заблокирован ли инструмент
+                    if (btn?.disabled && type !== 'demolish') {
+                        if (this.onShowLocked) this.onShowLocked();
+                        return;
+                    }
+
+                    // Переключение: если нажали на уже выбранный инструмент - сбрасываем на стену
+                    if (this.currentTool === type && type !== 'wall') {
+                        this.currentTool = 'wall';
+                        this.onSelect('wall');
+                        this.highlightButton('wall');
+                    } else {
+                        this.currentTool = type;
+                        this.onSelect(type);
+                        this.highlightButton(type);
+                    }
                 }
             }
         };
@@ -779,7 +810,21 @@ export class UIManager {
     public selectByIndex(index: number) {
         if (index >= 0 && index < this.items.length) {
             const type = this.items[index].type;
-            if (!this.buttons.get(type)?.disabled || type === 'demolish') {
+            const btn = this.buttons.get(type);
+
+            // Проверяем, заблокирован ли инструмент
+            if (btn?.disabled && type !== 'demolish') {
+                if (this.onShowLocked) this.onShowLocked();
+                return;
+            }
+
+            // Переключение: если нажали на уже выбранный - сбрасываем на стену
+            if (this.currentTool === type && type !== 'wall') {
+                this.currentTool = 'wall';
+                this.onSelect('wall');
+                this.highlightButton('wall');
+            } else {
+                this.currentTool = type;
                 this.onSelect(type);
                 this.highlightButton(type);
             }

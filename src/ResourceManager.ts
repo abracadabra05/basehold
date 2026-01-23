@@ -1,5 +1,5 @@
 import { Translations, type Language } from './Localization';
-import { Z_INDEX, COLORS, BREAKPOINTS } from './UIConstants';
+import { Z_INDEX, COLORS } from './UIConstants';
 
 export class ResourceManager {
     private metal: number = 100;
@@ -17,27 +17,26 @@ export class ResourceManager {
     constructor() {
         this.uiElement = document.createElement('div');
 
-        const isMobile = window.innerWidth <= BREAKPOINTS.MOBILE;
-        const width = isMobile ? '130px' : '180px';
-        const top = isMobile ? '90px' : '100px';
-        const fontSize = isMobile ? '10px' : '12px';
+        // Same width as hudPlayer, positioned right below it
+        const width = '150px';
+        const top = '82px'; // Right below hudPlayer (10px + ~70px height + 2px gap)
 
         Object.assign(this.uiElement.style, {
             position: 'absolute',
-            top: `calc(${top}px + env(safe-area-inset-top, 0px))`,
-            left: `calc(15px + env(safe-area-inset-left, 0px))`,
-            padding: isMobile ? '8px' : '10px',
-            background: isMobile ? COLORS.PANEL_BG_MOBILE : COLORS.PANEL_BG,
+            top: top,
+            left: '10px',
+            padding: '8px',
+            background: 'rgba(0,0,0,0.6)',
             border: `1px solid ${COLORS.PANEL_BORDER}`,
             borderRadius: '6px',
             color: COLORS.TEXT_PRIMARY,
             fontFamily: "'Segoe UI', sans-serif",
-            fontSize: fontSize,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+            fontSize: '10px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
             pointerEvents: 'none',
             width: width,
             boxSizing: 'border-box',
-            lineHeight: '1.4',
+            lineHeight: '1.3',
             zIndex: `${Z_INDEX.HUD_PANELS}`
         });
 

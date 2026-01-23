@@ -259,7 +259,11 @@ export class Game {
                                                 this.uiManager.onRestart = () => this.restartGame();
                                                 this.uiManager.onPause = () => this.pauseGame();
                                                 this.uiManager.onResume = () => this.resumeGame();
-                                                this.uiManager.onMute = (muted) => this.soundManager.setMute(muted);        // 9. Освещение, Миникарта и основной цикл
+                                                this.uiManager.onMute = (muted) => this.soundManager.setMute(muted);
+                                                this.uiManager.onShowLocked = () => {
+                                                    this.soundManager.playError();
+                                                    this.spawnFloatingText(this.player.x, this.player.y - 50, this.t('locked'), '#e74c3c', 20);
+                                                };        // 9. Освещение, Миникарта и основной цикл
         this.miniMap = new MiniMap(this.app, this.mapSizePixel);
         this.perkManager = new PerkManager(this.uiManager); // Добавлено
         

@@ -64,8 +64,11 @@ export const Translations: Record<Language, any> = {
         shop_subtitle: 'Тратьте биомассу на развитие технологий',
         shop_close: 'Закрыть',
         
+        settings_title: 'Настройки',
         settings_sound: 'Звук', // Добавлено
         settings_exit: 'Выйти в меню', // Добавлено
+        settings_language: 'Язык',
+        locked: 'ЗАКРЫТО', // Заблокированная технология
         
         // Wave statuses
         wave_prep: 'ДО СЛЕДУЮЩЕЙ ВОЛНЫ',
@@ -152,8 +155,11 @@ export const Translations: Record<Language, any> = {
         shop_subtitle: 'Spend biomass to upgrade systems',
         shop_close: 'Close',
 
+        settings_title: 'Settings',
         settings_sound: 'Sound',
         settings_exit: 'Exit to Menu',
+        settings_language: 'Language',
+        locked: 'LOCKED', // Locked technology
 
         // Wave statuses
         wave_prep: 'NEXT WAVE IN',

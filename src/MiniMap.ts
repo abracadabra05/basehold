@@ -17,7 +17,7 @@ export class MiniMap {
     constructor(app: Application, mapSize: number) {
         // Adaptive size based on screen width
         this.isMobile = app.screen.width <= 800;
-        this.size = this.isMobile ? 80 : 120;
+        this.size = this.isMobile ? 80 : 100;
         this.scale = this.size / mapSize;
 
         this.container = new Container();

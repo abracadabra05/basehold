@@ -2,7 +2,7 @@ import { Ticker } from 'pixi.js';
 import type { ResourceManager } from './ResourceManager';
 import type { UIManager } from './UIManager';
 import { Translations } from './Localization';
-import { Z_INDEX, TOUCH_SIZES, COLORS } from './UIConstants';
+import { Z_INDEX, COLORS } from './UIConstants';
 
 export class WaveManager {
     private spawnCallback: (waveNum: number, count: number) => void;
@@ -51,32 +51,32 @@ export class WaveManager {
         });
         document.body.appendChild(this.container);
 
-        // Timer text
+        // Timer text - compact size
         this.timerText = document.createElement('div');
         Object.assign(this.timerText.style, {
-            fontSize: '18px',
-            fontWeight: '900',
+            fontSize: '14px',
+            fontWeight: '700',
             color: 'white',
-            textShadow: '0 2px 6px rgba(0,0,0,0.9)',
-            letterSpacing: '1px',
+            textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+            letterSpacing: '0.5px',
             fontFamily: "'Segoe UI', sans-serif",
             textAlign: 'center'
         });
         this.container.appendChild(this.timerText);
 
-        // Skip button - touch-friendly size
+        // Skip button - compact but still touch-friendly
         this.skipButton = document.createElement('button');
         this.skipButton.innerText = "SKIP >>";
         Object.assign(this.skipButton.style, {
-            marginTop: '8px',
-            padding: '8px 16px',
-            minHeight: `${TOUCH_SIZES.MIN_BUTTON}px`,
-            fontSize: '12px',
+            marginTop: '4px',
+            padding: '6px 12px',
+            minHeight: '32px',
+            fontSize: '10px',
             cursor: 'pointer',
-            backgroundColor: 'rgba(39, 174, 96, 0.6)',
+            backgroundColor: 'rgba(39, 174, 96, 0.5)',
             color: 'white',
-            border: `1px solid ${COLORS.SUCCESS}`,
-            borderRadius: '20px',
+            border: `1px solid rgba(46, 204, 113, 0.6)`,
+            borderRadius: '16px',
             transition: 'all 0.2s',
             pointerEvents: 'auto',
             backdropFilter: 'blur(4px)',
@@ -146,8 +146,8 @@ export class WaveManager {
         } else if (this.isPrepPhase) {
             const timeLeft = Math.ceil(this.prepTime / 1000);
             this.timerText.innerHTML = `
-                <div style="color: #3498db; font-size: 14px; margin-bottom: -5px;">${this.t('wave_prep')}</div>
-                <div style="font-size: 28px;">${Math.max(0, timeLeft)}</div>
+                <div style="color: #3498db; font-size: 11px; margin-bottom: -2px;">${this.t('wave_prep')}</div>
+                <div style="font-size: 20px; font-weight: 900;">${Math.max(0, timeLeft)}</div>
             `;
             // Обновляем кнопку скипа
             const bonus = Math.max(1, timeLeft * 2);
@@ -160,7 +160,7 @@ export class WaveManager {
             // Ладно, добавим ключ 'wave_skip' в Localization.
             this.skipButton.innerText = `${this.t('wave_skip')} (+${bonus} 🧬)`;
         } else {
-            this.timerText.innerHTML = `<span style="color: #e74c3c; font-size: 14px;">${this.t('wave_active')}</span> ${this.waveCount}`;
+            this.timerText.innerHTML = `<span style="color: #e74c3c; font-size: 11px;">${this.t('wave_active')}</span> <span style="font-size: 16px; font-weight: 900;">${this.waveCount}</span>`;
         }
     }
 
@@ -202,8 +202,8 @@ export class WaveManager {
             const timeLeft = Math.ceil(this.prepTime / 1000);
             
             this.timerText.innerHTML = `
-                <div style="color: #3498db; font-size: 14px; margin-bottom: -5px;">${this.t('wave_prep')}</div>
-                <div style="font-size: 28px;">${Math.max(0, timeLeft)}</div>
+                <div style="color: #3498db; font-size: 11px; margin-bottom: -2px;">${this.t('wave_prep')}</div>
+                <div style="font-size: 20px; font-weight: 900;">${Math.max(0, timeLeft)}</div>
             `;
             
             const bonus = Math.max(1, timeLeft * 2);
@@ -218,7 +218,7 @@ export class WaveManager {
         // ФАЗА ВОЛНЫ (БОЙ)
         this.waveTimer += dt;
         
-        this.timerText.innerHTML = `<span style="color: #e74c3c; font-size: 14px;">${this.t('wave_active')}</span> ${this.waveCount}`;
+        this.timerText.innerHTML = `<span style="color: #e74c3c; font-size: 11px;">${this.t('wave_active')}</span> <span style="font-size: 16px; font-weight: 900;">${this.waveCount}</span>`;
         this.skipButton.style.display = 'none';
 
         // 5 секунд после спавна волны переходим в ожидание следующей
@@ -252,8 +252,8 @@ export class WaveManager {
         this.isPrepPhase = true;
         this.prepTime = 10000; // Даем 10 сек на подготовку перед рестартом
         this.timerText.innerHTML = `
-            <div style="color: #3498db; font-size: 14px; margin-bottom: -5px;">${this.t('wave_prep')}</div>
-            <div style="font-size: 28px;">10</div>
+            <div style="color: #3498db; font-size: 11px; margin-bottom: -2px;">${this.t('wave_prep')}</div>
+            <div style="font-size: 20px; font-weight: 900;">10</div>
         `;
         this.skipButton.style.display = 'block';
     }
