@@ -31,6 +31,7 @@ export class UIManager {
     private isMobile: boolean = false;
     public isSettingsOpen: boolean = false; // Добавлено
     private currentTool: ToolType | null = 'wall'; // Текущий выбранный инструмент (null = ничего)
+    private isYandex: boolean = false; // Яндекс окружение
 
     private lang: Language = 'en';
     private showTutorialFlag: boolean = true;
@@ -44,6 +45,7 @@ export class UIManager {
     public onResume?: () => void; // Добавлено
     public onMute?: (muted: boolean) => void; // Добавлено
     public onShowLocked?: () => void; // Показать сообщение "заблокировано"
+    public getMutedState?: () => boolean; // Получить состояние звука
     
     private items: ToolItem[] = [
         { type: 'wall', key: 'tool_wall', icon: '🧱', cost: 10 },
@@ -94,6 +96,10 @@ export class UIManager {
 
     private detectPlatform() {
         this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || ('ontouchstart' in window);
+    }
+
+    public setYandexEnvironment(isYandex: boolean) {
+        this.isYandex = isYandex;
     }
 
     public init() {
@@ -302,7 +308,7 @@ export class UIManager {
             <!-- КНОПКИ (Настройки, Фуллскрин) - ВЕРНУЛИ ВНИЗ -->
             <div style="position: absolute; bottom: 20px; right: 20px; display: flex; gap: 15px; z-index: 20;">
                 ${this.isMobile ? `<button id="mob-lb-btn" style="background: none; border: none; font-size: 28px; cursor: pointer;">🏆</button>` : ''}
-                ${(window.self === window.top || this.isMobile) ? `<button id="fullscreen-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">⛶</button>` : ''}
+                ${(!this.isYandex && (window.self === window.top || this.isMobile)) ? `<button id="fullscreen-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">⛶</button>` : ''}
                 <button id="settings-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">⚙️</button>
             </div>
         `;
@@ -428,9 +434,9 @@ export class UIManager {
                     </label>
 
                     <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 16px; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.05);">
-                        <input type="checkbox" id="set-sound" checked style="width: 18px; height: 18px; accent-color: #3498db;">
+                        <input type="checkbox" id="set-sound" ${this.getMutedState && !this.getMutedState() ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: #3498db;">
                         <span>${this.t('settings_sound')}</span>
-                        <span style="margin-left: auto;">🔊</span>
+                        <span style="margin-left: auto;">${this.getMutedState && this.getMutedState() ? '🔇' : '🔊'}</span>
                     </label>
                 </div>
 

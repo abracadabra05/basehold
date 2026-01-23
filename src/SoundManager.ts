@@ -131,6 +131,10 @@ export class SoundManager {
         setTimeout(() => this.playTone(200, "triangle", 1.0, 0.2, 50, 'ui'), 800);
     }
 
+    public getMuted(): boolean {
+        return this.isMuted;
+    }
+
     public setMute(muted: boolean) {
         this.isMuted = muted;
         if (muted) {

@@ -78,6 +78,24 @@ export class YandexSDK {
         }
     }
 
+    public gameplayStart() {
+        if (this.isYandexEnvironment && this.ysdk?.features?.GameplayAPI) {
+            this.ysdk.features.GameplayAPI.start();
+            console.log('Gameplay Start sent to Yandex');
+        } else {
+            console.log('[DEV] Gameplay Start (mock)');
+        }
+    }
+
+    public gameplayStop() {
+        if (this.isYandexEnvironment && this.ysdk?.features?.GameplayAPI) {
+            this.ysdk.features.GameplayAPI.stop();
+            console.log('Gameplay Stop sent to Yandex');
+        } else {
+            console.log('[DEV] Gameplay Stop (mock)');
+        }
+    }
+
     public showFullscreenAdv(onClose: () => void) {
         if (this.isYandexEnvironment && this.ysdk) {
             this.ysdk.adv.showFullscreenAdv({

@@ -69,7 +69,9 @@ export const Translations: Record<Language, any> = {
         settings_exit: 'Выйти в меню', // Добавлено
         settings_language: 'Язык',
         locked: 'ЗАКРЫТО', // Заблокированная технология
-        
+        unlocked: 'ОТКРЫТО', // Разблокированная технология
+        tech_unlocked: 'ТЕХНОЛОГИЯ ОТКРЫТА!',
+
         // Wave statuses
         wave_prep: 'ДО СЛЕДУЮЩЕЙ ВОЛНЫ',
         wave_active: 'ВОЛНА',
@@ -160,6 +162,8 @@ export const Translations: Record<Language, any> = {
         settings_exit: 'Exit to Menu',
         settings_language: 'Language',
         locked: 'LOCKED', // Locked technology
+        unlocked: 'UNLOCKED', // Unlocked technology
+        tech_unlocked: 'TECH UNLOCKED!',
 
         // Wave statuses
         wave_prep: 'NEXT WAVE IN',

@@ -220,7 +220,7 @@ export class Game {
                                 this.upgradeManager.onUnlock = () => {
                                     this.uiManager.updateButtonsState();
                                     this.soundManager.playBuild(); // Звук успеха
-                                    this.spawnFloatingText(this.player.x, this.player.y - 50, "TECH UNLOCKED!", '#2ecc71', 24);
+                                    this.spawnFloatingText(this.player.x, this.player.y - 50, this.t('tech_unlocked'), '#2ecc71', 24);
                                 };
                 
                                 this.upgradeManager.onUpgrade = (type: string) => {
@@ -260,6 +260,8 @@ export class Game {
                                                 this.uiManager.onPause = () => this.pauseGame();
                                                 this.uiManager.onResume = () => this.resumeGame();
                                                 this.uiManager.onMute = (muted) => this.soundManager.setMute(muted);
+                                                this.uiManager.getMutedState = () => this.soundManager.getMuted();
+                                                this.uiManager.setYandexEnvironment(yaSdk.isYandexEnvironment);
                                                 this.uiManager.onShowLocked = () => {
                                                     this.soundManager.playError();
                                                     this.spawnFloatingText(this.player.x, this.player.y - 50, this.t('locked'), '#e74c3c', 20);
@@ -425,11 +427,13 @@ export class Game {
         this.isGameStarted = true;
         this.uiManager.hideMenu();
         this.inputSystem.showControls();
+        yaSdk.gameplayStart(); // Yandex GameplayAPI
     }
 
     public pauseGame() {
         this.isGameStarted = false;
         if (this.soundManager) this.soundManager.pause();
+        yaSdk.gameplayStop(); // Yandex GameplayAPI
     }
 
     public resumeGame() {
@@ -437,6 +441,7 @@ export class Game {
         if (!this.isGameOver && !this.uiManager.isSettingsOpen && !this.waveManager.isShopOpen) {
             this.isGameStarted = true;
             if (this.soundManager) this.soundManager.resume();
+            yaSdk.gameplayStart(); // Yandex GameplayAPI
         }
     }
 
@@ -828,6 +833,7 @@ export class Game {
     private gameOver(reasonCore: boolean = false) {
         if (this.isGameOver) return;
         this.isGameOver = true;
+        yaSdk.gameplayStop(); // Yandex GameplayAPI
 
         if (reasonCore) {
             // Эпичный взрыв ядра

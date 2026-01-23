@@ -301,7 +301,7 @@ export class UpgradeManager {
             const isUnlocked = this.isBuildingUnlocked(type);
             
             if (isUnlocked) {
-                btn.innerText = "UNLOCKED";
+                btn.innerText = this.t('unlocked');
                 btn.disabled = true;
                 btn.style.background = '#27ae60';
                 info.style.opacity = '0.5';
