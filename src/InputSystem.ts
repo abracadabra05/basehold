@@ -129,9 +129,9 @@ export class InputSystem {
         if (!this.isMobile) return;
 
         const joystickSize = `${TOUCH_SIZES.JOYSTICK}px`;
-        // Position joysticks above safe area and toolbar
-        const bottomOffset = 'calc(90px + env(safe-area-inset-bottom, 0px))';
-        const sideOffset = '20px';
+        // Position joysticks lower - closer to the bottom edge
+        const bottomOffset = 'calc(20px + env(safe-area-inset-bottom, 0px))';
+        const sideOffset = '15px';
 
         this.leftJoystickContainer = document.createElement('div');
         Object.assign(this.leftJoystickContainer.style, {

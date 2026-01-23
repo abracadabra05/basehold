@@ -107,19 +107,16 @@ export class UIManager {
         document.body.appendChild(this.infoPanel);
         document.body.appendChild(this.hudPlayer);
         document.body.appendChild(this.hudCore);
-        document.body.appendChild(this.hudTime);
-        
-        // Settings button - positioned below minimap
-        // Minimap: mobile 80px, desktop 100px; top: 10px
+        // hudTime удалён - иконка времени не отображается
+
+        // Settings button - bottom right corner on both devices
         const inGameSettings = document.createElement('button');
         inGameSettings.id = 'ingame-settings-btn';
         inGameSettings.innerHTML = '⚙️';
-        const minimapSize = this.isMobile ? 80 : 100;
-        const settingsTop = `${10 + minimapSize + 5}px`; // minimap top + size + gap
 
         Object.assign(inGameSettings.style, {
             position: 'absolute',
-            top: settingsTop,
+            bottom: this.isMobile ? '100px' : '20px',
             right: '10px',
             width: '36px',
             height: '36px',
@@ -594,33 +591,8 @@ export class UIManager {
     }
 
     private initTimeHUD() {
-        // Time indicator - below settings button on desktop, hidden on mobile
-        this.hudTime.style.position = 'absolute';
-
-        if (this.isMobile) {
-            this.hudTime.style.display = 'none';
-        } else {
-            // Desktop: below settings button (minimap 100px + gap 5px + settings 36px + gap 5px)
-            this.hudTime.style.top = '156px';
-            this.hudTime.style.right = '13px';
-        }
-
-        this.hudTime.style.width = '30px';
-        this.hudTime.style.height = '30px';
-        this.applyPanelStyle(this.hudTime);
-        this.hudTime.style.borderRadius = '50%';
-        this.hudTime.style.overflow = 'hidden';
-        this.hudTime.style.border = '2px solid #444';
-        this.hudTime.style.background = 'linear-gradient(to bottom, #87CEEB 0%, #2c3e50 100%)';
-        this.hudTime.style.zIndex = `${Z_INDEX.HUD_PANELS}`;
-
-        this.hudTime.innerHTML = `
-            <div id="hud-time-sky" style="width: 100%; height: 100%; position: relative; transition: transform 0.1s linear;">
-                <div style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); font-size: 12px;">☀️</div>
-                <div style="position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); font-size: 12px;">🌙</div>
-            </div>
-            <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 40%; background: #222; z-index: 2;"></div>
-        `;
+        // Time indicator - REMOVED (hidden on all devices)
+        this.hudTime.style.display = 'none';
     }
 
     private initCoreHUD() {
@@ -802,8 +774,9 @@ export class UIManager {
             }
         };
 
-        this.container.onpointerdown = handleInteraction;
-        this.container.ontouchstart = handleInteraction; 
+        // Используем addEventListener вместо прямого присваивания для лучшей совместимости
+        this.container.addEventListener('pointerdown', handleInteraction, { capture: true });
+        this.container.addEventListener('touchstart', handleInteraction, { capture: true, passive: false });
         this.updateButtonsState(); 
     }
 
