@@ -412,8 +412,12 @@ export class UIManager {
 
                 <div style="margin-bottom: 20px;">
                     <div style="display: flex; gap: 10px; justify-content: center;">
-                        <button id="set-en" style="padding: 12px 24px; cursor: pointer; background: ${this.lang==='en'?'#3498db':'rgba(51,51,51,0.8)'}; border: 2px solid ${this.lang==='en'?'#3498db':'#555'}; border-radius: 8px; font-size: 28px; transition: all 0.2s; transform: ${this.lang==='en'?'scale(1.1)':'scale(1)'};">🇺🇸</button>
-                        <button id="set-ru" style="padding: 12px 24px; cursor: pointer; background: ${this.lang==='ru'?'#3498db':'rgba(51,51,51,0.8)'}; border: 2px solid ${this.lang==='ru'?'#3498db':'#555'}; border-radius: 8px; font-size: 28px; transition: all 0.2s; transform: ${this.lang==='ru'?'scale(1.1)':'scale(1)'};">🇷🇺</button>
+                        <button id="set-en" style="padding: 8px 16px; cursor: pointer; background: ${this.lang==='en'?'#3498db':'rgba(51,51,51,0.8)'}; border: 2px solid ${this.lang==='en'?'#3498db':'#555'}; border-radius: 8px; transition: all 0.2s; transform: ${this.lang==='en'?'scale(1.1)':'scale(1)'};">
+                            <svg width="32" height="20" viewBox="0 0 32 20"><rect width="32" height="20" fill="#fff"/><rect width="32" height="1.54" y="0" fill="#B22234"/><rect width="32" height="1.54" y="3.08" fill="#B22234"/><rect width="32" height="1.54" y="6.16" fill="#B22234"/><rect width="32" height="1.54" y="9.24" fill="#B22234"/><rect width="32" height="1.54" y="12.32" fill="#B22234"/><rect width="32" height="1.54" y="15.4" fill="#B22234"/><rect width="32" height="1.54" y="18.46" fill="#B22234"/><rect width="12.8" height="10.8" fill="#3C3B6E"/></svg>
+                        </button>
+                        <button id="set-ru" style="padding: 8px 16px; cursor: pointer; background: ${this.lang==='ru'?'#3498db':'rgba(51,51,51,0.8)'}; border: 2px solid ${this.lang==='ru'?'#3498db':'#555'}; border-radius: 8px; transition: all 0.2s; transform: ${this.lang==='ru'?'scale(1.1)':'scale(1)'};">
+                            <svg width="32" height="20" viewBox="0 0 32 20"><rect width="32" height="6.67" y="0" fill="#fff"/><rect width="32" height="6.67" y="6.67" fill="#0039A6"/><rect width="32" height="6.67" y="13.33" fill="#D52B1E"/></svg>
+                        </button>
                     </div>
                 </div>
 
