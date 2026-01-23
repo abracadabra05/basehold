@@ -118,7 +118,7 @@ export class UIManager {
 
         Object.assign(inGameSettings.style, {
             position: 'absolute',
-            top: this.isMobile ? `${10 + minimapSize + 5}px` : 'auto',
+            top: this.isMobile ? `${10 + minimapSize + 15}px` : 'auto',
             bottom: this.isMobile ? 'auto' : '20px',
             right: '10px',
             width: '36px',
