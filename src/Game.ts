@@ -285,6 +285,10 @@ export class Game {
                                                     this.uiManager.setPaused(false);
                                                     this.buildingSystem.setPaused(false);
                                                     this.waveManager.resume();
+                                                    // Принудительно возобновляем игру (после просмотра рекламы isGameStarted мог стать false)
+                                                    this.isGameStarted = true;
+                                                    if (this.soundManager) this.soundManager.resume();
+                                                    yaSdk.gameplayStart();
                                                 });
                                 
                                                 this.inputSystem.onSpacePressed = () => {
