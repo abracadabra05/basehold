@@ -3,6 +3,8 @@ import { Icons } from './Icons';
 import { Translations, type Language } from './Localization';
 import { yaSdk } from './YandexSDK';
 import { Z_INDEX, TOUCH_SIZES, COLORS } from './UIConstants';
+import { VERSION, CHANGELOG } from './ChangelogData';
+import type { GameStats } from './StatsTracker';
 
 export type ToolType = BuildingType | 'repair' | 'demolish';
 
@@ -35,6 +37,8 @@ export class UIManager {
 
     private lang: Language = 'en';
     private showTutorialFlag: boolean = true;
+    private lastSeenVersion: string = '';
+    private hasUnreadChangelog: boolean = false;
 
     public onStartGame?: (skipTutorial: boolean) => void;
     public onLanguageChange?: (lang: Language) => void;
@@ -43,6 +47,7 @@ export class UIManager {
     public onRestart?: () => void;
     public onPause?: () => void; // Добавлено
     public onResume?: () => void; // Добавлено
+    public onShowAchievements?: () => void;
     public onMute?: (muted: boolean) => void; // Добавлено
     public onVolumeChange?: (volume: number) => void; // Изменение громкости (0-1)
     public onShowLocked?: () => void; // Показать сообщение "заблокировано"
@@ -58,6 +63,9 @@ export class UIManager {
         { type: 'sniper', key: 'tool_sniper', icon: '🎯', cost: 75 },
         { type: 'minigun', key: 'tool_minigun', icon: '🌪️', cost: 120 },
         { type: 'laser', key: 'tool_laser', icon: '🔥', cost: 200 },
+        // v2.0 Buildings
+        { type: 'tesla', key: 'tool_tesla', icon: '⚡', cost: 80 },
+        { type: 'slowfield', key: 'tool_slowfield', icon: '❄️', cost: 50 },
         { type: 'repair', key: 'tool_repair', icon: '🔧', color: '#f1c40f' },
         { type: 'demolish', key: 'tool_remove', icon: '❌', color: '#e74c3c' },
     ];
@@ -66,6 +74,10 @@ export class UIManager {
         this.onSelect = onSelect;
         this.detectPlatform();
         this.lang = yaSdk.lang;
+
+        // Check for unread changelog
+        this.lastSeenVersion = localStorage.getItem('basehold_lastSeenVersion') || '';
+        this.hasUnreadChangelog = this.lastSeenVersion !== VERSION;
         
         this.mainMenu = this.createMainMenu();
         document.body.appendChild(this.mainMenu);
@@ -166,27 +178,58 @@ export class UIManager {
         this.detectPlatform();
     }
 
-    public showGameOver(canRevive: boolean = true) {
+    public showGameOver(canRevive: boolean = true, stats?: GameStats, formatTime?: (ms: number) => string) {
         const overlay = document.createElement('div');
         Object.assign(overlay.style, {
             position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
             background: 'rgba(0,0,0,0.7)', zIndex: 10001,
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             color: 'white', fontFamily: "'Segoe UI', sans-serif",
-            backdropFilter: 'blur(10px)', 
+            backdropFilter: 'blur(10px)',
             opacity: '0', transition: 'opacity 1s ease-in'
         });
-        
+
+        // Build stats HTML if stats provided
+        let statsHtml = '';
+        if (stats) {
+            const timeStr = formatTime ? formatTime(stats.timePlayedMs) : `${Math.floor(stats.timePlayedMs / 1000)}s`;
+            statsHtml = `
+                <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px 30px; margin-bottom: 30px; border: 1px solid #444; text-align: left; min-width: 280px;">
+                    <h3 style="margin: 0 0 15px 0; color: #3498db; text-align: center; text-transform: uppercase; letter-spacing: 2px; font-size: 14px;">${this.t('stats_title')}</h3>
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; font-size: 14px;">
+                        <span style="color: #aaa;">${this.t('stats_wave_reached')}</span>
+                        <span style="color: #f1c40f; font-weight: bold; text-align: right;">${stats.waveReached}</span>
+
+                        <span style="color: #aaa;">${this.t('stats_enemies_killed')}</span>
+                        <span style="color: #e74c3c; font-weight: bold; text-align: right;">${stats.enemiesKilled}</span>
+
+                        <span style="color: #aaa;">${this.t('stats_buildings_built')}</span>
+                        <span style="color: #3498db; font-weight: bold; text-align: right;">${stats.buildingsBuilt}</span>
+
+                        <span style="color: #aaa;">${this.t('stats_damage_dealt')}</span>
+                        <span style="color: #9b59b6; font-weight: bold; text-align: right;">${Math.floor(stats.damageDealt)}</span>
+
+                        <span style="color: #aaa;">${this.t('stats_resources_mined')}</span>
+                        <span style="color: #2ecc71; font-weight: bold; text-align: right;">${stats.resourcesMined}</span>
+
+                        <span style="color: #aaa;">${this.t('stats_time_played')}</span>
+                        <span style="color: #fff; font-weight: bold; text-align: right;">${timeStr}</span>
+                    </div>
+                </div>
+            `;
+        }
+
         overlay.innerHTML = `
             <div style="text-align: center; transform: translateY(-20px);">
-                <h1 style="font-size: 80px; color: #e74c3c; margin: 0 0 40px 0; text-transform: uppercase; letter-spacing: 15px; font-weight: 900; text-shadow: 0 0 30px rgba(231, 76, 60, 0.5);">${this.t('game_over')}</h1>
-                <div style="display: flex; gap: 20px; justify-content: center;">
+                <h1 style="font-size: ${this.isMobile ? '40px' : '80px'}; color: #e74c3c; margin: 0 0 ${stats ? '20px' : '40px'} 0; text-transform: uppercase; letter-spacing: ${this.isMobile ? '5px' : '15px'}; font-weight: 900; text-shadow: 0 0 30px rgba(231, 76, 60, 0.5);">${this.t('game_over')}</h1>
+                ${statsHtml}
+                <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
                     ${canRevive ? `<button id="revive-btn" style="padding: 18px 40px; font-size: 20px; cursor: pointer; background: #e67e22; color: white; border: none; border-radius: 4px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; transition: all 0.3s;">🎬 ${this.t('revive')}</button>` : ''}
                     <button id="restart-btn" style="padding: 18px 40px; font-size: 20px; cursor: pointer; background: transparent; color: #3498db; border: 2px solid #3498db; border-radius: 4px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; transition: all 0.3s;">${this.t('restart')}</button>
                 </div>
             </div>
         `;
-        
+
         document.body.appendChild(overlay);
         setTimeout(() => overlay.style.opacity = '1', 10);
 
@@ -307,8 +350,15 @@ export class UIManager {
                 <div id="lb-list" style="font-size: 12px; min-height: 80px;">Loading...</div>
             </div>` : ''}
 
+            <!-- VERSION NUMBER -->
+            <div style="position: absolute; bottom: 20px; left: 20px; font-size: 12px; color: #666; z-index: 20;">v${VERSION}</div>
+
             <!-- КНОПКИ (Настройки, Фуллскрин) - ВЕРНУЛИ ВНИЗ -->
             <div style="position: absolute; bottom: 20px; right: 20px; display: flex; gap: 15px; z-index: 20;">
+                <button id="achievements-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">🏅</button>
+                <button id="changelog-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white; position: relative;">
+                    📋${this.hasUnreadChangelog ? `<span style="position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 10px; padding: 2px 5px; border-radius: 10px; font-weight: bold;">${this.t('changelog_new')}</span>` : ''}
+                </button>
                 ${this.isMobile ? `<button id="mob-lb-btn" style="background: none; border: none; font-size: 28px; cursor: pointer;">🏆</button>` : ''}
                 ${(!this.isYandex && (window.self === window.top || this.isMobile)) ? `<button id="fullscreen-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">⛶</button>` : ''}
                 <button id="settings-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">⚙️</button>
@@ -332,6 +382,8 @@ export class UIManager {
             if (this.onStartGame) this.onStartGame(!this.showTutorialFlag);
         });
 
+        bindBtn(div.querySelector('#achievements-btn'), () => { if (this.onShowAchievements) this.onShowAchievements(); });
+        bindBtn(div.querySelector('#changelog-btn'), () => this.showChangelog());
         bindBtn(div.querySelector('#settings-btn'), () => this.showSettings());
         bindBtn(div.querySelector('#fullscreen-btn'), () => this.toggleFullscreen());
         bindBtn(div.querySelector('#mob-lb-btn'), () => this.showLeaderboardModal());
@@ -370,10 +422,60 @@ export class UIManager {
                 <div style="max-height: 60vh; overflow-y: auto; margin-bottom: 15px;">
                     ${listHtml || `<div style="color: #777;">${this.t('leaderboard_empty')}</div>`}
                 </div>
-                <button id="close-lb" style="padding: 10px 30px; background: #3498db; border: none; color: white; borderRadius: 4px; cursor: pointer;">OK</button>
+                <button id="close-lb" style="padding: 10px 30px; background: #3498db; border: none; color: white; borderRadius: 4px; cursor: pointer;">${this.t('btn_ok')}</button>
             </div>
         `;
         overlay.querySelector('#close-lb')?.addEventListener('click', () => document.body.removeChild(overlay));
+    }
+
+    private showChangelog() {
+        // Mark as read
+        this.hasUnreadChangelog = false;
+        localStorage.setItem('basehold_lastSeenVersion', VERSION);
+
+        const overlay = document.createElement('div');
+        Object.assign(overlay.style, {
+            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+            background: 'rgba(0,0,0,0.85)', zIndex: '10005',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            color: 'white', fontFamily: "'Segoe UI', sans-serif", backdropFilter: 'blur(5px)'
+        });
+
+        let changelogHtml = '';
+        CHANGELOG.forEach((entry, index) => {
+            const isNew = index === 0 && this.lastSeenVersion !== entry.version;
+            const changes = entry.changes[this.lang];
+            changelogHtml += `
+                <div style="margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 8px; border-left: 3px solid ${isNew ? '#e74c3c' : '#3498db'};">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <span style="font-weight: bold; color: #3498db; font-size: 16px;">v${entry.version}</span>
+                        <span style="color: #666; font-size: 12px;">${entry.date}</span>
+                        ${isNew ? `<span style="background: #e74c3c; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold;">${this.t('changelog_new')}</span>` : ''}
+                    </div>
+                    <ul style="margin: 0; padding-left: 20px; color: #ccc; font-size: 14px; line-height: 1.8;">
+                        ${changes.map(c => `<li>${c}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        });
+
+        overlay.innerHTML = `
+            <div style="background: #1e272e; padding: 25px; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; border: 1px solid #444;">
+                <h3 style="margin-top: 0; color: #3498db; text-transform: uppercase; letter-spacing: 2px; text-align: center;">
+                    📋 ${this.t('changelog_title')}
+                </h3>
+                <div style="margin-bottom: 20px;">
+                    ${changelogHtml}
+                </div>
+                <button id="close-changelog" style="width: 100%; padding: 12px; background: #3498db; border: none; color: white; border-radius: 4px; cursor: pointer; font-weight: bold;">${this.t('btn_ok')}</button>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        overlay.querySelector('#close-changelog')?.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+            this.updateMainMenuContent(this.mainMenu); // Refresh to remove NEW badge
+        });
     }
 
     private toggleFullscreen() {
@@ -446,7 +548,7 @@ export class UIManager {
 
                 <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
                     <button id="set-exit" style="padding: 12px; background: #c0392b; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: bold; display: none; transition: all 0.2s;">${this.t('settings_exit')}</button>
-                    <button id="set-close" style="padding: 12px; background: #27ae60; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s;">OK</button>
+                    <button id="set-close" style="padding: 12px; background: #27ae60; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s;">${this.t('btn_ok')}</button>
                 </div>
             </div>
         `;

@@ -11,6 +11,10 @@ export class Player extends Container {
     public bulletsPerShot: number = 1;
     public vampirism: number = 0;
     public hasShield: boolean = false;
+    // v2.0 Perks
+    public ricochet: boolean = false;
+    public critChance: number = 0;
+    public slowBullets: boolean = false;
     
     private bodyContainer: Container;
     private bodyGraphics: Graphics;

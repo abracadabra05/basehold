@@ -5,6 +5,10 @@ export class ResourceManager {
     private metal: number = 100;
     private biomass: number = 0;
 
+    public onResourceMined?: (amount: number) => void;
+    public onEnergyMilestone?: (amount: number) => void;
+    private maxEnergyReached: number = 0;
+
     private energyProduced: number = 0;
     private energyConsumed: number = 0;
     public batteryCharge: number = 0;
@@ -63,7 +67,11 @@ export class ResourceManager {
         return (Translations[this.lang] as any)[key] || key;
     }
 
-    public addMetal(amount: number) { this.metal += amount; this.updateUI(); }
+    public addMetal(amount: number) {
+        this.metal += amount;
+        this.updateUI();
+        if (this.onResourceMined) this.onResourceMined(amount);
+    }
     public addBiomass(amount: number) { this.biomass += amount; this.updateUI(); }
     
     public spendBiomass(amount: number): boolean {
@@ -87,8 +95,18 @@ export class ResourceManager {
         const net = this.energyProduced - this.energyConsumed;
         this.batteryCharge += net * dt;
         if (this.batteryCharge > this.batteryCapacity) this.batteryCharge = this.batteryCapacity;
-        if (this.batteryCharge <= 0) { this.batteryCharge = 0; this.isBlackout = true; } 
+        if (this.batteryCharge <= 0) { this.batteryCharge = 0; this.isBlackout = true; }
         else { this.isBlackout = false; }
+
+        // Track energy milestone
+        if (this.batteryCharge > this.maxEnergyReached) {
+            const oldMax = this.maxEnergyReached;
+            this.maxEnergyReached = this.batteryCharge;
+            if (this.onEnergyMilestone && Math.floor(this.maxEnergyReached / 100) > Math.floor(oldMax / 100)) {
+                this.onEnergyMilestone(this.maxEnergyReached);
+            }
+        }
+
         this.updateUI();
     }
 

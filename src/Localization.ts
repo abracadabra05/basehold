@@ -64,6 +64,7 @@ export const Translations: Record<Language, any> = {
         shop_title: 'Исследования и Улучшения',
         shop_subtitle: 'Тратьте биомассу на развитие технологий',
         shop_close: 'Закрыть',
+        btn_ok: 'ОК',
         
         settings_title: 'Настройки',
         settings_sound: 'Звук', // Добавлено
@@ -72,6 +73,26 @@ export const Translations: Record<Language, any> = {
         locked: 'ЗАКРЫТО', // Заблокированная технология
         unlocked: 'ОТКРЫТО', // Разблокированная технология
         tech_unlocked: 'ТЕХНОЛОГИЯ ОТКРЫТА!',
+        tech_tier_1: 'Исследование Т1',
+        ad_free: 'БЕСПЛАТНО',
+
+        // Building descriptions
+        tool_battery_desc: 'Хранит энергию',
+        tool_sniper_desc: 'Дальний урон',
+        tool_minigun_desc: 'Быстрая стрельба',
+        tool_laser_desc: 'Мощный луч',
+        tool_tesla_desc: 'Цепная молния',
+        tool_slowfield_desc: 'Замедляет врагов',
+
+        // Wave alerts
+        wave_miniboss: 'МИНИ-БОСС',
+        wave_boss_incoming: 'БОСС ПРИБЛИЖАЕТСЯ',
+
+        // Achievement
+        ach_unlocked: 'Достижение получено!',
+
+        // Perk activation
+        perk_activated: 'ПЕРК АКТИВИРОВАН!',
 
         // Wave statuses
         wave_prep: 'ДО СЛЕДУЮЩЕЙ ВОЛНЫ',
@@ -93,7 +114,74 @@ export const Translations: Record<Language, any> = {
         perk_repair: 'Нано-боты',
         perk_repair_desc: 'Здания медленно чинятся сами.',
         perk_explosive: 'Взрывные пули',
-        perk_explosive_desc: 'Пули взрываются при попадании.'
+        perk_explosive_desc: 'Пули взрываются при попадании.',
+
+        // v2.0 Perks
+        perk_ricochet: 'Рикошет',
+        perk_ricochet_desc: 'Пули отскакивают к ближайшему врагу.',
+        perk_critical: 'Критический удар',
+        perk_critical_desc: 'Шанс нанести двойной урон.',
+        perk_slow_bullets: 'Замедляющие пули',
+        perk_slow_bullets_desc: 'Пули замедляют врагов.',
+        perk_life_steal: 'Вампиризм зданий',
+        perk_life_steal_desc: 'Здания восстанавливают HP от урона.',
+
+        // Changelog
+        changelog_title: 'Обновления',
+        changelog_new: 'НОВОЕ',
+        changelog_version: 'Версия',
+
+        // v2.0 Buildings
+        tool_tesla: 'Тесла',
+        tool_slowfield: 'Замедлитель',
+        tool_missile: 'Ракетница',
+        tool_shieldgen: 'Щит-ген',
+
+        // v2.0 Enemies
+        enemy_healer: 'Хилер',
+        enemy_splitter: 'Сплиттер',
+        enemy_shieldbearer: 'Щитоносец',
+        enemy_teleporter: 'Телепортер',
+        enemy_swarm: 'Рой',
+        enemy_miniboss: 'Мини-босс',
+
+        // Achievements
+        achievements_title: 'Достижения',
+        ach_first_blood: 'Первая кровь',
+        ach_first_blood_desc: 'Убить 10 врагов',
+        ach_architect: 'Архитектор',
+        ach_architect_desc: 'Построить 50 зданий',
+        ach_survivor: 'Выживший',
+        ach_survivor_desc: 'Дожить до волны 20',
+        ach_boss_killer: 'Убийца боссов',
+        ach_boss_killer_desc: 'Победить 5 боссов',
+        ach_energetic: 'Энергетик',
+        ach_energetic_desc: 'Накопить 500 энергии',
+        ach_mass_killer: 'Массовый убийца',
+        ach_mass_killer_desc: 'Убить 100 врагов',
+        ach_builder: 'Строитель',
+        ach_builder_desc: 'Построить 100 зданий',
+        ach_wave_master: 'Мастер волн',
+        ach_wave_master_desc: 'Дожить до волны 50',
+
+        // Stats
+        stats_title: 'Статистика',
+        stats_enemies_killed: 'Убито врагов',
+        stats_buildings_built: 'Построено зданий',
+        stats_damage_dealt: 'Нанесено урона',
+        stats_resources_mined: 'Добыто ресурсов',
+        stats_time_played: 'Время в игре',
+        stats_wave_reached: 'Достигнута волна',
+
+        // Endless mode
+        endless_mode: 'Бесконечный режим',
+        endless_unlocked: 'Бесконечный режим разблокирован!',
+
+        // Wave patterns
+        wave_pattern_speed: '⚠️ РОЙ СКОРОСТИ',
+        wave_pattern_ranged: '⚠️ ДАЛЬНЯЯ АТАКА',
+        wave_pattern_explosive: '⚠️ ВЗРЫВНОЙ ДОЖДЬ',
+        wave_pattern_heavy: '⚠️ ТЯЖЁЛЫЙ ШТУРМ'
     },
     en: {
         game_title: 'BASEHOLD',
@@ -158,6 +246,7 @@ export const Translations: Record<Language, any> = {
         shop_title: 'Research & Upgrades',
         shop_subtitle: 'Spend biomass to upgrade systems',
         shop_close: 'Close',
+        btn_ok: 'OK',
 
         settings_title: 'Settings',
         settings_sound: 'Sound',
@@ -166,6 +255,26 @@ export const Translations: Record<Language, any> = {
         locked: 'LOCKED', // Locked technology
         unlocked: 'UNLOCKED', // Unlocked technology
         tech_unlocked: 'TECH UNLOCKED!',
+        tech_tier_1: 'Tier 1 Research',
+        ad_free: 'FREE',
+
+        // Building descriptions
+        tool_battery_desc: 'Stores energy',
+        tool_sniper_desc: 'Long range damage',
+        tool_minigun_desc: 'Rapid fire',
+        tool_laser_desc: 'Powerful beam',
+        tool_tesla_desc: 'Chain lightning',
+        tool_slowfield_desc: 'Slows enemies',
+
+        // Wave alerts
+        wave_miniboss: 'MINI-BOSS',
+        wave_boss_incoming: 'BOSS INCOMING',
+
+        // Achievement
+        ach_unlocked: 'Achievement Unlocked!',
+
+        // Perk activation
+        perk_activated: 'PERK ACTIVATED!',
 
         // Wave statuses
         wave_prep: 'NEXT WAVE IN',
@@ -187,6 +296,73 @@ export const Translations: Record<Language, any> = {
         perk_repair: 'Nano-Repair',
         perk_repair_desc: 'Buildings slowly regenerate HP.',
         perk_explosive: 'High Explosive',
-        perk_explosive_desc: 'Bullets explode on impact.'
+        perk_explosive_desc: 'Bullets explode on impact.',
+
+        // v2.0 Perks
+        perk_ricochet: 'Ricochet',
+        perk_ricochet_desc: 'Bullets bounce to nearest enemy.',
+        perk_critical: 'Critical Hit',
+        perk_critical_desc: 'Chance to deal double damage.',
+        perk_slow_bullets: 'Slowing Bullets',
+        perk_slow_bullets_desc: 'Bullets slow down enemies.',
+        perk_life_steal: 'Building Lifesteal',
+        perk_life_steal_desc: 'Buildings restore HP from damage.',
+
+        // Changelog
+        changelog_title: 'Updates',
+        changelog_new: 'NEW',
+        changelog_version: 'Version',
+
+        // v2.0 Buildings
+        tool_tesla: 'Tesla',
+        tool_slowfield: 'Slow Field',
+        tool_missile: 'Missile',
+        tool_shieldgen: 'Shield Gen',
+
+        // v2.0 Enemies
+        enemy_healer: 'Healer',
+        enemy_splitter: 'Splitter',
+        enemy_shieldbearer: 'Shield Bearer',
+        enemy_teleporter: 'Teleporter',
+        enemy_swarm: 'Swarm',
+        enemy_miniboss: 'Mini-Boss',
+
+        // Achievements
+        achievements_title: 'Achievements',
+        ach_first_blood: 'First Blood',
+        ach_first_blood_desc: 'Kill 10 enemies',
+        ach_architect: 'Architect',
+        ach_architect_desc: 'Build 50 buildings',
+        ach_survivor: 'Survivor',
+        ach_survivor_desc: 'Reach wave 20',
+        ach_boss_killer: 'Boss Killer',
+        ach_boss_killer_desc: 'Defeat 5 bosses',
+        ach_energetic: 'Energetic',
+        ach_energetic_desc: 'Store 500 energy',
+        ach_mass_killer: 'Mass Killer',
+        ach_mass_killer_desc: 'Kill 100 enemies',
+        ach_builder: 'Builder',
+        ach_builder_desc: 'Build 100 buildings',
+        ach_wave_master: 'Wave Master',
+        ach_wave_master_desc: 'Reach wave 50',
+
+        // Stats
+        stats_title: 'Statistics',
+        stats_enemies_killed: 'Enemies Killed',
+        stats_buildings_built: 'Buildings Built',
+        stats_damage_dealt: 'Damage Dealt',
+        stats_resources_mined: 'Resources Mined',
+        stats_time_played: 'Time Played',
+        stats_wave_reached: 'Wave Reached',
+
+        // Endless mode
+        endless_mode: 'Endless Mode',
+        endless_unlocked: 'Endless mode unlocked!',
+
+        // Wave patterns
+        wave_pattern_speed: '⚠️ SPEED SWARM',
+        wave_pattern_ranged: '⚠️ RANGED ATTACK',
+        wave_pattern_explosive: '⚠️ EXPLOSIVE RAIN',
+        wave_pattern_heavy: '⚠️ HEAVY ASSAULT'
     }
 };

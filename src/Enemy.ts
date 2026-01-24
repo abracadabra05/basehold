@@ -2,7 +2,7 @@ import { Container, Graphics, Ticker } from 'pixi.js';
 import type { Building } from './Building';
 import { GameConfig } from './GameConfig';
 
-export type EnemyType = 'basic' | 'fast' | 'tank' | 'boss' | 'kamikaze' | 'shooter';
+export type EnemyType = 'basic' | 'fast' | 'tank' | 'boss' | 'kamikaze' | 'shooter' | 'healer' | 'splitter' | 'shieldbearer' | 'miniboss';
 
 export class Enemy extends Container {
     private body: Graphics;
@@ -18,8 +18,8 @@ export class Enemy extends Container {
     public vy: number = 0;
 
     private attackTimer: number = 0;
-    private attackSpeed: number = 60; 
-    private damage: number = 5; 
+    private attackSpeed: number = 60;
+    public damage: number = 5; 
     public type: EnemyType;
     public hitboxRadius: number = 15; 
     
@@ -29,6 +29,17 @@ export class Enemy extends Container {
     public onShoot?: (x: number, y: number, tx: number, ty: number, damage: number) => void;
     public onExplode?: (x: number, y: number, damage: number, radius: number) => void;
     public onHit?: () => void;
+    public onSplit?: (x: number, y: number, count: number) => void;
+    public onHeal?: (enemies: Enemy[]) => void;
+
+    // Special abilities
+    private healRange: number = 0;
+    private healAmount: number = 0;
+    private healTimer: number = 0;
+    private shieldRange: number = 0;
+    public isShielded: boolean = false;
+    public splitCount: number = 0;
+    public speedMultiplier: number = 1.0;
 
     constructor(
         target: Container, 
@@ -64,14 +75,39 @@ export class Enemy extends Container {
                  this.attackSpeed = 120;
              }
              
+             // Special stats for v2.0 enemies
+             if ('healRange' in stats) {
+                 this.healRange = (stats as any).healRange;
+                 this.healAmount = (stats as any).healAmount;
+             }
+             if ('shieldRange' in stats) {
+                 this.shieldRange = (stats as any).shieldRange;
+             }
+             if ('splitCount' in stats) {
+                 this.splitCount = (stats as any).splitCount;
+             }
+
              // Рисуем тело
              const color = stats.color;
              if (type === 'boss') {
                  this.body.rect(-40, -40, 80, 80).fill(color).stroke({ width: 4, color: 0x9b59b6 });
+             } else if (type === 'miniboss') {
+                 this.body.rect(-30, -30, 60, 60).fill(color).stroke({ width: 3, color: 0xffffff });
              } else if (type === 'kamikaze') {
                  this.body.circle(0, 0, stats.radius).fill(color);
              } else if (type === 'shooter') {
                  this.body.moveTo(0, -15).lineTo(10, 10).lineTo(-10, 10).fill(color);
+             } else if (type === 'healer') {
+                 // Cross shape for healer
+                 this.body.rect(-5, -15, 10, 30).fill(color);
+                 this.body.rect(-15, -5, 30, 10).fill(color);
+             } else if (type === 'splitter') {
+                 // Diamond shape
+                 this.body.moveTo(0, -stats.radius).lineTo(stats.radius, 0).lineTo(0, stats.radius).lineTo(-stats.radius, 0).fill(color);
+             } else if (type === 'shieldbearer') {
+                 // Shield shape
+                 this.body.moveTo(0, -stats.radius).lineTo(stats.radius, -stats.radius/2).lineTo(stats.radius, stats.radius/2).lineTo(0, stats.radius).lineTo(-stats.radius, stats.radius/2).lineTo(-stats.radius, -stats.radius/2).fill(color);
+                 this.body.circle(0, 0, stats.radius * 1.5).stroke({ width: 2, color: 0x00FFFF, alpha: 0.5 });
              } else {
                  // Basic, Fast, Tank - прямоугольники
                  const s = stats.radius * 2; // примерно под размер радиуса
@@ -82,11 +118,64 @@ export class Enemy extends Container {
         this.addChild(this.body);
     }
     
-    public takeDamage(amount: number) { 
-        this.hp -= amount; 
-        this.body.tint = 0xFFFFFF; 
-        setTimeout(() => { this.body.tint = 0xFFFFFF; }, 50); 
-        if (this.hp <= 0) this.isDead = true; 
+    public takeDamage(amount: number) {
+        // If shielded, reduce damage by 50%
+        const actualDamage = this.isShielded ? amount * 0.5 : amount;
+        this.hp -= actualDamage;
+        this.body.tint = this.isShielded ? 0x00FFFF : 0xFFFFFF;
+        setTimeout(() => { this.body.tint = 0xFFFFFF; }, 50);
+        if (this.hp <= 0) {
+            // Handle splitter death
+            if (this.type === 'splitter' && this.splitCount > 0 && this.onSplit) {
+                this.onSplit(this.x, this.y, this.splitCount);
+            }
+            this.isDead = true;
+        }
+    }
+
+    public heal(amount: number) {
+        this.hp = Math.min(this.hp + amount, GameConfig.ENEMIES[this.type.toUpperCase() as keyof typeof GameConfig.ENEMIES]?.hp || this.hp);
+        this.body.tint = 0x00FF00;
+        setTimeout(() => { this.body.tint = 0xFFFFFF; }, 100);
+    }
+
+    public setShielded(shielded: boolean) {
+        this.isShielded = shielded;
+        this.body.alpha = shielded ? 0.8 : 1.0;
+    }
+
+    public updateAuras(enemies: Enemy[]) {
+        // Healer aura
+        if (this.type === 'healer' && this.healRange > 0) {
+            this.healTimer++;
+            if (this.healTimer >= 60) { // Heal every second
+                this.healTimer = 0;
+                for (const other of enemies) {
+                    if (other === this || other.isDead) continue;
+                    const dx = other.x - this.x;
+                    const dy = other.y - this.y;
+                    if (Math.sqrt(dx * dx + dy * dy) <= this.healRange) {
+                        other.heal(this.healAmount);
+                    }
+                }
+            }
+        }
+
+        // Shield bearer aura
+        if (this.type === 'shieldbearer' && this.shieldRange > 0) {
+            for (const other of enemies) {
+                if (other === this || other.isDead) continue;
+                const dx = other.x - this.x;
+                const dy = other.y - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                // Shield enemies in front of the shieldbearer (towards core)
+                if (dist <= this.shieldRange) {
+                    other.setShielded(true);
+                } else if (other.isShielded) {
+                    other.setShielded(false);
+                }
+            }
+        }
     }
 
     public update(ticker: Ticker) {
@@ -126,8 +215,9 @@ export class Enemy extends Container {
         const dirX = dx / dist;
         const dirY = dy / dist;
 
-        this.vx = dirX * this.speed;
-        this.vy = dirY * this.speed;
+        const effectiveSpeed = this.speed * this.speedMultiplier;
+        this.vx = dirX * effectiveSpeed;
+        this.vy = dirY * effectiveSpeed;
 
         const moveX = this.vx * ticker.deltaTime;
         const moveY = this.vy * ticker.deltaTime;

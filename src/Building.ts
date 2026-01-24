@@ -2,7 +2,7 @@ import { Container, Graphics, Ticker } from 'pixi.js';
 import type { ResourceManager } from './ResourceManager';
 import type { Enemy } from './Enemy';
 
-export type BuildingType = 'wall' | 'drill' | 'generator' | 'turret' | 'core' | 'sniper' | 'minigun' | 'battery' | 'laser';
+export type BuildingType = 'wall' | 'drill' | 'generator' | 'turret' | 'core' | 'sniper' | 'minigun' | 'battery' | 'laser' | 'tesla' | 'slowfield';
 
 export class Building extends Container {
     public buildingType: BuildingType;
@@ -28,10 +28,15 @@ export class Building extends Container {
 
     public energyConsumption: number = 0;
     public energyProduction: number = 0;
-    public energyCapacity: number = 0; 
-    
+    public energyCapacity: number = 0;
+
     public isDestroyed: boolean = false;
     public thornsDamage: number = 0;
+
+    // v2.0 building properties
+    public chainCount: number = 0;
+    public slowAmount: number = 0;
+    public onChainLightning?: (x: number, y: number, targets: { x: number; y: number }[]) => void;
 
     // ГЕТТЕР ДЛЯ УГЛА (чтобы Game.ts видел поворот)
     public get rotationAngle(): number {
@@ -60,12 +65,29 @@ export class Building extends Container {
             case 'sniper': this.maxHp = 60; this.energyConsumption = 15; this.range = 500; this.fireRate = 120; this.damage = 30; break; // Dmg 10 -> 30, Range 400 -> 500
             case 'minigun': this.maxHp = 150; this.energyConsumption = 20; this.range = 200; this.fireRate = 4; this.damage = 1.5; break; // Dmg 0.5 -> 1.5
             
-            case 'laser': 
-                this.maxHp = 80; 
-                this.energyConsumption = 5; 
-                this.range = 300; 
-                this.fireRate = 60; 
+            case 'laser':
+                this.maxHp = 80;
+                this.energyConsumption = 5;
+                this.range = 300;
+                this.fireRate = 60;
                 this.damage = 50; // Dmg 25 -> 50
+                break;
+
+            // v2.0 Buildings
+            case 'tesla':
+                this.maxHp = 120;
+                this.energyConsumption = 25;
+                this.range = 200;
+                this.fireRate = 45;
+                this.damage = 15;
+                this.chainCount = 3;
+                break;
+
+            case 'slowfield':
+                this.maxHp = 80;
+                this.energyConsumption = 10;
+                this.range = 150;
+                this.slowAmount = 0.5;
                 break;
         }
         this.hp = this.maxHp;
@@ -111,11 +133,19 @@ export class Building extends Container {
                 this.addChild(glow);
                 break;
             
-            case 'turret': 
-            case 'sniper': 
+            case 'turret':
+            case 'sniper':
             case 'minigun':
             case 'laser':
+            case 'tesla':
                 baseG.circle(cx, cy, size / 2 - 2).fill(0x95a5a6).stroke({ width: 2, color: 0x7f8c8d });
+                break;
+
+            case 'slowfield':
+                baseG.circle(cx, cy, size / 2 - 2).fill(0x1abc9c).stroke({ width: 2, color: 0x16a085 });
+                // Animated rings effect
+                baseG.circle(cx, cy, size / 2.5).stroke({ width: 2, color: 0x00FFFF, alpha: 0.5 });
+                baseG.circle(cx, cy, size / 3).stroke({ width: 1, color: 0x00FFFF, alpha: 0.3 });
                 break;
         }
         baseG.zIndex = 0;
@@ -147,9 +177,19 @@ export class Building extends Container {
                 break;
             
             case 'laser':
-                headG.circle(0, 0, 12).fill(0xffffff); 
-                headG.rect(0, -4, 20, 8).fill(0xe74c3c); 
-                headG.circle(0, 0, 6).fill(0xe74c3c); 
+                headG.circle(0, 0, 12).fill(0xffffff);
+                headG.rect(0, -4, 20, 8).fill(0xe74c3c);
+                headG.circle(0, 0, 6).fill(0xe74c3c);
+                break;
+
+            case 'tesla':
+                // Tesla coil appearance
+                headG.circle(0, 0, 10).fill(0x9b59b6);
+                headG.circle(0, 0, 6).fill(0xFFFFFF);
+                // Lightning rods
+                headG.moveTo(0, -14).lineTo(0, -8).stroke({ width: 3, color: 0x9b59b6 });
+                headG.moveTo(-10, -8).lineTo(-6, -4).stroke({ width: 2, color: 0x9b59b6 });
+                headG.moveTo(10, -8).lineTo(6, -4).stroke({ width: 2, color: 0x9b59b6 });
                 break;
 
             case 'drill':
@@ -162,10 +202,10 @@ export class Building extends Container {
         
         this.muzzleFlash = new Graphics();
         
-        if (['turret', 'sniper', 'minigun', 'drill', 'laser'].includes(type)) {
+        if (['turret', 'sniper', 'minigun', 'drill', 'laser', 'tesla'].includes(type)) {
             this.turretHead.addChild(headG);
 
-            if (['turret', 'sniper', 'minigun', 'laser'].includes(type)) {
+            if (['turret', 'sniper', 'minigun', 'laser', 'tesla'].includes(type)) {
                 this.muzzleFlash.visible = false;
                 let offset = 22; 
                 let color = 0xFFFF00;
@@ -173,6 +213,7 @@ export class Building extends Container {
                 if (type === 'sniper') offset = 32;
                 if (type === 'minigun') offset = 20;
                 if (type === 'laser') { offset = 25; color = 0xFF0000; }
+                if (type === 'tesla') { offset = 15; color = 0x9B59B6; }
                 
                 this.muzzleFlash.x = offset;
                 this.muzzleFlash.circle(0, 0, 6).fill(color).circle(0, 0, 3).fill(0xFFFFFF);
@@ -281,7 +322,15 @@ export class Building extends Container {
             this.turretHead.y = 20;
         }
 
-        if (['turret', 'sniper', 'minigun', 'laser'].includes(this.buildingType)) {
+        // Slow field effect - handled in BuildingSystem via getSlowFieldEffect
+        // Just animate the building
+        if (this.buildingType === 'slowfield') {
+            // Pulse animation
+            const pulse = 1 + Math.sin(Date.now() / 300) * 0.05;
+            this.scale.set(pulse);
+        }
+
+        if (['turret', 'sniper', 'minigun', 'laser', 'tesla'].includes(this.buildingType)) {
             if (this.cooldown > 0) {
                 this.cooldown -= ticker.deltaTime * efficiency;
             }
@@ -316,16 +365,48 @@ export class Building extends Container {
 
                 if (Math.abs(diff) < 0.3 && this.cooldown <= 0) {
                     const barrelLen = 20;
-                    const fireAngle = this.turretHead.rotation; 
-                    
+                    const fireAngle = this.turretHead.rotation;
+
                     const spawnX = (this.x + 20) + Math.cos(fireAngle) * barrelLen;
                     const spawnY = (this.y + 20) + Math.sin(fireAngle) * barrelLen;
 
-                    spawnProjectile(spawnX, spawnY, aimX, aimY, this.damage);
-                    
+                    // Tesla special: chain lightning
+                    if (this.buildingType === 'tesla' && this.chainCount > 0 && this.onChainLightning) {
+                        const chainTargets: { x: number; y: number }[] = [{ x: target.x, y: target.y }];
+                        let lastTarget = target;
+
+                        // Find chain targets
+                        for (let c = 1; c < this.chainCount; c++) {
+                            let closestEnemy: Enemy | null = null;
+                            let minDist = 150; // Chain range
+
+                            for (const e of enemies) {
+                                if (chainTargets.some(t => Math.abs(t.x - e.x) < 5 && Math.abs(t.y - e.y) < 5)) continue;
+                                const dx = e.x - lastTarget.x;
+                                const dy = e.y - lastTarget.y;
+                                const dist = Math.sqrt(dx * dx + dy * dy);
+                                if (dist < minDist) {
+                                    minDist = dist;
+                                    closestEnemy = e;
+                                }
+                            }
+
+                            if (closestEnemy) {
+                                chainTargets.push({ x: closestEnemy.x, y: closestEnemy.y });
+                                closestEnemy.takeDamage(this.damage * 0.7); // Chain does 70% damage
+                                lastTarget = closestEnemy;
+                            }
+                        }
+
+                        target.takeDamage(this.damage);
+                        this.onChainLightning(this.x + 20, this.y + 20, chainTargets);
+                    } else {
+                        spawnProjectile(spawnX, spawnY, aimX, aimY, this.damage);
+                    }
+
                     this.cooldown = this.fireRate;
-                    this.recoilOffset = 5; 
-                    
+                    this.recoilOffset = 5;
+
                     if (this.muzzleFlash) {
                         this.muzzleFlash.visible = true;
                         setTimeout(() => { if (this.muzzleFlash) this.muzzleFlash.visible = false; }, 50);

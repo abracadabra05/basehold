@@ -24,6 +24,8 @@ import { Translations } from './Localization';
 import { MiniMap } from './MiniMap';
 import { PerkManager } from './PerkManager';
 import { yaSdk } from './YandexSDK';
+import { StatsTracker } from './StatsTracker';
+import { AchievementManager } from './AchievementManager';
 
 export class Game {
     private app: Application;
@@ -70,8 +72,12 @@ export class Game {
     private voidDamageTimer: number = 0;
     private lowHpTimer: number = 0;
     private canRevive: boolean = true; // Один раз за игру
-    
+
     private magnetRadius: number = 0;
+    private statsTracker: StatsTracker = new StatsTracker();
+    private achievementManager: AchievementManager = new AchievementManager();
+    private isEndlessMode: boolean = false;
+    private endlessDifficultyMultiplier: number = 1.0;
 
     constructor(app: Application) {
         this.app = app;
@@ -139,12 +145,31 @@ export class Game {
 
         // 3. Системы управления ресурсами и UI
                 this.resourceManager = new ResourceManager();
+        this.resourceManager.onResourceMined = (amount) => {
+            this.statsTracker.addResources(amount);
+        };
+        this.resourceManager.onEnergyMilestone = (amount) => {
+            this.achievementManager.addProgress('energy', Math.floor(amount));
+        };
         this.uiManager = new UIManager((tool) => this.buildingSystem.setTool(tool));
         // this.uiManager.init(); // Убрали отсюда
         
         this.uiManager.onLanguageChange = (lang) => {
             this.resourceManager.setLanguage(lang);
-            this.waveManager.setLanguage(); 
+            this.waveManager.setLanguage();
+            this.achievementManager.setLanguage(lang);
+        };
+
+        // Achievement unlock notifications
+        this.achievementManager.setLanguage(this.uiManager.currentLang);
+        this.achievementManager.onUnlock = (achievement) => {
+            this.achievementManager.showUnlockNotification(achievement, document.body);
+            this.soundManager.playBuild(); // Use existing sound for notification
+        };
+
+        // Show achievements menu
+        this.uiManager.onShowAchievements = () => {
+            this.achievementManager.showUI(document.body);
         };
                         this.resourceManager.setLanguage(this.uiManager.currentLang);        
                 // 4. BuildingSystem (нужна для игрока и врагов)
@@ -154,6 +179,27 @@ export class Game {
                 this.buildingSystem.setRocks(this.rocks);
                 this.buildingSystem.onBuildingDestroyed = (x, y) => {
                     this.createExplosion(x + 20, y + 20, 0x555555, 15);
+                };
+                this.buildingSystem.onBuildingPlaced = () => {
+                    this.statsTracker.addBuilding();
+                    this.achievementManager.addProgress('build');
+                };
+                this.buildingSystem.onChainLightning = (x, y, targets) => {
+                    // Draw chain lightning effect
+                    this.soundManager.playTurretShoot();
+                    let lastX = x;
+                    let lastY = y;
+                    for (const target of targets) {
+                        // Create spark particles along the chain
+                        const steps = 3;
+                        for (let s = 0; s <= steps; s++) {
+                            const px = lastX + (target.x - lastX) * (s / steps);
+                            const py = lastY + (target.y - lastY) * (s / steps);
+                            this.createParticle(px, py, 0x9B59B6, 'spark');
+                        }
+                        lastX = target.x;
+                        lastY = target.y;
+                    }
                 };
         
                 // 5. Игрок
@@ -196,11 +242,14 @@ export class Game {
                         this.waveManager = new WaveManager(
                             this.resourceManager,
                             this.uiManager, // Добавлено
-                            (waveNum: number, count: number) => { 
-                                if (!this.isGameOver && this.isGameStarted) {                            this.spawnWave(waveNum, count); 
-                            this.uiManager.updateWave(waveNum);
-                        }
-                    },
+                            (waveNum: number, count: number) => {
+                                if (!this.isGameOver && this.isGameStarted) {
+                                    this.spawnWave(waveNum, count);
+                                    this.uiManager.updateWave(waveNum);
+                                    this.statsTracker.setWave(waveNum);
+                                    this.achievementManager.addProgress('wave', waveNum);
+                                }
+                            },
                     () => { 
                         this.soundManager.playBuild();
                         this.upgradeManager.show();
@@ -339,7 +388,12 @@ export class Game {
                 this.spawnShell(x, y); 
             });
 
-            this.enemies.forEach(enemy => enemy.update(ticker));
+            this.enemies.forEach(enemy => {
+                // Apply slow field effect
+                enemy.speedMultiplier = this.buildingSystem.getSlowFactorAt(enemy.x, enemy.y);
+                enemy.update(ticker);
+                enemy.updateAuras(this.enemies);
+            });
             this.waveManager.update(ticker);
             this.updateProjectiles(ticker);
             this.cleanUp();
@@ -407,7 +461,7 @@ export class Game {
     }
 
     private applyPerk(perkId: string) {
-        this.spawnFloatingText(this.player.x, this.player.y - 50, "PERK ACTIVATED!", '#3498db', 20);
+        this.spawnFloatingText(this.player.x, this.player.y - 50, this.t('perk_activated'), '#3498db', 20);
         this.soundManager.playBuild();
 
         switch (perkId) {
@@ -422,10 +476,26 @@ export class Game {
                 break;
             case 'shield_core':
                 this.player.hasShield = true;
-                // Можно добавить визуальный щит позже
                 break;
             case 'auto_repair':
                 this.buildingSystem.setRegenAmount(2);
+                break;
+            case 'explosive_rounds':
+                // Handled in projectile collision
+                break;
+            // v2.0 Perks
+            case 'ricochet':
+                this.player.ricochet = true;
+                break;
+            case 'critical_hit':
+                this.player.critChance += 0.2; // 20% chance per upgrade
+                break;
+            case 'slow_bullets':
+                this.player.slowBullets = true;
+                break;
+            case 'life_steal':
+                // Building lifesteal - handled in building damage code
+                this.buildingSystem.setRegenAmount(1);
                 break;
         }
     }
@@ -434,6 +504,7 @@ export class Game {
         this.isGameStarted = true;
         this.uiManager.hideMenu();
         this.inputSystem.showControls();
+        this.statsTracker.start();
         yaSdk.gameplayStart(); // Yandex GameplayAPI
     }
 
@@ -516,6 +587,8 @@ export class Game {
         this.isGameStarted = true;
         this.score = 0;
         this.canRevive = true;
+        this.isEndlessMode = false;
+        this.endlessDifficultyMultiplier = 1.0;
         this.inputSystem.hideControls(); // Скрываем
         
         // Очистка
@@ -561,9 +634,10 @@ export class Game {
         this.player.visible = true;
         
         // Сброс менеджеров
-        this.resourceManager.reset(); 
-        this.waveManager.reset(); 
+        this.resourceManager.reset();
+        this.waveManager.reset();
         this.upgradeManager.reset();
+        this.statsTracker.reset();
         
         this.isGameStarted = false; // Останавливаем игру
         this.uiManager.showMenu(); // Показываем главное меню
@@ -652,9 +726,22 @@ export class Game {
         if (!this.coreBuilding || this.coreBuilding.isDestroyed) return;
         const spawnRadius = GameConfig.WAVES.SPAWN_RADIUS;
 
+        // Check for endless mode activation (after wave 50)
+        if (waveNum === 51 && !this.isEndlessMode) {
+            this.isEndlessMode = true;
+            this.spawnFloatingText(this.player.x, this.player.y - 100, this.t('endless_unlocked'), '#9b59b6', 28);
+            this.soundManager.playBuild();
+        }
+
+        // Update endless mode difficulty scaling
+        if (this.isEndlessMode) {
+            // Increase difficulty by 5% each wave after 50
+            this.endlessDifficultyMultiplier = 1.0 + (waveNum - 50) * 0.05;
+        }
+
         // 1. Проверка на БОССА (каждые 10 волн)
         if (waveNum % GameConfig.WAVES.BOSS_WAVE_INTERVAL === 0) {
-            this.spawnFloatingText(this.player.x, this.player.y - 100, "☠️ BOSS INCOMING ☠️", '#e74c3c', 30);
+            this.spawnFloatingText(this.player.x, this.player.y - 100, `☠️ ${this.t('wave_boss_incoming')} ☠️`, '#e74c3c', 30);
             this.soundManager.playError(); // Звук тревоги
             
             // Ставим паузу волн
@@ -664,8 +751,24 @@ export class Game {
             this.spawnEnemy(this.coreBuilding.x + Math.cos(angle) * spawnRadius, this.coreBuilding.y + Math.sin(angle) * spawnRadius, 'boss');
             
             for (let i = 0; i < 5; i++) {
-                const a = angle + (Math.random() - 0.5) * 0.5; 
+                const a = angle + (Math.random() - 0.5) * 0.5;
                 this.spawnEnemy(this.coreBuilding.x + Math.cos(a) * spawnRadius, this.coreBuilding.y + Math.sin(a) * spawnRadius, 'kamikaze');
+            }
+            return;
+        }
+
+        // 1.5. MINI-BOSS WAVE (волны 5, 15, 25, 35, etc.)
+        if (waveNum >= 5 && waveNum % 10 === 5) {
+            this.spawnFloatingText(this.player.x, this.player.y - 100, `⚔️ ${this.t('wave_miniboss')} ⚔️`, '#e67e22', 26);
+            this.soundManager.playError();
+
+            const angle = Math.random() * Math.PI * 2;
+            this.spawnEnemy(this.coreBuilding.x + Math.cos(angle) * spawnRadius, this.coreBuilding.y + Math.sin(angle) * spawnRadius, 'miniboss');
+
+            // Also spawn some escort enemies
+            for (let i = 0; i < Math.floor(count / 2); i++) {
+                const a = angle + (Math.random() - 0.5) * 1.0;
+                this.spawnEnemy(this.coreBuilding.x + Math.cos(a) * spawnRadius, this.coreBuilding.y + Math.sin(a) * spawnRadius, Math.random() < 0.5 ? 'fast' : 'shooter');
             }
             return;
         }
@@ -674,7 +777,7 @@ export class Game {
         const patterns = (GameConfig.WAVES as any).PATTERNS;
         if (patterns && patterns[waveNum]) {
             const p = patterns[waveNum];
-            this.spawnFloatingText(this.player.x, this.player.y - 100, p.message, '#f1c40f', 24);
+            this.spawnFloatingText(this.player.x, this.player.y - 100, this.t(p.messageKey), '#f1c40f', 24);
             this.soundManager.playError();
 
             const specialCount = Math.ceil(count * p.countMultiplier);
@@ -689,16 +792,26 @@ export class Game {
         for (let i = 0; i < count; i++) {
             let type: EnemyType = 'basic';
             const rand = Math.random();
-            
-            if (waveNum <= 3) { 
-                if (rand < 0.2) type = 'fast'; else type = 'basic'; 
-            } else { 
+
+            if (waveNum <= 3) {
+                if (rand < 0.2) type = 'fast'; else type = 'basic';
+            } else if (waveNum <= 10) {
                 // Чем выше волна, тем больше сильных врагов
-                if (rand < 0.1 + waveNum * 0.005) type = 'tank'; 
-                else if (rand < 0.25 + waveNum * 0.005) type = 'shooter'; 
-                else if (rand < 0.4 + waveNum * 0.005) type = 'kamikaze'; 
-                else if (rand < 0.6) type = 'fast'; 
-                else type = 'basic'; 
+                if (rand < 0.1 + waveNum * 0.005) type = 'tank';
+                else if (rand < 0.25 + waveNum * 0.005) type = 'shooter';
+                else if (rand < 0.4 + waveNum * 0.005) type = 'kamikaze';
+                else if (rand < 0.6) type = 'fast';
+                else type = 'basic';
+            } else {
+                // Wave 10+: Add v2.0 enemies
+                if (rand < 0.05) type = 'healer'; // 5% healer
+                else if (rand < 0.10 && waveNum >= 15) type = 'splitter'; // 5% splitter (wave 15+)
+                else if (rand < 0.15 && waveNum >= 20) type = 'shieldbearer'; // 5% shieldbearer (wave 20+)
+                else if (rand < 0.20) type = 'tank';
+                else if (rand < 0.35) type = 'shooter';
+                else if (rand < 0.50) type = 'kamikaze';
+                else if (rand < 0.70) type = 'fast';
+                else type = 'basic';
             }
 
             const angle = Math.random() * Math.PI * 2;
@@ -714,9 +827,15 @@ export class Game {
         const enemy = new Enemy(this.coreBuilding, this.player, (ex, ey) => {
             return this.buildingSystem.getBuildingAt(ex, ey);
         }, type);
-        
+
         enemy.x = x;
         enemy.y = y;
+
+        // Apply endless mode scaling
+        if (this.isEndlessMode && this.endlessDifficultyMultiplier > 1.0) {
+            enemy.hp *= this.endlessDifficultyMultiplier;
+            enemy.damage *= this.endlessDifficultyMultiplier;
+        }
         
         enemy.onShoot = (sx, sy, tx, ty, dmg) => this.spawnProjectile(sx, sy, tx, ty, dmg, true);
         enemy.onHit = () => {
@@ -726,16 +845,25 @@ export class Game {
         enemy.onExplode = (ex, ey, dmg, rad) => {
             this.createExplosion(ex, ey, 0xffaa00, 20);
             this.soundManager.playExplosion();
-            
+
             const dx = this.player.x - ex;
             const dy = this.player.y - ey;
             if (dx*dx + dy*dy < rad*rad) this.player.takeDamage(dmg);
-            
+
             this.buildingSystem.activeBuildings.forEach(b => {
                 const bdx = b.x + 20 - ex;
                 const bdy = b.y + 20 - ey;
                 if (bdx*bdx + bdy*bdy < rad*rad) b.takeDamage(dmg);
             });
+        };
+
+        enemy.onSplit = (ex, ey, count) => {
+            this.createExplosion(ex, ey, 0x9B59B6, 10);
+            for (let i = 0; i < count; i++) {
+                const offset = 30;
+                const angle = (Math.PI * 2 / count) * i;
+                this.spawnEnemy(ex + Math.cos(angle) * offset, ey + Math.sin(angle) * offset, 'fast');
+            }
         };
 
         this.world.addChild(enemy);
@@ -777,10 +905,57 @@ export class Game {
                     const dx = enemy.x - p.x;
                     const dy = enemy.y - p.y;
                     if (Math.sqrt(dx * dx + dy * dy) < enemy.hitboxRadius) {
-                        enemy.takeDamage(p.damage);
-                        this.spawnFloatingText(enemy.x, enemy.y - 20, Math.floor(p.damage).toString(), '#ffffff', 14);
+                        // Critical hit check
+                        let finalDamage = p.damage;
+                        let isCrit = false;
+                        if (this.player.critChance > 0 && Math.random() < this.player.critChance) {
+                            finalDamage *= 2;
+                            isCrit = true;
+                        }
+
+                        enemy.takeDamage(finalDamage);
+                        this.statsTracker.addDamage(finalDamage);
+
+                        // Slow bullets effect
+                        if (this.player.slowBullets) {
+                            enemy.speedMultiplier = Math.min(enemy.speedMultiplier, 0.5);
+                        }
+
+                        // Visual feedback
+                        const dmgColor = isCrit ? '#ff0000' : '#ffffff';
+                        const dmgText = isCrit ? `${Math.floor(finalDamage)}!` : Math.floor(finalDamage).toString();
+                        this.spawnFloatingText(enemy.x, enemy.y - 20, dmgText, dmgColor, isCrit ? 18 : 14);
+                        this.createParticle(p.x, p.y, isCrit ? 0xff0000 : 0xffffff, 'spark');
+
+                        // Ricochet check
+                        if (this.player.ricochet && !p.hasRicocheted) {
+                            // Find nearest enemy to bounce to
+                            let nearestEnemy: Enemy | null = null;
+                            let nearestDist = 200; // Max ricochet range
+
+                            for (const otherEnemy of this.enemies) {
+                                if (otherEnemy === enemy || otherEnemy.isDead) continue;
+                                const edx = otherEnemy.x - enemy.x;
+                                const edy = otherEnemy.y - enemy.y;
+                                const edist = Math.sqrt(edx * edx + edy * edy);
+                                if (edist < nearestDist) {
+                                    nearestDist = edist;
+                                    nearestEnemy = otherEnemy;
+                                }
+                            }
+
+                            if (nearestEnemy) {
+                                // Spawn a new ricochet projectile
+                                const ricochetP = this.projectilePool.get();
+                                ricochetP.init(enemy.x, enemy.y, nearestEnemy.x, nearestEnemy.y, p.damage * 0.5, false);
+                                (ricochetP as any).hasRicocheted = true;
+                                this.world.addChild(ricochetP);
+                                this.projectiles.push(ricochetP);
+                                this.createParticle(enemy.x, enemy.y, 0x00ff00, 'spark');
+                            }
+                        }
+
                         p.shouldDestroy = true;
-                        this.createParticle(p.x, p.y, 0xffffff, 'spark');
                         break;
                     }
                 }
@@ -885,13 +1060,18 @@ export class Game {
         }
         
         this.soundManager.playGameOver();
-        
+
+        // Stop tracking and get stats
+        this.statsTracker.stop();
+        this.statsTracker.setWave(this.waveManager.waveCount);
+        const stats = this.statsTracker.getStats();
+
         // Отправляем рекорд
         yaSdk.setLeaderboardScore(this.waveManager.waveCount);
-        
+
         setTimeout(() => {
-            this.uiManager.showGameOver(this.canRevive);
-        }, 2500); 
+            this.uiManager.showGameOver(this.canRevive, stats, (ms) => this.statsTracker.formatTime(ms));
+        }, 2500);
     }
 
     private handleManualMining(ticker: Ticker) {
@@ -936,7 +1116,15 @@ export class Game {
                 // Начисляем очки
                 const scoreReward = GameConfig.ENEMIES[enemy.type.toUpperCase() as keyof typeof GameConfig.ENEMIES]?.score || 10;
                 this.score += scoreReward;
-                this.uiManager.updateScore(this.score); // Нужно добавить метод
+                this.uiManager.updateScore(this.score);
+
+                // Track stats and achievements
+                const isBoss = enemy.type === 'boss' || enemy.type === 'miniboss';
+                this.statsTracker.addKill(isBoss);
+                this.achievementManager.addProgress('kill');
+                if (isBoss) {
+                    this.achievementManager.addProgress('boss_kill');
+                }
 
                 // Если это босс, то выпадать будет Data Core гарантированно
                 if (enemy.type === 'boss') {
@@ -944,6 +1132,12 @@ export class Game {
                     const drop = new DropItem(enemy.x, enemy.y, 0, 'data_core');
                     this.world.addChild(drop);
                     this.dropItems.push(drop);
+                } else if (enemy.type === 'miniboss') {
+                    // Mini-boss drops bonus resources
+                    const bonusMetal = 100 + this.waveManager.waveCount * 5;
+                    this.resourceManager.addMetal(bonusMetal);
+                    this.resourceManager.addBiomass(50);
+                    this.spawnFloatingText(enemy.x, enemy.y - 30, `+${bonusMetal} 🔩 +50 🧬`, '#2ecc71', 18);
                 } else {
                     // Шанс дропа обычных ресурсов повышен до 70%
                     if (Math.random() < 0.7) {

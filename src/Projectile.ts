@@ -7,9 +7,10 @@ export class Projectile extends Container {
     private vx: number = 0;
     private vy: number = 0;
     
-    public damage: number = 0; 
+    public damage: number = 0;
     public shouldDestroy: boolean = false;
     public isEnemy: boolean = false;
+    public hasRicocheted: boolean = false;
 
     // Для трейла сохраняем последние позиции (упрощенно - просто линию назад)
     private lastX: number = 0;
@@ -35,6 +36,7 @@ export class Projectile extends Container {
         this.damage = damage;
         this.isEnemy = isEnemy;
         this.shouldDestroy = false;
+        this.hasRicocheted = false;
         this.visible = true;
 
         const color = isEnemy ? 0x00FF00 : 0xFFFF00;

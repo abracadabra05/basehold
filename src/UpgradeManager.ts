@@ -96,14 +96,14 @@ export class UpgradeManager {
             display: 'flex', flexDirection: 'column', padding: '20px',
             background: 'rgba(15, 15, 15, 0.98)', border: '2px solid #9b59b6', borderRadius: '15px',
             boxShadow: '0 0 40px rgba(155, 89, 182, 0.4)', color: 'white',
-            fontFamily: "'Segoe UI', sans-serif", zIndex: '2000', minWidth: '380px', textAlign: 'center'
+            fontFamily: "'Segoe UI', sans-serif", zIndex: '2000', textAlign: 'center',
+            maxHeight: '85vh', width: '420px', maxWidth: '94vw'
         });
 
         if (this.isMobileLayout()) {
             Object.assign(this.container.style, {
-                width: '94vw', maxWidth: '94vw', height: '88vh', maxHeight: '88vh', minWidth: 'unset',
-                padding: '12px',
-                overflow: 'hidden'
+                width: '94vw', maxWidth: '94vw', height: '88vh', maxHeight: '88vh',
+                padding: '12px'
             });
         }
     }
@@ -163,15 +163,18 @@ export class UpgradeManager {
         tabsContainer.appendChild(techTabBtn);
 
         const contentContainer = document.createElement('div');
-        contentContainer.style.minHeight = isMobile ? 'unset' : '280px'; // Чуть больше места
-        contentContainer.style.flex = '1';
-        contentContainer.style.minHeight = '0';
-        contentContainer.style.overflowY = 'auto';
-        if (isMobile) {
-            contentContainer.style.paddingBottom = '10px';
-            (contentContainer.style as any).webkitOverflowScrolling = 'touch';
-            contentContainer.style.touchAction = 'pan-y';
-        }
+        Object.assign(contentContainer.style, {
+            flex: '1',
+            minHeight: '0',
+            maxHeight: isMobile ? 'calc(100% - 180px)' : '350px',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            paddingRight: '5px',
+            paddingBottom: '10px'
+        });
+        // Enable smooth scrolling on all platforms
+        (contentContainer.style as any).webkitOverflowScrolling = 'touch';
+        contentContainer.style.scrollBehavior = 'smooth';
         this.container.appendChild(contentContainer);
 
         // --- PLAYER ---
@@ -219,7 +222,7 @@ export class UpgradeManager {
         techContent.style.gap = '8px';
 
         // Генерируем кнопки для закрытых технологий
-        const unlockables = ['battery', 'sniper', 'minigun', 'laser'];
+        const unlockables = ['battery', 'sniper', 'minigun', 'laser', 'tesla', 'slowfield'];
         unlockables.forEach(type => {
             if (GameConfig.BUILDINGS[type as keyof typeof GameConfig.BUILDINGS]) {
                 this.createUnlockBtn(techContent, type);
@@ -283,15 +286,17 @@ export class UpgradeManager {
         const btn = document.createElement('button');
         Object.assign(btn.style, {
             cursor: 'pointer', padding: '6px 12px', background: '#3498db', color: 'white',
-            border: 'none', borderRadius: '3px', fontWeight: 'bold', minWidth: '80px', fontSize: '12px'
+            border: 'none', borderRadius: '3px', fontWeight: 'bold', width: '90px', fontSize: '12px',
+            boxSizing: 'border-box'
         });
 
         // Кнопка рекламы
         const adBtn = document.createElement('button');
-        adBtn.innerText = "🎬 FREE";
+        adBtn.innerText = `🎬 ${this.t('ad_free')}`;
         Object.assign(adBtn.style, {
             cursor: 'pointer', padding: '4px 12px', background: '#e67e22', color: 'white',
-            border: 'none', borderRadius: '3px', fontWeight: 'bold', minWidth: '80px', fontSize: '10px'
+            border: 'none', borderRadius: '3px', fontWeight: 'bold', width: '90px', fontSize: '10px',
+            boxSizing: 'border-box'
         });
 
         const cost = (GameConfig.BUILDINGS as any)[type].researchCost || 100;
@@ -314,8 +319,10 @@ export class UpgradeManager {
                 adBtn.style.display = 'block';
             }
             
+            const descKey = `tool_${type}_desc`;
+            const desc = this.t(descKey) !== descKey ? this.t(descKey) : '';
             info.innerHTML = `<div style="font-size: 14px; font-weight: bold;">${toolName}</div>
-                              <div style="font-size: 11px; color: #aaa;">Tech Level 1</div>`;
+                              <div style="font-size: 11px; color: #aaa;">${desc || this.t('tech_tier_1')}</div>`;
         };
 
         const doUnlock = () => {

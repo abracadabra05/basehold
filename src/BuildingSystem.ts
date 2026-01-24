@@ -13,12 +13,15 @@ const BUILDING_COSTS: Record<BuildingType, number> = {
     'wall': 10,
     'drill': 50,
     'generator': 100,
-    'turret': 30,    
-    'sniper': 75,    
+    'turret': 30,
+    'sniper': 75,
     'minigun': 120,
-    'battery': 150, 
-    'laser': 200,   
-    'core': 0
+    'battery': 150,
+    'laser': 200,
+    'core': 0,
+    // v2.0 Buildings
+    'tesla': 80,
+    'slowfield': 50
 };
 
 export class BuildingSystem {
@@ -44,6 +47,8 @@ export class BuildingSystem {
     private thornsDamage: number = 0;
 
     public onBuildingDestroyed?: (x: number, y: number) => void;
+    public onBuildingPlaced?: (type: BuildingType) => void;
+    public onChainLightning?: (x: number, y: number, targets: { x: number; y: number }[]) => void;
     public checkUnlock?: (type: string) => boolean; // Добавлено
 
     constructor(app: Application, world: Container) {
@@ -416,9 +421,13 @@ export class BuildingSystem {
             const ore = this.resources.find(r => r.x === gx && r.y === gy);
             if (ore) building.startMining(this.resourceManager);
         }
+        if (type === 'tesla' && this.onChainLightning) {
+            building.onChainLightning = this.onChainLightning;
+        }
         this.soundManager?.playBuild();
         this.world.addChild(building);
         this.buildings.set(`${gx},${gy}`, building);
+        if (this.onBuildingPlaced) this.onBuildingPlaced(type);
     }
 
     public spawnCore(x: number, y: number) {
@@ -435,6 +444,21 @@ export class BuildingSystem {
 
     public get activeBuildings(): Building[] {
         return Array.from(this.buildings.values());
+    }
+
+    public getSlowFactorAt(x: number, y: number): number {
+        let slowFactor = 1.0;
+        for (const b of this.buildings.values()) {
+            if (b.buildingType === 'slowfield' && b.slowAmount > 0) {
+                const dx = x - (b.x + 20);
+                const dy = y - (b.y + 20);
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist <= b.range) {
+                    slowFactor = Math.min(slowFactor, b.slowAmount);
+                }
+            }
+        }
+        return slowFactor;
     }
 
     private getMouseGridPosition(e: FederatedPointerEvent) {
