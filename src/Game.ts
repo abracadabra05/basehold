@@ -506,6 +506,9 @@ export class Game {
         this.inputSystem.showControls();
         this.statsTracker.start();
         yaSdk.gameplayStart(); // Yandex GameplayAPI
+
+        // Показываем sticky баннер (если настроен в консоли Yandex)
+        yaSdk.showBannerAdv();
     }
 
     public pauseGame() {
@@ -1069,8 +1072,18 @@ export class Game {
         // Отправляем рекорд
         yaSdk.setLeaderboardScore(this.waveManager.waveCount);
 
+        // Показываем fullscreen рекламу перед экраном Game Over
         setTimeout(() => {
-            this.uiManager.showGameOver(this.canRevive, stats, (ms) => this.statsTracker.formatTime(ms));
+            yaSdk.showFullscreenAdv(
+                () => {
+                    // onClose - показываем Game Over экран
+                    this.uiManager.showGameOver(this.canRevive, stats, (ms) => this.statsTracker.formatTime(ms));
+                },
+                () => {
+                    // onOpen - пауза звука
+                    this.soundManager.setMute(true);
+                }
+            );
         }, 2500);
     }
 

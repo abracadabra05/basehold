@@ -239,10 +239,22 @@ export class UIManager {
         if (reviveBtn) {
             reviveBtn.onclick = (e) => {
                 e.preventDefault(); e.stopPropagation();
-                yaSdk.showRewardedVideo(() => {
-                    document.body.removeChild(overlay);
-                    if (this.onRevive) this.onRevive();
-                });
+                yaSdk.showRewardedVideo(
+                    () => {
+                        // onReward - ad watched successfully
+                        document.body.removeChild(overlay);
+                        if (this.onRevive) this.onRevive();
+                    },
+                    () => {
+                        // onOpen - pause audio
+                        if (this.onMute) this.onMute(true);
+                    },
+                    () => {
+                        // onClose - resume audio
+                        const muted = this.getMutedState ? this.getMutedState() : false;
+                        if (this.onMute) this.onMute(muted);
+                    }
+                );
             };
         }
 

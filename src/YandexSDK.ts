@@ -106,11 +106,18 @@ export class YandexSDK {
         }
     }
 
-    public showFullscreenAdv(onClose: () => void) {
+    public showFullscreenAdv(onClose: () => void, onOpen?: () => void) {
         if (this.isYandexEnvironment && this.ysdk) {
             this.ysdk.adv.showFullscreenAdv({
                 callbacks: {
-                    onClose: (_wasShown: boolean) => onClose(),
+                    onOpen: () => {
+                        console.log('[Yandex] Fullscreen ad opened');
+                        if (onOpen) onOpen();
+                    },
+                    onClose: (wasShown: boolean) => {
+                        console.log(`[Yandex] Fullscreen ad closed. Was shown: ${wasShown}`);
+                        onClose();
+                    },
                     onError: (error: any) => {
                         console.error('Adv error', error);
                         onClose();
@@ -119,7 +126,47 @@ export class YandexSDK {
             });
         } else {
             console.log('[DEV] Mock Fullscreen Ad shown');
-            onClose();
+            if (onOpen) onOpen();
+            setTimeout(() => onClose(), 500);
+        }
+    }
+
+    // Sticky Banner methods
+    public async getBannerAdvStatus(): Promise<{ stickyAdvIsShowing: boolean; reason?: string }> {
+        if (this.isYandexEnvironment && this.ysdk?.adv) {
+            try {
+                return await this.ysdk.adv.getBannerAdvStatus();
+            } catch (e) {
+                console.warn('getBannerAdvStatus error', e);
+                return { stickyAdvIsShowing: false, reason: 'UNKNOWN' };
+            }
+        }
+        return { stickyAdvIsShowing: false, reason: 'ADV_IS_NOT_CONNECTED' };
+    }
+
+    public async showBannerAdv(): Promise<void> {
+        if (this.isYandexEnvironment && this.ysdk?.adv) {
+            try {
+                const status = await this.ysdk.adv.showBannerAdv();
+                console.log('[Yandex] Banner shown:', status);
+            } catch (e) {
+                console.warn('showBannerAdv error', e);
+            }
+        } else {
+            console.log('[DEV] Mock Banner Ad shown');
+        }
+    }
+
+    public async hideBannerAdv(): Promise<void> {
+        if (this.isYandexEnvironment && this.ysdk?.adv) {
+            try {
+                await this.ysdk.adv.hideBannerAdv();
+                console.log('[Yandex] Banner hidden');
+            } catch (e) {
+                console.warn('hideBannerAdv error', e);
+            }
+        } else {
+            console.log('[DEV] Mock Banner Ad hidden');
         }
     }
 
