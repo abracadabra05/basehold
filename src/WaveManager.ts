@@ -3,6 +3,7 @@ import type { ResourceManager } from './ResourceManager';
 import type { UIManager } from './UIManager';
 import { Translations } from './Localization';
 import { Z_INDEX, COLORS } from './UIConstants';
+import { calculateEnemyCount, calculateSkipBonus, shouldOpenShop } from './logic/WaveLogic';
 
 export class WaveManager {
     private spawnCallback: (waveNum: number, count: number) => void;
@@ -118,7 +119,7 @@ export class WaveManager {
         }
 
         if (timeLeftSeconds > 0) {
-            const bonus = timeLeftSeconds * 2;
+            const bonus = calculateSkipBonus(timeLeftSeconds);
             this.resourceManager.addBiomass(bonus);
             
             const originalText = this.skipButton.innerText;
@@ -150,15 +151,7 @@ export class WaveManager {
                 <div style="color: #3498db; font-size: 11px; margin-bottom: -2px;">${this.t('wave_prep')}</div>
                 <div style="font-size: 20px; font-weight: 900;">${Math.max(0, timeLeft)}</div>
             `;
-            // Обновляем кнопку скипа
-            const bonus = Math.max(1, timeLeft * 2);
-            // "SKIP" переведем как "ПРОПУСК" или "ДАЛЕЕ"
-            // Но в Localization.ts нет ключа "skip". Добавим.
-            // Пока хардкод или используем существующий ключ tut_next (Далее)?
-            // Лучше добавить ключ 'skip'.
-            // Для скорости пока использую английский "SKIP" так как это интернационально, 
-            // но лучше добавить ключ. 
-            // Ладно, добавим ключ 'wave_skip' в Localization.
+            const bonus = calculateSkipBonus(timeLeft);
             this.skipButton.innerText = `${this.t('wave_skip')} (+${bonus} 🧬)`;
         } else {
             this.timerText.innerHTML = `<span style="color: #e74c3c; font-size: 11px;">${this.t('wave_active')}</span> <span style="font-size: 16px; font-weight: 900;">${this.waveCount}</span>`;
@@ -207,7 +200,7 @@ export class WaveManager {
                 <div style="font-size: 20px; font-weight: 900;">${Math.max(0, timeLeft)}</div>
             `;
             
-            const bonus = Math.max(1, timeLeft * 2);
+            const bonus = calculateSkipBonus(timeLeft);
             this.skipButton.innerText = `${this.t('wave_skip')} (+${bonus} 🧬)`;
 
             if (this.prepTime <= 0) {
@@ -235,16 +228,16 @@ export class WaveManager {
     private startWave() {
         this.isPrepPhase = false;
         this.waveTimer = 0;
-        this.timeBetweenWaves = 5000; 
+        this.timeBetweenWaves = 5000;
 
-        const enemiesToSpawn = 3 + Math.floor(this.waveCount * 1.5);
+        const enemiesToSpawn = calculateEnemyCount(this.waveCount);
         this.spawnCallback(this.waveCount, enemiesToSpawn);
-        
-        if (this.waveCount > 1 && (this.waveCount) % 5 === 0) {
-             this.isPaused = true;
-             this.onOpenShopCallback();
+
+        if (this.waveCount > 1 && shouldOpenShop(this.waveCount)) {
+            this.isPaused = true;
+            this.onOpenShopCallback();
         }
-        
+
         this.waveCount++;
     }
 

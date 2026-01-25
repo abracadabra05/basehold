@@ -102,7 +102,20 @@ export class Game {
     }
 
     public init() {
-        // Обработка сворачивания (Требование 1.3)
+        this.initEventListeners();
+        this.initInputSystem();
+        this.initWorld();
+        this.initManagers();
+        this.initBuildingSystem();
+        const corePosition = this.initPlayer();
+        this.initCore(corePosition);
+        this.initUpgradesAndWaves();
+        this.initUICallbacks();
+        this.initLightingAndOverlays();
+        this.initGameLoop();
+    }
+
+    private initEventListeners(): void {
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 this.pauseGame();
@@ -111,231 +124,236 @@ export class Game {
             }
         });
 
-        // 1. Сначала базовые системы без зависимостей
-        this.inputSystem = new InputSystem(this.app.stage);
-        this.inputSystem.init(this.app.screen);
-        
         window.addEventListener('resize', () => {
             this.resize(this.app.screen.width, this.app.screen.height);
         });
 
+        yaSdk.onPause = () => this.pauseGame();
+        yaSdk.onResume = () => this.resumeGame();
+    }
+
+    private initInputSystem(): void {
+        this.inputSystem = new InputSystem(this.app.stage);
+        this.inputSystem.init(this.app.screen);
+
         this.inputSystem.onToggleBuildMode = () => {
-             this.buildingSystem.setTool('wall');
+            this.buildingSystem.setTool('wall');
         };
-        
+
         this.inputSystem.onNumberPressed = (index) => {
             this.uiManager.selectByIndex(index);
         };
 
+        this.inputSystem.onSpacePressed = () => {
+            if (this.waveManager && this.waveManager.isPrepPhase) {
+                this.waveManager.skipWait();
+            }
+        };
+    }
+
+    private initWorld(): void {
         this.soundManager = new SoundManager();
         this.worldBoundary = new WorldBoundary(this.mapSizePixel);
         this.world.addChild(this.worldBoundary);
-        
-        // 2. Генерация мира
+
         this.drawGrid();
         this.generateResources();
         this.generateRocks();
+    }
 
-        // 3. Системы управления ресурсами и UI
-                this.resourceManager = new ResourceManager();
+    private initManagers(): void {
+        this.resourceManager = new ResourceManager();
         this.resourceManager.onResourceMined = (amount) => {
             this.statsTracker.addResources(amount);
         };
         this.resourceManager.onEnergyMilestone = (amount) => {
             this.achievementManager.addProgress('energy', Math.floor(amount));
         };
+
         this.uiManager = new UIManager((tool) => this.buildingSystem.setTool(tool));
-        // this.uiManager.init(); // Убрали отсюда
-        
+
+        this.achievementManager.setLanguage(this.uiManager.currentLang);
+        this.achievementManager.onUnlock = (achievement) => {
+            this.achievementManager.showUnlockNotification(achievement, document.body);
+            this.soundManager.playBuild();
+        };
+
+        this.uiManager.onShowAchievements = () => {
+            this.achievementManager.showUI(document.body);
+        };
+
+        this.resourceManager.setLanguage(this.uiManager.currentLang);
+    }
+
+    private initBuildingSystem(): void {
+        this.buildingSystem = new BuildingSystem(this.app, this.world);
+        this.buildingSystem.setSoundManager(this.soundManager);
+        this.buildingSystem.setResources(this.resources, this.resourceManager);
+        this.buildingSystem.setRocks(this.rocks);
+
+        this.buildingSystem.onBuildingDestroyed = (x, y) => {
+            this.createExplosion(x + 20, y + 20, 0x555555, 15);
+        };
+
+        this.buildingSystem.onBuildingPlaced = () => {
+            this.statsTracker.addBuilding();
+            this.achievementManager.addProgress('build');
+        };
+
+        this.buildingSystem.onChainLightning = (x, y, targets) => {
+            this.soundManager.playTurretShoot();
+            let lastX = x;
+            let lastY = y;
+            for (const target of targets) {
+                const steps = 3;
+                for (let s = 0; s <= steps; s++) {
+                    const px = lastX + (target.x - lastX) * (s / steps);
+                    const py = lastY + (target.y - lastY) * (s / steps);
+                    this.createParticle(px, py, 0x9B59B6, 'spark');
+                }
+                lastX = target.x;
+                lastY = target.y;
+            }
+        };
+    }
+
+    private initPlayer(): { x: number; y: number } {
+        this.player = new Player(this.mapSizePixel);
+        this.world.addChild(this.player);
+
+        this.player.onShoot = (sx, sy, tx, ty) => {
+            this.spawnProjectile(sx, sy, tx, ty, this.player.damage);
+            this.soundManager.playShoot();
+            this.spawnShell(sx, sy);
+        };
+
+        this.player.checkCollision = (x, y) => this.buildingSystem.isOccupied(x, y);
+
+        const coreGridX = Math.floor((this.mapSizePixel / 2) / 40) * 40;
+        const coreGridY = Math.floor((this.mapSizePixel / 2) / 40) * 40;
+        this.player.x = coreGridX + 20;
+        this.player.y = coreGridY + 80;
+
+        this.camera = new Camera(this.world, this.app.screen);
+        this.camera.follow(this.player);
+        this.buildingSystem.setPlayer(this.player);
+
+        return { x: coreGridX, y: coreGridY };
+    }
+
+    private initCore(position: { x: number; y: number }): void {
+        this.coreBuilding = this.buildingSystem.spawnCore(position.x, position.y);
+    }
+
+    private initUpgradesAndWaves(): void {
+        this.upgradeManager = new UpgradeManager(this.uiManager, this.resourceManager);
+        this.upgradeManager.onPauseRequest = () => { if (this.soundManager) this.soundManager.setMute(true); };
+        this.upgradeManager.onResumeRequest = () => { if (this.soundManager) this.soundManager.setMute(false); };
+
+        this.waveManager = new WaveManager(
+            this.resourceManager,
+            this.uiManager,
+            (waveNum: number, count: number) => {
+                if (!this.isGameOver && this.isGameStarted) {
+                    this.spawnWave(waveNum, count);
+                    this.uiManager.updateWave(waveNum);
+                    this.statsTracker.setWave(waveNum);
+                    this.achievementManager.addProgress('wave', waveNum);
+                }
+            },
+            () => {
+                this.soundManager.playBuild();
+                this.upgradeManager.show();
+                this.uiManager.setPaused(true);
+                this.buildingSystem.setPaused(true);
+            }
+        );
+
+        const checkUnlock = (type: string) => this.upgradeManager.isBuildingUnlocked(type);
+        this.uiManager.checkUnlock = checkUnlock;
+        this.buildingSystem.checkUnlock = checkUnlock;
+
+        this.uiManager.init();
+
+        this.upgradeManager.onUnlock = () => {
+            this.uiManager.updateButtonsState();
+            this.soundManager.playBuild();
+            this.spawnFloatingText(this.player.x, this.player.y - 50, this.t('tech_unlocked'), '#2ecc71', 24);
+        };
+
+        this.upgradeManager.onUpgrade = (type: string) => {
+            if (type === 'damage') this.player.damage += 1;
+            if (type === 'mine') this.currentMineMultiplier += 0.5;
+            if (type === 'speed') this.player.moveSpeed += 0.5;
+            if (type === 'regen') this.buildingSystem.setRegenAmount(1);
+            if (type === 'thorns') this.buildingSystem.setThornsDamage(1);
+            if (type === 'magnet') this.magnetRadius += 100;
+        };
+
+        this.upgradeManager.setOnClose(() => {
+            this.uiManager.setPaused(false);
+            this.buildingSystem.setPaused(false);
+            this.waveManager.resume();
+            this.isGameStarted = true;
+            if (this.soundManager) this.soundManager.resume();
+            yaSdk.gameplayStart();
+        });
+    }
+
+    private initUICallbacks(): void {
+        this.uiManager.onStartGame = (skipTutorial) => {
+            this.resourceManager.setLanguage(this.uiManager.currentLang);
+            if (skipTutorial) this.startGame();
+            else this.uiManager.showTutorial(() => this.startGame());
+        };
+
         this.uiManager.onLanguageChange = (lang) => {
             this.resourceManager.setLanguage(lang);
             this.waveManager.setLanguage();
             this.achievementManager.setLanguage(lang);
         };
 
-        // Achievement unlock notifications
-        this.achievementManager.setLanguage(this.uiManager.currentLang);
-        this.achievementManager.onUnlock = (achievement) => {
-            this.achievementManager.showUnlockNotification(achievement, document.body);
-            this.soundManager.playBuild(); // Use existing sound for notification
+        this.uiManager.onRevive = () => this.revivePlayer();
+        this.uiManager.onRestart = () => this.restartGame();
+        this.uiManager.onPause = () => this.pauseGame();
+        this.uiManager.onResume = () => this.resumeGame();
+        this.uiManager.onMute = (muted) => this.soundManager.setMute(muted);
+        this.uiManager.onVolumeChange = (volume) => this.soundManager.setVolume(volume);
+        this.uiManager.getMutedState = () => this.soundManager.getMuted();
+        this.uiManager.getVolume = () => this.soundManager.getVolume();
+        this.uiManager.setYandexEnvironment(yaSdk.isYandexEnvironment);
+
+        this.uiManager.onShowLocked = () => {
+            this.soundManager.playError();
+            this.spawnFloatingText(this.player.x, this.player.y - 50, this.t('locked'), '#e74c3c', 20);
         };
 
-        // Show achievements menu
-        this.uiManager.onShowAchievements = () => {
-            this.achievementManager.showUI(document.body);
+        this.uiManager.onDeselect = () => {
+            this.buildingSystem.setToolActive(false);
         };
-                        this.resourceManager.setLanguage(this.uiManager.currentLang);        
-                // 4. BuildingSystem (нужна для игрока и врагов)
-                this.buildingSystem = new BuildingSystem(this.app, this.world);
-                this.buildingSystem.setSoundManager(this.soundManager);
-                this.buildingSystem.setResources(this.resources, this.resourceManager);
-                this.buildingSystem.setRocks(this.rocks);
-                this.buildingSystem.onBuildingDestroyed = (x, y) => {
-                    this.createExplosion(x + 20, y + 20, 0x555555, 15);
-                };
-                this.buildingSystem.onBuildingPlaced = () => {
-                    this.statsTracker.addBuilding();
-                    this.achievementManager.addProgress('build');
-                };
-                this.buildingSystem.onChainLightning = (x, y, targets) => {
-                    // Draw chain lightning effect
-                    this.soundManager.playTurretShoot();
-                    let lastX = x;
-                    let lastY = y;
-                    for (const target of targets) {
-                        // Create spark particles along the chain
-                        const steps = 3;
-                        for (let s = 0; s <= steps; s++) {
-                            const px = lastX + (target.x - lastX) * (s / steps);
-                            const py = lastY + (target.y - lastY) * (s / steps);
-                            this.createParticle(px, py, 0x9B59B6, 'spark');
-                        }
-                        lastX = target.x;
-                        lastY = target.y;
-                    }
-                };
-        
-                // 5. Игрок
-                this.player = new Player(this.mapSizePixel);
-                this.world.addChild(this.player);
-                this.player.onShoot = (sx, sy, tx, ty) => {
-                    this.spawnProjectile(sx, sy, tx, ty, this.player.damage);
-                    this.soundManager.playShoot(); // Добавил звук
-                    this.spawnShell(sx, sy);       // Добавил вылет гильзы
-                };
-                this.player.checkCollision = (x, y) => this.buildingSystem.isOccupied(x, y);
-                
-                // Ставим игрока рядом с центром
-                const coreGridX = Math.floor((this.mapSizePixel / 2) / 40) * 40;
-                const coreGridY = Math.floor((this.mapSizePixel / 2) / 40) * 40;
-                this.player.x = coreGridX + 20; 
-                this.player.y = coreGridY + 80;
-        
-                // 6. Камера и привязка игрока
-                this.camera = new Camera(this.world, this.app.screen);
-                this.camera.follow(this.player);
-                this.buildingSystem.setPlayer(this.player);
-        
-                // 7. Ядро
-                this.coreBuilding = this.buildingSystem.spawnCore(coreGridX, coreGridY);
-        
-                // 8. Магазин и волны
-        this.upgradeManager = new UpgradeManager(this.uiManager, this.resourceManager);
-        this.upgradeManager.onPauseRequest = () => { if (this.soundManager) this.soundManager.setMute(true); };
-        this.upgradeManager.onResumeRequest = () => { if (this.soundManager) this.soundManager.setMute(false); };
+    }
 
-        this.waveManager = new WaveManager(
-                            this.resourceManager,
-                            this.uiManager, // Добавлено
-                            (waveNum: number, count: number) => {
-                                if (!this.isGameOver && this.isGameStarted) {
-                                    this.spawnWave(waveNum, count);
-                                    this.uiManager.updateWave(waveNum);
-                                    this.statsTracker.setWave(waveNum);
-                                    this.achievementManager.addProgress('wave', waveNum);
-                                }
-                            },
-                    () => { 
-                        this.soundManager.playBuild();
-                        this.upgradeManager.show();
-                        this.uiManager.setPaused(true);
-                        this.buildingSystem.setPaused(true);
-                    }
-                );
-                
-                // Связываем проверку технологий с UI
-                const checkUnlock = (type: string) => this.upgradeManager.isBuildingUnlocked(type);
-                this.uiManager.checkUnlock = checkUnlock;
-                this.buildingSystem.checkUnlock = checkUnlock;
-                
-                                // Инициализируем UI только теперь, когда checkUnlock настроен
-                                this.uiManager.init(); 
-                
-                                this.upgradeManager.onUnlock = () => {
-                                    this.uiManager.updateButtonsState();
-                                    this.soundManager.playBuild(); // Звук успеха
-                                    this.spawnFloatingText(this.player.x, this.player.y - 50, this.t('tech_unlocked'), '#2ecc71', 24);
-                                };
-                
-                                this.upgradeManager.onUpgrade = (type: string) => {
-                                    if (type === 'damage') this.player.damage += 1;
-                                    if (type === 'mine') this.currentMineMultiplier += 0.5;
-                                    if (type === 'speed') this.player.moveSpeed += 0.5;
-                                    if (type === 'regen') this.buildingSystem.setRegenAmount(1);
-                                    if (type === 'thorns') this.buildingSystem.setThornsDamage(1);
-                                    if (type === 'magnet') this.magnetRadius += 100;
-                                };
-                
-                                                this.upgradeManager.setOnClose(() => {
-                                                    this.uiManager.setPaused(false);
-                                                    this.buildingSystem.setPaused(false);
-                                                    this.waveManager.resume();
-                                                    // Принудительно возобновляем игру (после просмотра рекламы isGameStarted мог стать false)
-                                                    this.isGameStarted = true;
-                                                    if (this.soundManager) this.soundManager.resume();
-                                                    yaSdk.gameplayStart();
-                                                });
-                                
-                                                this.inputSystem.onSpacePressed = () => {
-                                                    if (this.waveManager && this.waveManager.isPrepPhase) {
-                                                        this.waveManager.skipWait();
-                                                    }
-                                                };
-                                
-                                                this.uiManager.onStartGame = (skipTutorial) => {
-                                                    this.resourceManager.setLanguage(this.uiManager.currentLang);
-                                                    if (skipTutorial) this.startGame();
-                                                    else this.uiManager.showTutorial(() => this.startGame());
-                                                };
-                                
-                                                this.uiManager.onLanguageChange = (lang) => {
-                                                    this.resourceManager.setLanguage(lang);
-                                                    this.waveManager.setLanguage(); 
-                                                };
-                                
-                                                this.uiManager.onRevive = () => this.revivePlayer();
-                                                this.uiManager.onRestart = () => this.restartGame();
-                                                this.uiManager.onPause = () => this.pauseGame();
-                                                this.uiManager.onResume = () => this.resumeGame();
-                                                this.uiManager.onMute = (muted) => this.soundManager.setMute(muted);
-                                                this.uiManager.onVolumeChange = (volume) => this.soundManager.setVolume(volume);
-                                                this.uiManager.getMutedState = () => this.soundManager.getMuted();
-                                                this.uiManager.getVolume = () => this.soundManager.getVolume();
-                                                this.uiManager.setYandexEnvironment(yaSdk.isYandexEnvironment);
-                                                this.uiManager.onShowLocked = () => {
-                                                    this.soundManager.playError();
-                                                    this.spawnFloatingText(this.player.x, this.player.y - 50, this.t('locked'), '#e74c3c', 20);
-                                                };
-                                                this.uiManager.onDeselect = () => {
-                                                    this.buildingSystem.setToolActive(false);
-                                                };
-
-        // Подключаем обработчики паузы/возобновления от Яндекс SDK
-        yaSdk.onPause = () => this.pauseGame();
-        yaSdk.onResume = () => this.resumeGame();
-
-        // 9. Освещение, Миникарта и основной цикл
+    private initLightingAndOverlays(): void {
         this.miniMap = new MiniMap(this.app, this.mapSizePixel);
-        this.perkManager = new PerkManager(this.uiManager); // Добавлено
-        
+        this.perkManager = new PerkManager(this.uiManager);
+
         this.lightingSystem = new LightingSystem();
-        this.lightingSystem.darknessOverlay.zIndex = 5000; // Below UI elements
+        this.lightingSystem.darknessOverlay.zIndex = 5000;
         this.app.stage.sortableChildren = true;
         this.app.stage.addChild(this.lightingSystem.darknessOverlay);
 
         this.voidOverlay = new Graphics();
         this.voidOverlay.rect(0, 0, this.app.screen.width, this.app.screen.height).fill({ color: 0xFF0000, alpha: 0 });
-        this.voidOverlay.zIndex = 8000; // Above game, below UI
+        this.voidOverlay.zIndex = 8000;
         this.voidOverlay.visible = false;
         this.app.stage.addChild(this.voidOverlay);
+    }
 
+    private initGameLoop(): void {
         this.app.ticker.add((ticker) => {
             if (!this.isGameStarted) return;
-            
-            // Если магазин открыт, не обновляем игру (пауза)
             if (this.waveManager.isShopOpen) return;
 
-            // Если Game Over, обновляем ТОЛЬКО визуальные эффекты (камера, частицы)
             if (this.isGameOver) {
                 this.camera.update(ticker);
                 this.updateParticles(ticker);
@@ -343,110 +361,119 @@ export class Game {
                 return;
             }
 
-            this.player.update(ticker);
-            
-            const moveVec = this.inputSystem.getMovementVector();
-            this.player.handleMovement(moveVec, ticker.deltaTime);
-
-            const worldPos = this.inputSystem.getMouseWorldPosition(this.world);
-            const aimVec = this.inputSystem.getAimVector();
-            
-            if (aimVec) {
-                this.player.rotationAngle = Math.atan2(aimVec.y, aimVec.x);
-            } else {
-                this.player.lookAt(worldPos.x, worldPos.y);
-            }
-
-            if (this.inputSystem.isShooting()) {
-                if (aimVec) {
-                     const targetX = this.player.x + aimVec.x * 100;
-                     const targetY = this.player.y + aimVec.y * 100;
-                     this.player.tryShoot(targetX, targetY);
-                } else {
-                     this.player.tryShoot(worldPos.x, worldPos.y);
-                }
-            }
-            
-            this.camera.update(ticker);
-            this.miniMap.resize(this.app.screen.width); 
-            this.miniMap.update(this.player, this.enemies, this.resources, this.coreBuilding);
-            
-            this.buildingSystem.update(ticker, this.enemies, (x, y, tx, ty, damage) => {
-                this.spawnProjectile(x, y, tx, ty, damage);
-                this.soundManager.playTurretShoot();
-                this.spawnShell(x, y); 
-            });
-
-            this.enemies.forEach(enemy => {
-                // Apply slow field effect
-                enemy.speedMultiplier = this.buildingSystem.getSlowFactorAt(enemy.x, enemy.y);
-                enemy.update(ticker);
-                enemy.updateAuras(this.enemies);
-            });
-            this.waveManager.update(ticker);
-            this.updateProjectiles(ticker);
-            this.cleanUp();
-            this.handleManualMining(ticker);
-            this.checkPlayerHit();
-            this.checkVoidDamage(ticker);
-            
-            // Эффект низкого здоровья (< 30%)
-            if (this.player.hp < this.player.maxHp * 0.3 && this.player.hp > 0) {
-                this.lowHpTimer += ticker.deltaTime;
-                if (this.lowHpTimer >= 60) { // ~1 сек
-                    this.lowHpTimer = 0;
-                    this.soundManager.playHeartbeat();
-                    // Красная вспышка (используем тот же voidOverlay, если он не занят, или лучше создать отдельный?)
-                    // Если игрок в пустоте, voidOverlay уже мигает. Если нет - используем его для сердцебиения.
-                    if (!this.voidOverlay.visible) {
-                        this.voidOverlay.clear().rect(0, 0, this.app.screen.width, this.app.screen.height).fill({ color: 0xFF0000, alpha: 0.2 });
-                        this.voidOverlay.visible = true;
-                        setTimeout(() => { if (!this.voidOverlay.visible) return; this.voidOverlay.visible = false; }, 200);
-                    }
-                }
-            }
-
-            this.updateParticles(ticker);
-            this.updateDrops(ticker); 
-            this.updateFloatingTexts(ticker); 
-
-            this.lightingSystem.update(ticker.deltaMS, this.app.screen.width, this.app.screen.height);
-            this.lightingSystem.clearLights();
-            
-            // Обновляем темноту миникарты
-            this.miniMap.setDarkness(this.lightingSystem.currentAlpha);
-            
-            const pScreen = this.world.toGlobal({x: this.player.x, y: this.player.y});
-            this.lightingSystem.renderLight(pScreen.x, pScreen.y, 350, this.player.rotationAngle, 1.2); 
-
-            for (const b of this.buildingSystem.activeBuildings) {
-                const bPos = this.world.toGlobal({x: b.x + 20, y: b.y + 20});
-                if (['turret', 'sniper', 'minigun', 'laser'].includes(b.buildingType)) {
-                    this.lightingSystem.renderLight(bPos.x, bPos.y, 450, b.rotationAngle, 0.8);
-                } else if (b.buildingType === 'laser') {
-                    this.lightingSystem.renderLight(bPos.x, bPos.y, 600, b.rotationAngle, 0.3);
-                } else if (b.buildingType === 'core') {
-                    this.lightingSystem.renderLight(bPos.x, bPos.y, 300);
-                } else if (b.buildingType === 'generator' || b.buildingType === 'battery') {
-                    this.lightingSystem.renderLight(bPos.x, bPos.y, 100);
-                }
-            }
-            
-            this.uiManager.updateTime(this.lightingSystem.cycleProgress);
-
-            const worldMouse = this.inputSystem.getMouseWorldPosition(this.world);
-            const info = this.buildingSystem.getBuildingInfoAt(worldMouse.x, worldMouse.y);
-            this.uiManager.showBuildingInfo(info);
-
-            this.uiManager.updateHUD(
-                { hp: this.player.hp, maxHp: this.player.maxHp },
-                (this.coreBuilding && !this.coreBuilding.isDestroyed) ? { hp: this.coreBuilding.hp, maxHp: this.coreBuilding.maxHp } : null
-            );
-
-            if ((this.coreBuilding && this.coreBuilding.isDestroyed) || this.player.hp <= 0) {
-                this.gameOver();
-            }
+            this.updatePlayer(ticker);
+            this.updateSystems(ticker);
+            this.updateVisuals(ticker);
+            this.checkGameOver();
         });
+    }
+
+    private updatePlayer(ticker: Ticker): void {
+        this.player.update(ticker);
+
+        const moveVec = this.inputSystem.getMovementVector();
+        this.player.handleMovement(moveVec, ticker.deltaTime);
+
+        const worldPos = this.inputSystem.getMouseWorldPosition(this.world);
+        const aimVec = this.inputSystem.getAimVector();
+
+        if (aimVec) {
+            this.player.rotationAngle = Math.atan2(aimVec.y, aimVec.x);
+        } else {
+            this.player.lookAt(worldPos.x, worldPos.y);
+        }
+
+        if (this.inputSystem.isShooting()) {
+            if (aimVec) {
+                const targetX = this.player.x + aimVec.x * 100;
+                const targetY = this.player.y + aimVec.y * 100;
+                this.player.tryShoot(targetX, targetY);
+            } else {
+                this.player.tryShoot(worldPos.x, worldPos.y);
+            }
+        }
+    }
+
+    private updateSystems(ticker: Ticker): void {
+        this.camera.update(ticker);
+        this.miniMap.resize(this.app.screen.width);
+        this.miniMap.update(this.player, this.enemies, this.resources, this.coreBuilding);
+
+        this.buildingSystem.update(ticker, this.enemies, (x, y, tx, ty, damage) => {
+            this.spawnProjectile(x, y, tx, ty, damage);
+            this.soundManager.playTurretShoot();
+            this.spawnShell(x, y);
+        });
+
+        this.enemies.forEach(enemy => {
+            enemy.speedMultiplier = this.buildingSystem.getSlowFactorAt(enemy.x, enemy.y);
+            enemy.update(ticker);
+            enemy.updateAuras(this.enemies);
+        });
+
+        this.waveManager.update(ticker);
+        this.updateProjectiles(ticker);
+        this.cleanUp();
+        this.handleManualMining(ticker);
+        this.checkPlayerHit();
+        this.checkVoidDamage(ticker);
+
+        if (this.player.hp < this.player.maxHp * 0.3 && this.player.hp > 0) {
+            this.lowHpTimer += ticker.deltaTime;
+            if (this.lowHpTimer >= 60) {
+                this.lowHpTimer = 0;
+                this.soundManager.playHeartbeat();
+                if (!this.voidOverlay.visible) {
+                    this.voidOverlay.clear().rect(0, 0, this.app.screen.width, this.app.screen.height).fill({ color: 0xFF0000, alpha: 0.2 });
+                    this.voidOverlay.visible = true;
+                    setTimeout(() => { if (!this.voidOverlay.visible) return; this.voidOverlay.visible = false; }, 200);
+                }
+            }
+        }
+
+        this.updateParticles(ticker);
+        this.updateDrops(ticker);
+        this.updateFloatingTexts(ticker);
+    }
+
+    private updateVisuals(ticker: Ticker): void {
+        this.lightingSystem.update(ticker.deltaMS, this.app.screen.width, this.app.screen.height);
+        this.lightingSystem.clearLights();
+
+        this.miniMap.setDarkness(this.lightingSystem.currentAlpha);
+
+        const pScreen = this.world.toGlobal({ x: this.player.x, y: this.player.y });
+        this.lightingSystem.renderLight(pScreen.x, pScreen.y, 350, this.player.rotationAngle, 1.2);
+
+        for (const b of this.buildingSystem.activeBuildings) {
+            const bPos = this.world.toGlobal({ x: b.x + 20, y: b.y + 20 });
+            if (['turret', 'sniper', 'minigun', 'laser'].includes(b.buildingType)) {
+                this.lightingSystem.renderLight(bPos.x, bPos.y, 450, b.rotationAngle, 0.8);
+            } else if (b.buildingType === 'laser') {
+                this.lightingSystem.renderLight(bPos.x, bPos.y, 600, b.rotationAngle, 0.3);
+            } else if (b.buildingType === 'core') {
+                this.lightingSystem.renderLight(bPos.x, bPos.y, 300);
+            } else if (b.buildingType === 'generator' || b.buildingType === 'battery') {
+                this.lightingSystem.renderLight(bPos.x, bPos.y, 100);
+            }
+        }
+
+        this.uiManager.updateTime(this.lightingSystem.cycleProgress);
+
+        const worldMouse = this.inputSystem.getMouseWorldPosition(this.world);
+        const info = this.buildingSystem.getBuildingInfoAt(worldMouse.x, worldMouse.y);
+        this.uiManager.showBuildingInfo(info);
+
+        this.uiManager.updateHUD(
+            { hp: this.player.hp, maxHp: this.player.maxHp },
+            (this.coreBuilding && !this.coreBuilding.isDestroyed) ? { hp: this.coreBuilding.hp, maxHp: this.coreBuilding.maxHp } : null
+        );
+    }
+
+    private checkGameOver(): void {
+        if ((this.coreBuilding && this.coreBuilding.isDestroyed) || this.player.hp <= 0) {
+            this.gameOver();
+        }
     }
 
     private applyPerk(perkId: string) {
