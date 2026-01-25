@@ -32,7 +32,7 @@ export class Game {
     public world: Container;
     private camera!: Camera;
     private miniMap!: MiniMap;
-    private perkManager!: PerkManager; // Добавлено // Добавлено
+    private perkManager!: PerkManager;
     public player!: Player;
     private buildingSystem!: BuildingSystem;
     private uiManager!: UIManager;
@@ -127,13 +127,6 @@ export class Game {
             this.uiManager.selectByIndex(index);
         };
 
-        // Убрали сброс на ПКМ, так как это стрельба
-        /*
-        this.inputSystem.onRightClick = () => {
-            this.buildingSystem.setTool('wall'); 
-        };
-        */
-        
         this.soundManager = new SoundManager();
         this.worldBoundary = new WorldBoundary(this.mapSizePixel);
         this.world.addChild(this.worldBoundary);
@@ -230,16 +223,8 @@ export class Game {
         this.upgradeManager = new UpgradeManager(this.uiManager, this.resourceManager);
         this.upgradeManager.onPauseRequest = () => { if (this.soundManager) this.soundManager.setMute(true); };
         this.upgradeManager.onResumeRequest = () => { if (this.soundManager) this.soundManager.setMute(false); };
-        
-        this.upgradeManager.onUpgrade = (type: string) => {
-                            if (type === 'damage') this.player.damage += 1;
-                            if (type === 'mine') this.currentMineMultiplier += 0.5;
-                            if (type === 'speed') this.player.moveSpeed += 0.5;
-                            if (type === 'regen') this.buildingSystem.setRegenAmount(1);
-                            if (type === 'thorns') this.buildingSystem.setThornsDamage(1);
-                            if (type === 'magnet') this.magnetRadius += 100;
-                        };        
-                        this.waveManager = new WaveManager(
+
+        this.waveManager = new WaveManager(
                             this.resourceManager,
                             this.uiManager, // Добавлено
                             (waveNum: number, count: number) => {
@@ -781,8 +766,8 @@ export class Game {
         }
 
         // 2. Проверка на ОСОБЫЙ ПАТТЕРН
-        const patterns = (GameConfig.WAVES as any).PATTERNS;
-        if (patterns && patterns[waveNum]) {
+        const patterns = GameConfig.WAVES.PATTERNS as Record<number, { type: string; countMultiplier: number; messageKey: string }>;
+        if (patterns[waveNum]) {
             const p = patterns[waveNum];
             this.spawnFloatingText(this.player.x, this.player.y - 100, this.t(p.messageKey), '#f1c40f', 24);
             this.soundManager.playError();
@@ -790,7 +775,7 @@ export class Game {
             const specialCount = Math.ceil(count * p.countMultiplier);
             for (let i = 0; i < specialCount; i++) {
                 const angle = Math.random() * Math.PI * 2;
-                this.spawnEnemy(this.coreBuilding.x + Math.cos(angle) * spawnRadius, this.coreBuilding.y + Math.sin(angle) * spawnRadius, p.type);
+                this.spawnEnemy(this.coreBuilding.x + Math.cos(angle) * spawnRadius, this.coreBuilding.y + Math.sin(angle) * spawnRadius, p.type as EnemyType);
             }
             return;
         }
