@@ -11,8 +11,8 @@ export const Z_INDEX = {
     // Main UI elements
     HUD_PANELS: 1000,
     TOOLBAR: 1010,
-    MINIMAP: 1020,
-    SETTINGS_BUTTON: 1030,
+    MINIMAP: 6000,
+    SETTINGS_BUTTON: 6010,
 
     // Wave/info overlays
     WAVE_PANEL: 1100,
@@ -57,20 +57,20 @@ export const SAFE_AREA = {
 // UI Positions (avoid conflicts)
 export const UI_POSITIONS = {
     // Top-left: Player HUD
-    HUD_PLAYER: { top: 20, left: 20 },
+    HUD_PLAYER: { top: 10, left: 10 },
 
     // Top-center: Core HP
-    HUD_CORE: { top: 20 },
+    HUD_CORE: { top: 10 },
 
     // Top-right: Minimap (with settings button inside or below)
-    MINIMAP: { top: 20, right: 20 },
+    MINIMAP: { top: 10, right: 10 },
     SETTINGS_BUTTON_OFFSET: 10, // Below minimap
 
     // Center-top: Wave timer
     WAVE_PANEL: { top: 60 },
 
     // Left side: Resources
-    RESOURCES: { top: 110, left: 20 },
+    RESOURCES: { top: 82, left: 10 },
 
     // Bottom-center: Toolbar
     TOOLBAR: { bottom: 20 },

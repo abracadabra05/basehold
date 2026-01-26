@@ -1,5 +1,5 @@
 import { Translations, type Language } from './Localization';
-import { Z_INDEX, COLORS } from './UIConstants';
+import { Z_INDEX, COLORS, UI_POSITIONS } from './UIConstants';
 
 export class ResourceManager {
     private metal: number = 100;
@@ -23,13 +23,14 @@ export class ResourceManager {
 
         // Same width as hudPlayer, positioned right below it
         const width = '170px';
-        const top = '82px'; // Right below hudPlayer (10px + ~70px height + 2px gap)
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const top = `${UI_POSITIONS.RESOURCES.top}px`;
 
         Object.assign(this.uiElement.style, {
             position: 'absolute',
             top: top,
-            left: '10px',
-            padding: '8px',
+            left: `${UI_POSITIONS.RESOURCES.left}px`,
+            padding: isMobile ? '4px 8px' : '8px',
             background: 'rgba(0,0,0,0.6)',
             border: `1px solid ${COLORS.PANEL_BORDER}`,
             borderRadius: '6px',
@@ -73,7 +74,7 @@ export class ResourceManager {
         if (this.onResourceMined) this.onResourceMined(amount);
     }
     public addBiomass(amount: number) { this.biomass += amount; this.updateUI(); }
-    
+
     public spendBiomass(amount: number): boolean {
         if (this.biomass >= amount) { this.biomass -= amount; this.updateUI(); return true; }
         return false;
