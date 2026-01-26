@@ -10,7 +10,7 @@ export type ToolType = BuildingType | 'repair' | 'demolish';
 
 interface ToolItem {
     type: ToolType;
-    key: string; 
+    key: string;
     icon: string;
     cost?: number;
     color?: string;
@@ -20,20 +20,20 @@ interface ToolItem {
 export class UIManager {
     private onSelect: (type: ToolType) => void;
     public onDeselect?: () => void; // Вызывается когда инструмент деактивирован
-    
+
     private container: HTMLDivElement;
     private infoPanel: HTMLDivElement;
     private hudPlayer: HTMLDivElement;
     private hudCore: HTMLDivElement;
     private hudTime: HTMLDivElement;
     private mainMenu: HTMLDivElement;
-    
+
     private buttons: Map<ToolType, HTMLButtonElement> = new Map();
     private isPaused: boolean = false;
     private isMobile: boolean = false;
     public isSettingsOpen: boolean = false; // Добавлено
     private currentTool: ToolType | null = 'wall'; // Текущий выбранный инструмент (null = ничего)
-    private isYandex: boolean = false; // Яндекс окружение
+
 
     private lang: Language = 'en';
     private showTutorialFlag: boolean = true;
@@ -42,8 +42,8 @@ export class UIManager {
 
     public onStartGame?: (skipTutorial: boolean) => void;
     public onLanguageChange?: (lang: Language) => void;
-    public checkUnlock?: (type: string) => boolean; 
-    public onRevive?: () => void; 
+    public checkUnlock?: (type: string) => boolean;
+    public onRevive?: () => void;
     public onRestart?: () => void;
     public onPause?: () => void; // Добавлено
     public onResume?: () => void; // Добавлено
@@ -53,7 +53,7 @@ export class UIManager {
     public onShowLocked?: () => void; // Показать сообщение "заблокировано"
     public getMutedState?: () => boolean; // Получить состояние звука
     public getVolume?: () => number; // Получить громкость (0-1)
-    
+
     private items: ToolItem[] = [
         { type: 'wall', key: 'tool_wall', icon: '🧱', cost: 10 },
         { type: 'drill', key: 'tool_drill', icon: '⛏️', cost: 50 },
@@ -78,13 +78,13 @@ export class UIManager {
         // Check for unread changelog
         this.lastSeenVersion = localStorage.getItem('basehold_lastSeenVersion') || '';
         this.hasUnreadChangelog = this.lastSeenVersion !== VERSION;
-        
+
         this.mainMenu = this.createMainMenu();
         document.body.appendChild(this.mainMenu);
 
         this.container = document.createElement('div');
         this.initToolbarStyles();
-        
+
         this.infoPanel = document.createElement('div');
         this.initInfoStyles();
 
@@ -112,9 +112,7 @@ export class UIManager {
         this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || ('ontouchstart' in window);
     }
 
-    public setYandexEnvironment(isYandex: boolean) {
-        this.isYandex = isYandex;
-    }
+
 
     public init() {
         this.createButtons();
@@ -349,7 +347,7 @@ export class UIManager {
             { text: this.t('tut_build'), icon: "🧱" },
             { text: this.t('tut_core'), icon: "💎" },
         ];
-        
+
         let stepIndex = 0;
         const overlay = document.createElement('div');
         Object.assign(overlay.style, {
@@ -416,7 +414,7 @@ export class UIManager {
         const titleSize = this.isMobile ? '40px' : '70px'; // Чуть меньше для ПК
         const subSize = this.isMobile ? '12px' : '16px';
         const gap = this.isMobile ? '15px' : '30px';
-        
+
         div.innerHTML = `
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%; z-index: 10;">
                 <h1 style="font-size: ${titleSize}; color: #3498db; margin: 0; text-transform: uppercase; letter-spacing: 5px; font-weight: 900; text-shadow: 0 4px 10px rgba(0,0,0,0.5);">${this.t('game_title')}</h1>
@@ -444,7 +442,6 @@ export class UIManager {
                     📋${this.hasUnreadChangelog ? `<span style="position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 10px; padding: 2px 5px; border-radius: 10px; font-weight: bold;">${this.t('changelog_new')}</span>` : ''}
                 </button>
                 ${this.isMobile ? `<button id="mob-lb-btn" style="background: none; border: none; font-size: 28px; cursor: pointer;">🏆</button>` : ''}
-                ${(!this.isYandex && (window.self === window.top || this.isMobile)) ? `<button id="fullscreen-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">⛶</button>` : ''}
                 <button id="settings-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">⚙️</button>
             </div>
         `;
@@ -469,15 +466,14 @@ export class UIManager {
         bindBtn(div.querySelector('#achievements-btn'), () => { if (this.onShowAchievements) this.onShowAchievements(); });
         bindBtn(div.querySelector('#changelog-btn'), () => this.showChangelog());
         bindBtn(div.querySelector('#settings-btn'), () => this.showSettings());
-        bindBtn(div.querySelector('#fullscreen-btn'), () => this.toggleFullscreen());
         bindBtn(div.querySelector('#mob-lb-btn'), () => this.showLeaderboardModal());
-        
+
         // Загружаем виджет только на ПК
         if (!this.isMobile) {
             this.loadEmbeddedLeaderboard(div.querySelector('#lb-list') as HTMLElement);
         }
     }
-    
+
     // Метод для модального окна лидерборда (мобилки)
     private async showLeaderboardModal() {
         const overlay = document.createElement('div');
@@ -489,7 +485,7 @@ export class UIManager {
         });
         overlay.innerHTML = `<div style="font-size: 20px;">Loading...</div>`;
         document.body.appendChild(overlay);
-        
+
         const entries = await yaSdk.getLeaderboardEntries();
         let listHtml = '';
         entries.forEach(e => {
@@ -562,17 +558,7 @@ export class UIManager {
         });
     }
 
-    private toggleFullscreen() {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => {
-                console.warn(`Error attempting to enable fullscreen: ${err.message}`);
-            });
-        } else {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            }
-        }
-    }
+
 
     private async loadEmbeddedLeaderboard(container: HTMLElement) {
         if (!container) return;
@@ -599,17 +585,17 @@ export class UIManager {
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             color: 'white', fontFamily: "'Segoe UI', sans-serif"
         });
-        
+
         overlay.innerHTML = `
             <div style="background: rgba(30,39,46,0.95); padding: 25px 35px; border-radius: 12px; border: 1px solid #3498db; min-width: 280px;">
                 <h2 style="margin: 0 0 20px 0; text-align: center; color: #3498db; font-size: 22px; text-transform: uppercase; letter-spacing: 2px;">${this.t('settings_title')}</h2>
 
                 <div style="margin-bottom: 20px;">
                     <div style="display: flex; gap: 10px; justify-content: center;">
-                        <button id="set-en" style="padding: 8px 16px; cursor: pointer; background: ${this.lang==='en'?'#3498db':'rgba(51,51,51,0.8)'}; border: 2px solid ${this.lang==='en'?'#3498db':'#555'}; border-radius: 8px; transition: all 0.2s; transform: ${this.lang==='en'?'scale(1.1)':'scale(1)'};">
+                        <button id="set-en" style="padding: 8px 16px; cursor: pointer; background: ${this.lang === 'en' ? '#3498db' : 'rgba(51,51,51,0.8)'}; border: 2px solid ${this.lang === 'en' ? '#3498db' : '#555'}; border-radius: 8px; transition: all 0.2s; transform: ${this.lang === 'en' ? 'scale(1.1)' : 'scale(1)'};">
                             <svg width="32" height="20" viewBox="0 0 32 20"><rect width="32" height="20" fill="#fff"/><rect width="32" height="1.54" y="0" fill="#B22234"/><rect width="32" height="1.54" y="3.08" fill="#B22234"/><rect width="32" height="1.54" y="6.16" fill="#B22234"/><rect width="32" height="1.54" y="9.24" fill="#B22234"/><rect width="32" height="1.54" y="12.32" fill="#B22234"/><rect width="32" height="1.54" y="15.4" fill="#B22234"/><rect width="32" height="1.54" y="18.46" fill="#B22234"/><rect width="12.8" height="10.8" fill="#3C3B6E"/><g fill="#fff"><circle cx="1.5" cy="1.2" r="0.6"/><circle cx="3.5" cy="1.2" r="0.6"/><circle cx="5.5" cy="1.2" r="0.6"/><circle cx="7.5" cy="1.2" r="0.6"/><circle cx="9.5" cy="1.2" r="0.6"/><circle cx="11.5" cy="1.2" r="0.6"/><circle cx="2.5" cy="2.4" r="0.6"/><circle cx="4.5" cy="2.4" r="0.6"/><circle cx="6.5" cy="2.4" r="0.6"/><circle cx="8.5" cy="2.4" r="0.6"/><circle cx="10.5" cy="2.4" r="0.6"/><circle cx="1.5" cy="3.6" r="0.6"/><circle cx="3.5" cy="3.6" r="0.6"/><circle cx="5.5" cy="3.6" r="0.6"/><circle cx="7.5" cy="3.6" r="0.6"/><circle cx="9.5" cy="3.6" r="0.6"/><circle cx="11.5" cy="3.6" r="0.6"/><circle cx="2.5" cy="4.8" r="0.6"/><circle cx="4.5" cy="4.8" r="0.6"/><circle cx="6.5" cy="4.8" r="0.6"/><circle cx="8.5" cy="4.8" r="0.6"/><circle cx="10.5" cy="4.8" r="0.6"/><circle cx="1.5" cy="6" r="0.6"/><circle cx="3.5" cy="6" r="0.6"/><circle cx="5.5" cy="6" r="0.6"/><circle cx="7.5" cy="6" r="0.6"/><circle cx="9.5" cy="6" r="0.6"/><circle cx="11.5" cy="6" r="0.6"/><circle cx="2.5" cy="7.2" r="0.6"/><circle cx="4.5" cy="7.2" r="0.6"/><circle cx="6.5" cy="7.2" r="0.6"/><circle cx="8.5" cy="7.2" r="0.6"/><circle cx="10.5" cy="7.2" r="0.6"/><circle cx="1.5" cy="8.4" r="0.6"/><circle cx="3.5" cy="8.4" r="0.6"/><circle cx="5.5" cy="8.4" r="0.6"/><circle cx="7.5" cy="8.4" r="0.6"/><circle cx="9.5" cy="8.4" r="0.6"/><circle cx="11.5" cy="8.4" r="0.6"/><circle cx="2.5" cy="9.6" r="0.6"/><circle cx="4.5" cy="9.6" r="0.6"/><circle cx="6.5" cy="9.6" r="0.6"/><circle cx="8.5" cy="9.6" r="0.6"/><circle cx="10.5" cy="9.6" r="0.6"/></g></svg>
                         </button>
-                        <button id="set-ru" style="padding: 8px 16px; cursor: pointer; background: ${this.lang==='ru'?'#3498db':'rgba(51,51,51,0.8)'}; border: 2px solid ${this.lang==='ru'?'#3498db':'#555'}; border-radius: 8px; transition: all 0.2s; transform: ${this.lang==='ru'?'scale(1.1)':'scale(1)'};">
+                        <button id="set-ru" style="padding: 8px 16px; cursor: pointer; background: ${this.lang === 'ru' ? '#3498db' : 'rgba(51,51,51,0.8)'}; border: 2px solid ${this.lang === 'ru' ? '#3498db' : '#555'}; border-radius: 8px; transition: all 0.2s; transform: ${this.lang === 'ru' ? 'scale(1.1)' : 'scale(1)'};">
                             <svg width="32" height="20" viewBox="0 0 32 20"><rect width="32" height="6.67" y="0" fill="#fff"/><rect width="32" height="6.67" y="6.67" fill="#0039A6"/><rect width="32" height="6.67" y="13.33" fill="#D52B1E"/></svg>
                         </button>
                     </div>
@@ -636,15 +622,15 @@ export class UIManager {
                 </div>
             </div>
         `;
-        
+
         document.body.appendChild(overlay);
-        
+
         // Показываем кнопку выхода только если игра идет (меню скрыто)
         const exitBtn = overlay.querySelector('#set-exit') as HTMLButtonElement;
         if (this.mainMenu.style.display === 'none') {
             exitBtn.style.display = 'block';
         }
-        
+
         exitBtn.onclick = () => {
             document.body.removeChild(overlay);
             this.isSettingsOpen = false;
@@ -653,7 +639,7 @@ export class UIManager {
 
         overlay.querySelector('#set-en')?.addEventListener('click', () => { this.lang = 'en'; this.refreshUI(); document.body.removeChild(overlay); this.showSettings(); });
         overlay.querySelector('#set-ru')?.addEventListener('click', () => { this.lang = 'ru'; this.refreshUI(); document.body.removeChild(overlay); this.showSettings(); });
-        
+
         overlay.querySelector('#set-tut')?.addEventListener('change', (e: any) => { this.showTutorialFlag = e.target.checked; });
 
         const volumeSlider = overlay.querySelector('#volume-slider') as HTMLInputElement;
@@ -679,10 +665,10 @@ export class UIManager {
 
     private refreshUI() {
         this.updateMainMenuContent(this.mainMenu);
-        this.createButtons(); 
-        this.initCoreHUD(); 
+        this.createButtons();
+        this.initCoreHUD();
         this.initPlayerHUD();
-        this.updateButtonsState(); 
+        this.updateButtonsState();
         if (this.onLanguageChange) this.onLanguageChange(this.lang);
     }
 
@@ -694,7 +680,7 @@ export class UIManager {
         this.container.style.pointerEvents = paused ? 'none' : 'auto';
     }
 
-    public updateHUD(player: {hp: number, maxHp: number}, core: {hp: number, maxHp: number} | null) {
+    public updateHUD(player: { hp: number, maxHp: number }, core: { hp: number, maxHp: number } | null) {
         const pHpPct = Math.max(0, (player.hp / player.maxHp) * 100);
         const pBar = document.getElementById('hud-player-bar');
         const pText = document.getElementById('hud-player-text');
@@ -712,7 +698,7 @@ export class UIManager {
         const sky = document.getElementById('hud-time-sky');
         if (sky) sky.style.transform = `rotate(${progress * 360}deg)`;
     }
-    
+
     public updateScore(score: number) {
         const el = document.getElementById('hud-score');
         if (el) el.innerText = `${score}`;
@@ -763,7 +749,7 @@ export class UIManager {
             return;
         }
         this.infoPanel.style.display = 'block';
-        
+
         let displayName = data.name;
         const tool = this.items.find(i => i.type.toLowerCase() === data.name.toLowerCase());
         if (tool) displayName = this.t(tool.key);
@@ -772,14 +758,14 @@ export class UIManager {
             <b style="color: #3498db; font-size: 12px; text-transform: uppercase;">${displayName}</b>
             <span style="font-size: 10px; color: #aaa;">${Math.floor(data.hp)}/${data.maxHp}</span>
         </div>`;
-        
+
         const hpPct = (data.hp / data.maxHp) * 100;
         const hpColor = hpPct > 50 ? '#2ecc71' : hpPct > 25 ? '#f1c40f' : '#e74c3c';
-        
+
         html += `<div style="width: 100%; height: 3px; background: #222; margin-bottom: 6px; border-radius: 1px;">
             <div style="width: ${hpPct}%; height: 100%; background: ${hpColor}; border-radius: 1px;"></div>
         </div>`;
-        
+
         html += `<div style="display: flex; gap: 8px; font-size: 10px;">`;
         if (data.damage) html += `<span>⚔️ <span style="color: #e74c3c">${data.damage}</span></span>`;
         if (data.energy) {
@@ -788,7 +774,7 @@ export class UIManager {
             html += `<span>⚡ <span style="color: #f1c40f">${translatedEnergy}</span></span>`;
         }
         html += `</div>`;
-        
+
         this.infoPanel.innerHTML = html;
     }
 
@@ -899,15 +885,15 @@ export class UIManager {
 
     private initInfoStyles() {
         this.infoPanel.style.position = 'fixed';
-        this.infoPanel.style.bottom = '140px'; 
+        this.infoPanel.style.bottom = '140px';
         this.infoPanel.style.left = '50%';
         this.infoPanel.style.transform = 'translateX(-50%)';
         this.applyPanelStyle(this.infoPanel);
         this.infoPanel.style.padding = '8px 12px';
         this.infoPanel.style.display = 'none';
         this.infoPanel.style.minWidth = '120px';
-        this.infoPanel.style.background = 'rgba(10, 10, 10, 0.5)'; 
-        this.infoPanel.style.backdropFilter = 'blur(6px)'; 
+        this.infoPanel.style.background = 'rgba(10, 10, 10, 0.5)';
+        this.infoPanel.style.backdropFilter = 'blur(6px)';
         this.infoPanel.style.zIndex = '1000';
     }
 
@@ -987,7 +973,7 @@ export class UIManager {
             this.buttons.set(item.type, btn);
         });
 
-        this.updateButtonsState(); 
+        this.updateButtonsState();
     }
 
     public selectByIndex(index: number) {

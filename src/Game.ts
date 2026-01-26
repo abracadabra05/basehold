@@ -328,7 +328,7 @@ export class Game {
         this.uiManager.onVolumeChange = (volume) => this.soundManager.setVolume(volume);
         this.uiManager.getMutedState = () => this.soundManager.getMuted();
         this.uiManager.getVolume = () => this.soundManager.getVolume();
-        this.uiManager.setYandexEnvironment(yaSdk.isYandexEnvironment);
+
 
         this.uiManager.onShowLocked = () => {
             this.soundManager.playError();
