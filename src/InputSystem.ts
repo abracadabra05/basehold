@@ -122,11 +122,42 @@ export class InputSystem {
     this.isMobile = this.isMobile || "ontouchstart" in window;
   }
 
-    private leftJoystickContainer!: HTMLDivElement;
-    private rightJoystickContainer!: HTMLDivElement;
+    private leftJoystickContainer: HTMLDivElement | null = null;
+    private rightJoystickContainer: HTMLDivElement | null = null;
+    private mobileControlsCreated: boolean = false;
+
+    private destroyMobileControls() {
+        // Destroy existing joysticks first
+        if (this.leftJoystick) {
+            this.leftJoystick.destroy();
+            this.leftJoystick = null!;
+        }
+        if (this.rightJoystick) {
+            this.rightJoystick.destroy();
+            this.rightJoystick = null!;
+        }
+
+        // Remove containers from DOM
+        if (this.leftJoystickContainer && this.leftJoystickContainer.parentNode) {
+            this.leftJoystickContainer.parentNode.removeChild(this.leftJoystickContainer);
+            this.leftJoystickContainer = null;
+        }
+        if (this.rightJoystickContainer && this.rightJoystickContainer.parentNode) {
+            this.rightJoystickContainer.parentNode.removeChild(this.rightJoystickContainer);
+            this.rightJoystickContainer = null;
+        }
+
+        this.mobileControlsCreated = false;
+    }
 
     private createMobileControls() {
         if (!this.isMobile) return;
+
+        // Avoid recreating if already created
+        if (this.mobileControlsCreated) return;
+
+        // Clean up any existing controls first
+        this.destroyMobileControls();
 
         const joystickSize = `${TOUCH_SIZES.JOYSTICK}px`;
         // Position joysticks lower - closer to the bottom edge
@@ -166,6 +197,8 @@ export class InputSystem {
 
         this.rightJoystick = new VirtualJoystick(this.rightJoystickContainer, 'right');
         this.rightJoystick.show();
+
+        this.mobileControlsCreated = true;
     }
 
     public showControls() {
@@ -225,5 +258,13 @@ export class InputSystem {
     y: number;
   } {
     return worldContainer.toLocal(this.mousePosition);
+  }
+
+  public resize(screenRect: Rectangle) {
+    // Only update hit area, don't recreate controls
+    this.stage.hitArea = screenRect;
+
+    // Re-check mobile status (orientation change may affect this)
+    this.checkMobile();
   }
 }

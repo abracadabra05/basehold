@@ -203,4 +203,23 @@ export class VirtualJoystick {
         this.value = { x: 0, y: 0 };
         this.knob.style.transform = 'translate(-50%, -50%)';
     }
+
+    public destroy() {
+        // Clean up static tracking
+        if (this.pointerId !== null) {
+            VirtualJoystick.activeTouchIds.delete(this.pointerId);
+        }
+        if (this.touchId !== null) {
+            VirtualJoystick.activeTouchIds.delete(this.touchId);
+        }
+        VirtualJoystick.activeJoysticks.delete(this);
+
+        // Reset state
+        this.reset();
+
+        // Remove from DOM
+        if (this.container && this.container.parentNode) {
+            this.container.parentNode.removeChild(this.container);
+        }
+    }
 }

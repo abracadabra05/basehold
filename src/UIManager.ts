@@ -176,27 +176,79 @@ export class UIManager {
 
     public resize() {
         this.detectPlatform();
+        this.updateElementPositions();
+    }
+
+    private updateElementPositions() {
+        // Update settings button position
+        const settingsBtn = document.getElementById('ingame-settings-btn');
+        if (settingsBtn) {
+            const minimapSize = this.isMobile ? 80 : 100;
+            settingsBtn.style.top = this.isMobile ? `${10 + minimapSize + 15}px` : 'auto';
+            settingsBtn.style.bottom = this.isMobile ? 'auto' : '20px';
+        }
+
+        // Update info panel position
+        if (this.infoPanel) {
+            this.infoPanel.style.bottom = this.isMobile ? '120px' : '140px';
+        }
+
+        // Update toolbar styles
+        if (this.container) {
+            const bottomPadding = this.isMobile ? '20px' : '25px';
+            this.container.style.bottom = `calc(${bottomPadding} + env(safe-area-inset-bottom, 0px))`;
+            this.container.style.gap = this.isMobile ? '4px' : '6px';
+            this.container.style.padding = this.isMobile ? '6px' : '10px';
+        }
+
+        // Update HUD panels
+        if (this.hudPlayer) {
+            this.hudPlayer.style.fontSize = this.isMobile ? '10px' : '11px';
+        }
+
+        if (this.hudCore) {
+            const barWidth = this.isMobile ? '120px' : '180px';
+            this.hudCore.style.gap = this.isMobile ? '5px' : '8px';
+            this.hudCore.style.padding = this.isMobile ? '5px 8px' : '6px 12px';
+            const barDiv = this.hudCore.querySelector('div > div') as HTMLElement;
+            if (barDiv) {
+                barDiv.style.width = barWidth;
+            }
+        }
     }
 
     public showGameOver(canRevive: boolean = true, stats?: GameStats, formatTime?: (ms: number) => string) {
         const overlay = document.createElement('div');
+        // Check if landscape mode on mobile
+        const isLandscape = window.innerWidth > window.innerHeight;
+        const isSmallScreen = window.innerWidth < 400;
+
         Object.assign(overlay.style, {
             position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
             background: 'rgba(0,0,0,0.7)', zIndex: 10001,
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             color: 'white', fontFamily: "'Segoe UI', sans-serif",
             backdropFilter: 'blur(10px)',
-            opacity: '0', transition: 'opacity 1s ease-in'
+            opacity: '0', transition: 'opacity 1s ease-in',
+            overflowY: 'auto',
+            padding: this.isMobile ? '10px' : '20px',
+            boxSizing: 'border-box'
         });
 
-        // Build stats HTML if stats provided
+        // Build stats HTML if stats provided - with adaptive sizing
         let statsHtml = '';
         if (stats) {
             const timeStr = formatTime ? formatTime(stats.timePlayedMs) : `${Math.floor(stats.timePlayedMs / 1000)}s`;
+            // Adaptive padding and sizing for small screens and landscape
+            const statsPadding = isSmallScreen ? '12px 15px' : (this.isMobile ? '15px 20px' : '20px 30px');
+            const statsGap = isSmallScreen || (this.isMobile && isLandscape) ? '6px' : '10px';
+            const statsFontSize = isSmallScreen || (this.isMobile && isLandscape) ? '12px' : '14px';
+            const statsHeaderSize = isSmallScreen || (this.isMobile && isLandscape) ? '12px' : '14px';
+
             statsHtml = `
-                <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px 30px; margin-bottom: 30px; border: 1px solid #444; text-align: left; min-width: 280px;">
-                    <h3 style="margin: 0 0 15px 0; color: #3498db; text-align: center; text-transform: uppercase; letter-spacing: 2px; font-size: 14px;">${this.t('stats_title')}</h3>
-                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; font-size: 14px;">
+                <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: ${statsPadding}; margin-bottom: ${this.isMobile && isLandscape ? '15px' : '30px'}; border: 1px solid #444; text-align: left; min-width: ${isSmallScreen ? 'auto' : '200px'}; max-width: 95vw; width: ${this.isMobile ? '90vw' : 'auto'}; box-sizing: border-box;">
+                    <h3 style="margin: 0 0 ${isSmallScreen ? '10px' : '15px'} 0; color: #3498db; text-align: center; text-transform: uppercase; letter-spacing: 2px; font-size: ${statsHeaderSize};">${this.t('stats_title')}</h3>
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: ${statsGap}; font-size: ${statsFontSize};">
                         <span style="color: #aaa;">${this.t('stats_wave_reached')}</span>
                         <span style="color: #f1c40f; font-weight: bold; text-align: right;">${stats.waveReached}</span>
 
@@ -219,13 +271,21 @@ export class UIManager {
             `;
         }
 
+        // Adaptive button and title sizing
+        const titleSize = isSmallScreen ? '30px' : (this.isMobile && isLandscape ? '35px' : (this.isMobile ? '40px' : '80px'));
+        const titleLetterSpacing = isSmallScreen ? '3px' : (this.isMobile ? '5px' : '15px');
+        const titleMargin = stats ? (this.isMobile && isLandscape ? '10px' : '20px') : '40px';
+        const btnPadding = isSmallScreen ? '10px 20px' : (this.isMobile ? '12px 25px' : '18px 40px');
+        const btnFontSize = isSmallScreen ? '14px' : (this.isMobile ? '16px' : '20px');
+        const btnGap = isSmallScreen ? '10px' : '20px';
+
         overlay.innerHTML = `
-            <div style="text-align: center; transform: translateY(-20px);">
-                <h1 style="font-size: ${this.isMobile ? '40px' : '80px'}; color: #e74c3c; margin: 0 0 ${stats ? '20px' : '40px'} 0; text-transform: uppercase; letter-spacing: ${this.isMobile ? '5px' : '15px'}; font-weight: 900; text-shadow: 0 0 30px rgba(231, 76, 60, 0.5);">${this.t('game_over')}</h1>
+            <div style="text-align: center; transform: translateY(-20px); max-width: 95vw; width: 100%;">
+                <h1 style="font-size: ${titleSize}; color: #e74c3c; margin: 0 0 ${titleMargin} 0; text-transform: uppercase; letter-spacing: ${titleLetterSpacing}; font-weight: 900; text-shadow: 0 0 30px rgba(231, 76, 60, 0.5);">${this.t('game_over')}</h1>
                 ${statsHtml}
-                <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
-                    ${canRevive ? `<button id="revive-btn" style="padding: 18px 40px; font-size: 20px; cursor: pointer; background: #e67e22; color: white; border: none; border-radius: 4px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; transition: all 0.3s;">🎬 ${this.t('revive')}</button>` : ''}
-                    <button id="restart-btn" style="padding: 18px 40px; font-size: 20px; cursor: pointer; background: transparent; color: #3498db; border: 2px solid #3498db; border-radius: 4px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; transition: all 0.3s;">${this.t('restart')}</button>
+                <div style="display: flex; gap: ${btnGap}; justify-content: center; flex-wrap: wrap;">
+                    ${canRevive ? `<button id="revive-btn" style="padding: ${btnPadding}; font-size: ${btnFontSize}; cursor: pointer; background: #e67e22; color: white; border: none; border-radius: 4px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; transition: all 0.3s;">🎬 ${this.t('revive')}</button>` : ''}
+                    <button id="restart-btn" style="padding: ${btnPadding}; font-size: ${btnFontSize}; cursor: pointer; background: transparent; color: #3498db; border: 2px solid #3498db; border-radius: 4px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; transition: all 0.3s;">${this.t('restart')}</button>
                 </div>
             </div>
         `;
@@ -260,8 +320,20 @@ export class UIManager {
 
         restartBtn.onclick = (e) => {
             e.preventDefault(); e.stopPropagation();
-            document.body.removeChild(overlay);
-            if (this.onRestart) this.onRestart();
+            // Show fullscreen ad on user action (clicking restart), per Yandex requirements
+            yaSdk.showFullscreenAdv(
+                () => {
+                    // onClose - restore audio and proceed with restart
+                    const muted = this.getMutedState ? this.getMutedState() : false;
+                    if (this.onMute) this.onMute(muted);
+                    document.body.removeChild(overlay);
+                    if (this.onRestart) this.onRestart();
+                },
+                () => {
+                    // onOpen - mute audio during ad
+                    if (this.onMute) this.onMute(true);
+                }
+            );
         };
     }
 

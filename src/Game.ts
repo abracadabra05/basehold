@@ -78,6 +78,7 @@ export class Game {
     private achievementManager: AchievementManager = new AchievementManager();
     private isEndlessMode: boolean = false;
     private endlessDifficultyMultiplier: number = 1.0;
+    private resizeTimeout: ReturnType<typeof setTimeout> | null = null;
 
     constructor(app: Application) {
         this.app = app;
@@ -125,7 +126,13 @@ export class Game {
         });
 
         window.addEventListener('resize', () => {
-            this.resize(this.app.screen.width, this.app.screen.height);
+            // Debounce resize events to prevent rapid-fire updates
+            if (this.resizeTimeout) {
+                clearTimeout(this.resizeTimeout);
+            }
+            this.resizeTimeout = setTimeout(() => {
+                this.resize(this.app.screen.width, this.app.screen.height);
+            }, 100);
         });
 
         yaSdk.onPause = () => this.pauseGame();
@@ -522,9 +529,7 @@ export class Game {
         this.inputSystem.showControls();
         this.statsTracker.start();
         yaSdk.gameplayStart(); // Yandex GameplayAPI
-
-        // Показываем sticky баннер (если настроен в консоли Yandex)
-        yaSdk.showBannerAdv();
+        // Banner ads removed - per Yandex requirements, ads should only show after user action
     }
 
     public pauseGame() {
@@ -556,7 +561,7 @@ export class Game {
             }
         }
         if (this.miniMap) this.miniMap.resize(width);
-        if (this.inputSystem) this.inputSystem.init(this.app.screen); // Обновляем хитбокс
+        if (this.inputSystem) this.inputSystem.resize(this.app.screen); // Обновляем хитбокс без пересоздания контролов
         if (this.voidOverlay) {
             this.voidOverlay.clear().rect(0, 0, width, height).fill({ color: 0xFF0000, alpha: 0 });
         }
@@ -1088,18 +1093,9 @@ export class Game {
         // Отправляем рекорд
         yaSdk.setLeaderboardScore(this.waveManager.waveCount);
 
-        // Показываем fullscreen рекламу перед экраном Game Over
+        // Show Game Over screen directly - ads will be shown when user clicks Restart (per Yandex requirements)
         setTimeout(() => {
-            yaSdk.showFullscreenAdv(
-                () => {
-                    // onClose - показываем Game Over экран
-                    this.uiManager.showGameOver(this.canRevive, stats, (ms) => this.statsTracker.formatTime(ms));
-                },
-                () => {
-                    // onOpen - пауза звука
-                    this.soundManager.setMute(true);
-                }
-            );
+            this.uiManager.showGameOver(this.canRevive, stats, (ms) => this.statsTracker.formatTime(ms));
         }, 2500);
     }
 

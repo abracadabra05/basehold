@@ -47,7 +47,7 @@ export const CHANGELOG: ChangelogEntry[] = [
                 '6 типов врагов',
                 '8 типов зданий',
                 '6 перков',
-                'Интеграция Yandex Games',
+                'Интеграция с игровой платформой',
                 'Мобильная поддержка'
             ],
             en: [
@@ -55,7 +55,7 @@ export const CHANGELOG: ChangelogEntry[] = [
                 '6 enemy types',
                 '8 building types',
                 '6 perks',
-                'Yandex Games integration',
+                'Game platform integration',
                 'Mobile support'
             ]
         }
