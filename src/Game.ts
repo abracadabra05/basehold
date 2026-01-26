@@ -37,15 +37,15 @@ export class Game {
     private buildingSystem!: BuildingSystem;
     private uiManager!: UIManager;
     public resourceManager!: ResourceManager;
-    
+
     public resources: ResourceNode[] = [];
     public enemies: Enemy[] = [];
-    public projectiles: Projectile[] = []; 
-    public particles: Particle[] = [];    
-    public dropItems: DropItem[] = []; 
+    public projectiles: Projectile[] = [];
+    public particles: Particle[] = [];
+    public dropItems: DropItem[] = [];
     public floatingTexts: FloatingText[] = [];
     public rocks: Rock[] = [];
-    
+
     private waveManager!: WaveManager;
     private upgradeManager!: UpgradeManager;
     private soundManager!: SoundManager;
@@ -55,20 +55,20 @@ export class Game {
 
     private projectilePool!: ObjectPool<Projectile>;
     private particlePool!: ObjectPool<Particle>;
-    
-    private coreBuilding!: Building; 
+
+    private coreBuilding!: Building;
     private voidOverlay!: Graphics; // Оверлей для урона
 
     private manualMiningTimer: number = 0;
     private isGameOver: boolean = false;
-    private isGameStarted: boolean = false; 
+    private isGameStarted: boolean = false;
     private currentMineMultiplier: number = 1;
-    
+
     public score: number = 0; // Добавлено
 
     private gridSize = GameConfig.GAME.GRID_SIZE;
-    private mapWidthTiles = GameConfig.GAME.MAP_WIDTH_TILES; 
-    private mapSizePixel = 0; 
+    private mapWidthTiles = GameConfig.GAME.MAP_WIDTH_TILES;
+    private mapSizePixel = 0;
     private voidDamageTimer: number = 0;
     private lowHpTimer: number = 0;
     private canRevive: boolean = true; // Один раз за игру
@@ -88,7 +88,7 @@ export class Game {
 
         this.projectilePool = new ObjectPool<Projectile>(
             () => new Projectile(),
-            (p) => { p.shouldDestroy = false; } 
+            (p) => { p.shouldDestroy = false; }
         );
 
         this.particlePool = new ObjectPool<Particle>(
@@ -525,6 +525,7 @@ export class Game {
 
     public startGame() {
         this.isGameStarted = true;
+        this.waveManager.setActive(true); // Активируем WaveManager
         this.uiManager.hideMenu();
         this.inputSystem.showControls();
         this.statsTracker.start();
@@ -550,7 +551,7 @@ export class Game {
     public resize(width: number, height: number) {
         // Принудительно обновляем размеры рендера, если они рассинхронизировались
         this.app.renderer.resize(width, height);
-        
+
         if (this.camera) {
             this.camera.resize(width, height);
             // Если экран узкий (мобилка), отдаляем камеру, чтобы видеть больше
@@ -565,7 +566,7 @@ export class Game {
         if (this.voidOverlay) {
             this.voidOverlay.clear().rect(0, 0, width, height).fill({ color: 0xFF0000, alpha: 0 });
         }
-        
+
         // Обновляем позицию UI через CSS
         this.uiManager.resize();
     }
@@ -593,17 +594,17 @@ export class Game {
             this.world.removeChild(e);
         });
         this.enemies = [];
-        
+
         // 4. Перезапускаем волну
         this.waveManager.resetWave();
-        
+
         this.soundManager.playBuild();
         this.spawnFloatingText(this.player.x, this.player.y - 50, "REVIVED!", '#e67e22', 30);
-        
+
         // 5. Снимаем флаг Game Over
         this.isGameOver = false;
     }
-    
+
     // reasonCore: true если взорвалось ядро
 
     public restartGame() {
@@ -614,58 +615,59 @@ export class Game {
         this.isEndlessMode = false;
         this.endlessDifficultyMultiplier = 1.0;
         this.inputSystem.hideControls(); // Скрываем
-        
+
         // Очистка
         this.enemies.forEach(e => this.world.removeChild(e));
         this.enemies = [];
-        
+
         this.projectiles.forEach(p => this.world.removeChild(p));
-        this.projectiles = []; 
-        
+        this.projectiles = [];
+
         this.particles.forEach(p => this.world.removeChild(p));
         this.particles = []; // Пул сам разберется, если мы просто скроем или переиспользуем? 
         // Лучше не удалять из world, а вернуть в пул. Но у нас нет метода returnAll.
         // Просто скроем и сбросим флаг isDead? Нет, лучше удалить и пусть пул наполнится заново или просто очистить массив.
         // Пул объектов у нас простой.
-        
+
         this.dropItems.forEach(d => this.world.removeChild(d));
         this.dropItems = [];
-        
+
         this.floatingTexts.forEach(f => this.world.removeChild(f));
         this.floatingTexts = [];
-        
+
         // Сброс зданий
-        this.buildingSystem.reset(); 
-        
+        this.buildingSystem.reset();
+
         // Сброс ресурсов и камней
         this.resources.forEach(r => this.world.removeChild(r));
         this.resources = [];
         this.rocks.forEach(r => this.world.removeChild(r));
         this.rocks = [];
-        
+
         // Генерация нового мира
         this.generateResources();
         this.generateRocks();
-        
+
         // Сброс игрока
         const coreGridX = Math.floor((this.mapSizePixel / 2) / 40) * 40;
         const coreGridY = Math.floor((this.mapSizePixel / 2) / 40) * 40;
         this.coreBuilding = this.buildingSystem.spawnCore(coreGridX, coreGridY);
-        
+
         this.player.x = coreGridX + 20;
         this.player.y = coreGridY + 80;
         this.player.hp = this.player.maxHp = GameConfig.PLAYER.START_HP; // Сброс HP и макс HP (если были апгрейды)
         this.player.visible = true;
-        
+
         // Сброс менеджеров
         this.resourceManager.reset();
         this.waveManager.reset();
         this.upgradeManager.reset();
         this.statsTracker.reset();
-        
+
         this.isGameStarted = false; // Останавливаем игру
+        this.waveManager.setActive(false); // Деактивируем WaveManager
         this.uiManager.showMenu(); // Показываем главное меню
-        
+
         this.uiManager.updateHUD({ hp: this.player.hp, maxHp: this.player.maxHp }, { hp: this.coreBuilding.hp, maxHp: this.coreBuilding.maxHp });
         this.uiManager.updateScore(0);
         this.uiManager.updateWave(1);
@@ -687,7 +689,7 @@ export class Game {
         this.world.addChild(p);
         this.particles.push(p);
     }
-    
+
     public createExplosion(x: number, y: number, color: number, count: number = 10) {
         for (let i = 0; i < count; i++) {
             this.createParticle(x, y, color, 'explosion');
@@ -710,14 +712,14 @@ export class Game {
         for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
             const ft = this.floatingTexts[i];
             ft.update(ticker);
-            if (ft.destroyed) { 
+            if (ft.destroyed) {
                 this.floatingTexts.splice(i, 1);
             }
         }
     }
 
     private updateDrops(ticker: Ticker) {
-        const pickupRadius = 50; 
+        const pickupRadius = 50;
         const effectiveMagnet = Math.max(pickupRadius, this.magnetRadius);
 
         for (let i = this.dropItems.length - 1; i >= 0; i--) {
@@ -728,7 +730,7 @@ export class Game {
             const dy = this.player.y - drop.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            if (dist < 20) { 
+            if (dist < 20) {
                 if (drop.type === 'data_core') {
                     // ПАУЗА И ВЫБОР ПЕРКА
                     this.soundManager.playShoot(); // Звук открытия
@@ -737,7 +739,7 @@ export class Game {
                     });
                 } else {
                     this.resourceManager.addBiomass(drop.value);
-                    this.soundManager.playMine(); 
+                    this.soundManager.playMine();
                     this.spawnFloatingText(drop.x, drop.y, `+${drop.value}`, '#9b59b6', 14);
                 }
                 this.world.removeChild(drop);
@@ -767,13 +769,13 @@ export class Game {
         if (waveNum % GameConfig.WAVES.BOSS_WAVE_INTERVAL === 0) {
             this.spawnFloatingText(this.player.x, this.player.y - 100, `☠️ ${this.t('wave_boss_incoming')} ☠️`, '#e74c3c', 30);
             this.soundManager.playError(); // Звук тревоги
-            
+
             // Ставим паузу волн
             this.waveManager.isBossActive = true;
-            
+
             const angle = Math.random() * Math.PI * 2;
             this.spawnEnemy(this.coreBuilding.x + Math.cos(angle) * spawnRadius, this.coreBuilding.y + Math.sin(angle) * spawnRadius, 'boss');
-            
+
             for (let i = 0; i < 5; i++) {
                 const a = angle + (Math.random() - 0.5) * 0.5;
                 this.spawnEnemy(this.coreBuilding.x + Math.cos(a) * spawnRadius, this.coreBuilding.y + Math.sin(a) * spawnRadius, 'kamikaze');
@@ -860,7 +862,7 @@ export class Game {
             enemy.hp *= this.endlessDifficultyMultiplier;
             enemy.damage *= this.endlessDifficultyMultiplier;
         }
-        
+
         enemy.onShoot = (sx, sy, tx, ty, dmg) => this.spawnProjectile(sx, sy, tx, ty, dmg, true);
         enemy.onHit = () => {
             this.soundManager.playEnemyHit();
@@ -872,12 +874,12 @@ export class Game {
 
             const dx = this.player.x - ex;
             const dy = this.player.y - ey;
-            if (dx*dx + dy*dy < rad*rad) this.player.takeDamage(dmg);
+            if (dx * dx + dy * dy < rad * rad) this.player.takeDamage(dmg);
 
             this.buildingSystem.activeBuildings.forEach(b => {
                 const bdx = b.x + 20 - ex;
                 const bdy = b.y + 20 - ey;
-                if (bdx*bdx + bdy*bdy < rad*rad) b.takeDamage(dmg);
+                if (bdx * bdx + bdy * bdy < rad * rad) b.takeDamage(dmg);
             });
         };
 
@@ -914,7 +916,7 @@ export class Game {
                     this.player.takeDamage(p.damage);
                     p.shouldDestroy = true;
                 }
-                
+
                 // Попадание в здания
                 if (!p.shouldDestroy) {
                     const building = this.buildingSystem.getBuildingAt(p.x, p.y);
@@ -1000,7 +1002,7 @@ export class Game {
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < 30) {
                 if (this.player.hp > 0) {
-                    this.player.takeDamage(1); 
+                    this.player.takeDamage(1);
                     this.soundManager.playEnemyHit();
                     this.camera.shake(5, 0.1); // Небольшая тряска
                 }
@@ -1012,7 +1014,7 @@ export class Game {
         const x = this.player.x;
         const y = this.player.y;
         const margin = 50; // Допуск, чтобы сразу не било на границе
-        
+
         const isOut = x < -margin || x > this.mapSizePixel + margin || y < -margin || y > this.mapSizePixel + margin;
 
         if (isOut) {
@@ -1045,7 +1047,7 @@ export class Game {
             // Эпичный взрыв ядра
             this.soundManager.playExplosion();
             this.camera.shake(30, 2.0); // Долгая мощная тряска
-            
+
             // Серия взрывов по спирали
             let delay = 0;
             for (let i = 0; i < 20; i++) {
@@ -1058,7 +1060,7 @@ export class Game {
                 }, delay);
                 delay += 100;
             }
-            
+
             // Уничтожение всего живого
             setTimeout(() => {
                 this.enemies.forEach(e => {
@@ -1082,7 +1084,7 @@ export class Game {
             this.camera.shake(15, 0.5);
             this.player.visible = false;
         }
-        
+
         this.soundManager.playGameOver();
 
         // Stop tracking and get stats
@@ -1102,14 +1104,14 @@ export class Game {
     private handleManualMining(ticker: Ticker) {
         let onResource = false;
         const halfGrid = 20;
-        
+
         for (const res of this.resources) {
             const dx = this.player.x - (res.x + halfGrid);
             const dy = this.player.y - (res.y + halfGrid);
             if (Math.sqrt(dx * dx + dy * dy) < 60) {
                 // ПРОВЕРКА: Если на ресурсе уже стоит здание (бур или что-то еще), пропускаем
                 if (this.buildingSystem.getBuildingAt(res.x, res.y)) {
-                    continue; 
+                    continue;
                 }
 
                 onResource = true;
@@ -1120,7 +1122,7 @@ export class Game {
                     this.resourceManager.addMetal(amount);
                     this.soundManager.playMine();
                     this.spawnFloatingText(res.x + 20, res.y, `+${amount}`, '#3498db', 14);
-                    
+
                     this.createExplosion(this.player.x, this.player.y, 0xffff00, 5);
                     this.player.scale.set(1.1);
                     setTimeout(() => this.player.scale.set(1.0), 50);
@@ -1128,7 +1130,7 @@ export class Game {
                 break;
             }
         }
-        
+
         if (!onResource) {
             this.manualMiningTimer = 0;
         }
@@ -1229,13 +1231,13 @@ export class Game {
         const tiles = this.mapWidthTiles;
         const color = 0x444444;
         const g = new Graphics();
-        for (let x = 0; x <= tiles; x++) { 
-            g.rect(x * gridSize, 0, 1, tiles * gridSize); 
-            g.fill(color); 
+        for (let x = 0; x <= tiles; x++) {
+            g.rect(x * gridSize, 0, 1, tiles * gridSize);
+            g.fill(color);
         }
-        for (let y = 0; y <= tiles; y++) { 
-            g.rect(0, y * gridSize, tiles * gridSize, 1); 
-            g.fill(color); 
+        for (let y = 0; y <= tiles; y++) {
+            g.rect(0, y * gridSize, tiles * gridSize, 1);
+            g.fill(color);
         }
         this.world.addChild(g);
     }

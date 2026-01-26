@@ -40,7 +40,7 @@ export class VirtualJoystick {
             pointerEvents: 'auto',
             zIndex: `${Z_INDEX.JOYSTICKS + 10}`,
             display: 'none',
-            bottom: '0px'
+            bottom: '20px'
         });
 
         if (side === 'left') this.container.style.left = '0px';
@@ -137,11 +137,11 @@ export class VirtualJoystick {
                 VirtualJoystick.activeTouchIds.add(this.touchId);
                 VirtualJoystick.activeJoysticks.add(this);
             }
-            
+
             const rect = this.container.getBoundingClientRect();
             this.centerX = rect.left + rect.width / 2;
             this.centerY = rect.top + rect.height / 2;
-            
+
             this.updateKnob(touch.clientX, touch.clientY);
         }, { passive: false });
 
@@ -149,7 +149,7 @@ export class VirtualJoystick {
             e.preventDefault();
             e.stopPropagation();
             if (!this.isActive) return;
-            
+
             for (let i = 0; i < e.changedTouches.length; i++) {
                 if (e.changedTouches[i].identifier === this.touchId) {
                     const touch = e.changedTouches[i];
@@ -183,7 +183,7 @@ export class VirtualJoystick {
         let dx = clientX - this.centerX;
         let dy = clientY - this.centerY;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        
+
         if (dist > this.maxRadius) {
             const ratio = this.maxRadius / dist;
             dx *= ratio;
@@ -191,7 +191,7 @@ export class VirtualJoystick {
         }
 
         this.knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-        
+
         // Нормализация значения от -1 до 1
         this.value.x = dx / this.maxRadius;
         this.value.y = dy / this.maxRadius;

@@ -25,6 +25,7 @@ export class WaveManager {
     private isPaused: boolean = false;
     public isPrepPhase: boolean = true;
     public isBossActive: boolean = false;
+    private isActive: boolean = false; // Блокирует обновления до старта игры
 
     constructor(
         resourceManager: ResourceManager,
@@ -97,6 +98,10 @@ export class WaveManager {
 
     public get isShopOpen(): boolean { return this.isPaused; }
 
+    public setActive(active: boolean) {
+        this.isActive = active;
+    }
+
     public resume() {
         this.isPaused = false;
         this.startWave();
@@ -106,28 +111,28 @@ export class WaveManager {
         if (this.isPaused) return;
 
         let timeLeftSeconds = 0;
-        
+
         if (this.isPrepPhase) {
             timeLeftSeconds = Math.ceil(this.prepTime / 1000);
-            this.prepTime = 0; 
+            this.prepTime = 0;
         } else {
             const remaining = this.timeBetweenWaves - this.waveTimer;
             if (remaining > 0) {
                 timeLeftSeconds = Math.ceil(remaining / 1000);
-                this.waveTimer = this.timeBetweenWaves; 
+                this.waveTimer = this.timeBetweenWaves;
             }
         }
 
         if (timeLeftSeconds > 0) {
             const bonus = calculateSkipBonus(timeLeftSeconds);
             this.resourceManager.addBiomass(bonus);
-            
+
             const originalText = this.skipButton.innerText;
             // const originalBg = this.skipButton.style.backgroundColor;
-            
+
             this.skipButton.innerText = `+${bonus} 🧬`;
             this.skipButton.style.backgroundColor = '#8e44ad';
-            
+
             setTimeout(() => {
                 this.skipButton.innerText = originalText;
                 this.skipButton.style.backgroundColor = '#27ae60';
@@ -140,7 +145,7 @@ export class WaveManager {
         // Просто вызовем update с delta=0, чтобы перерисовать текст
         // Но update меняет логику времени.
         // Лучше просто обновить текст вручную.
-        
+
         if (this.isPaused) {
             this.timerText.innerHTML = `<span style="color: #f1c40f">${this.t('wave_shop')}</span>`;
         } else if (this.isBossActive) {
@@ -175,6 +180,12 @@ export class WaveManager {
     }
 
     public update(ticker: Ticker) {
+        // Полностью блокируем обновления если игра не активна
+        if (!this.isActive) {
+            this.skipButton.style.display = 'none';
+            return;
+        }
+
         if (this.isPaused) {
             this.skipButton.style.display = 'none';
             this.timerText.innerHTML = `<span style="color: #f1c40f">${this.t('wave_shop')}</span>`;
@@ -184,22 +195,22 @@ export class WaveManager {
         if (this.isBossActive) {
             this.skipButton.style.display = 'none';
             this.timerText.innerHTML = `<span style="color: #e74c3c">${this.t('wave_boss')}</span>`;
-            return; 
+            return;
         }
 
-        const dt = ticker.deltaMS; 
+        const dt = ticker.deltaMS;
 
         // ФАЗА ПОДГОТОВКИ (МЕЖДУ ВОЛНАМИ)
         if (this.isPrepPhase) {
             this.skipButton.style.display = 'block';
             this.prepTime -= dt;
             const timeLeft = Math.ceil(this.prepTime / 1000);
-            
+
             this.timerText.innerHTML = `
                 <div style="color: #3498db; font-size: 11px; margin-bottom: -2px;">${this.t('wave_prep')}</div>
                 <div style="font-size: 20px; font-weight: 900;">${Math.max(0, timeLeft)}</div>
             `;
-            
+
             const bonus = calculateSkipBonus(timeLeft);
             this.skipButton.innerText = `${this.t('wave_skip')} (+${bonus} 🧬)`;
 
@@ -211,17 +222,17 @@ export class WaveManager {
 
         // ФАЗА ВОЛНЫ (БОЙ)
         this.waveTimer += dt;
-        
+
         this.timerText.innerHTML = `<span style="color: #e74c3c; font-size: 11px;">${this.t('wave_active')}</span> <span style="font-size: 16px; font-weight: 900;">${this.waveCount}</span>`;
         this.skipButton.style.display = 'none';
 
         // 5 секунд после спавна волны переходим в ожидание следующей
-        if (this.waveTimer > 5000) { 
-             this.isPrepPhase = true;
-             // Увеличиваем сложность времени
-             const nextBreak = 20000; // 20 сек передышка
-             this.prepTime = nextBreak;
-             this.waveTimer = 0;
+        if (this.waveTimer > 5000) {
+            this.isPrepPhase = true;
+            // Увеличиваем сложность времени
+            const nextBreak = 20000; // 20 сек передышка
+            this.prepTime = nextBreak;
+            this.waveTimer = 0;
         }
     }
 
