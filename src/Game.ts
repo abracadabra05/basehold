@@ -570,6 +570,7 @@ export class Game {
 
         // Обновляем позицию UI через CSS
         this.uiManager.resize();
+        if (this.resourceManager) this.resourceManager.resize();
     }
 
     private revivePlayer() {

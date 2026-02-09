@@ -162,9 +162,11 @@ button:active {
   :root {
     --ui-scale: 0.65;
     /* Sligthly smaller */
-    --btn-size: 36px;
-    --btn-icon-size: 14px;
-    --hud-font-size: 9px;
+    --btn-size: 40px;
+    /* Increased from 36px */
+    --btn-icon-size: 18px;
+    /* Increased from 14px */
+    --hud-font-size: 10px;
     --panel-padding: 4px;
   }
 
@@ -179,10 +181,10 @@ button:active {
   :root {
     --ui-scale: 0.55;
     /* Aggressive scaling */
-    --btn-size: 32px;
-    --btn-icon-size: 12px;
-    --hud-font-size: 8px;
-    --panel-padding: 2px;
+    --btn-size: 38px;
+    --btn-icon-size: 16px;
+    --hud-font-size: 10px;
+    --panel-padding: 4px;
   }
 }
 

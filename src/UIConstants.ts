@@ -83,15 +83,15 @@ export const UI_POSITIONS = {
 
     // Mobile Landscape specific overrides
     LANDSCAPE_MOBILE: {
-        HUD_PLAYER: { top: 5, left: 30 }, // Left of the notch area (if any)
+        HUD_PLAYER: { top: 5, left: 10 }, // Closer to edge
         HUD_CORE: { top: 5 },
-        MINIMAP: { top: 5, right: 30 },
-        SETTINGS_BUTTON: { top: 5, right: 90 }, // Left of minimap
-        WAVE_PANEL: { top: 40 }, // Higher up
-        RESOURCES: { top: 50, left: 30 }, // More compact vertical layout
-        TOOLBAR: { bottom: 10 },
-        JOYSTICK_LEFT: { bottom: 40, left: 40 },
-        JOYSTICK_RIGHT: { bottom: 40, right: 40 },
+        MINIMAP: { top: 5, right: 10 }, // Closer to edge
+        SETTINGS_BUTTON: { top: 5, right: 70 }, // Left of minimap
+        WAVE_PANEL: { top: 35 },
+        RESOURCES: { top: 5, left: 190 }, // Top row, right of player HUD
+        TOOLBAR: { bottom: 5 }, // Lower
+        JOYSTICK_LEFT: { bottom: 15, left: 15 }, // Lower and closer to edge
+        JOYSTICK_RIGHT: { bottom: 15, right: 15 },
     }
 } as const;
 

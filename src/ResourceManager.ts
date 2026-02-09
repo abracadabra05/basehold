@@ -46,7 +46,23 @@ export class ResourceManager {
         });
 
         document.body.appendChild(this.uiElement);
+        this.resize(); // Initial position update
         this.updateUI();
+    }
+
+    public resize() {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || ('ontouchstart' in window);
+        const isLandscape = window.innerWidth > window.innerHeight;
+
+        const positions = (isLandscape && isMobile ? UI_POSITIONS.LANDSCAPE_MOBILE : UI_POSITIONS) as any;
+        const pos = positions.RESOURCES || UI_POSITIONS.RESOURCES;
+
+        Object.assign(this.uiElement.style, {
+            top: pos.top !== undefined ? `${pos.top}px` : 'auto',
+            left: pos.left !== undefined ? `${pos.left}px` : 'auto',
+            right: pos.right !== undefined ? `${pos.right}px` : 'auto',
+            bottom: pos.bottom !== undefined ? `${pos.bottom}px` : 'auto'
+        });
     }
 
     public reset() {
