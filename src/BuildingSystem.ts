@@ -29,8 +29,8 @@ export class BuildingSystem {
     private app: Application;
     private ghost: Graphics;
     private gridSize: number = 40;
-    
-    private buildings: Map<string, Building>; 
+
+    private buildings: Map<string, Building>;
     private player: Container | null = null;
     private selectedTool: ToolType = 'wall';
     private isToolActive: boolean = true; // false = ничего в руках, клики игнорируются
@@ -63,9 +63,12 @@ export class BuildingSystem {
 
     public setSoundManager(sm: SoundManager) { this.soundManager = sm; }
     public setRegenAmount(amount: number) { this.regenAmount = amount; }
-    public setThornsDamage(damage: number) { 
-        this.thornsDamage = damage; 
+    public setThornsDamage(damage: number) {
+        this.thornsDamage = damage;
         this.buildings.forEach(b => b.thornsDamage = damage);
+    }
+    public setLifeSteal(enabled: boolean) {
+        this.buildings.forEach(b => b.lifeSteal = enabled);
     }
     public setResources(resources: ResourceNode[], manager: ResourceManager) {
         this.resources = resources;
@@ -84,8 +87,8 @@ export class BuildingSystem {
         this.ghost.visible = active && !this.isPaused;
     }
     public setPlayer(player: Container) { this.player = player; }
-    public setPaused(paused: boolean) { 
-        this.isPaused = paused; 
+    public setPaused(paused: boolean) {
+        this.isPaused = paused;
         this.ghost.visible = !paused;
     }
 
@@ -102,8 +105,8 @@ export class BuildingSystem {
     }
 
     public update(
-        ticker: Ticker, 
-        enemies: Enemy[], 
+        ticker: Ticker,
+        enemies: Enemy[],
         spawnProjectile: (x: number, y: number, tx: number, ty: number, damage: number) => void
     ) {
         let totalProduction = 0;
@@ -115,7 +118,7 @@ export class BuildingSystem {
             totalConsumption += b.energyConsumption;
             totalCapacity += b.energyCapacity;
         });
-        
+
         let efficiency = 1.0;
         if (totalConsumption > totalProduction) {
             if (this.resourceManager && this.resourceManager.isBlackout) {
@@ -145,10 +148,10 @@ export class BuildingSystem {
                 if (this.onBuildingDestroyed) {
                     this.onBuildingDestroyed(building.x, building.y);
                 }
-                
+
                 this.world.removeChild(building);
                 this.buildings.delete(key);
-                this.soundManager?.playHit(); 
+                this.soundManager?.playHit();
             } else {
                 building.update(ticker, enemies, spawnProjectile, efficiency);
             }
@@ -162,7 +165,7 @@ export class BuildingSystem {
         let energyStr = '';
         if (b.energyProduction > 0) energyStr = `+${b.energyProduction}`;
         else if (b.energyConsumption > 0) energyStr = `-${b.energyConsumption}`;
-        
+
         if (b.energyCapacity > 0) energyStr += ` [Cap: ${b.energyCapacity}]`;
 
         return {
@@ -181,7 +184,7 @@ export class BuildingSystem {
                 return true;
             }
         }
-        
+
         for (const rock of this.rocks) {
             const dx = worldX - rock.x;
             const dy = worldY - rock.y;
@@ -195,11 +198,20 @@ export class BuildingSystem {
         const gy = Math.floor(y / this.gridSize) * this.gridSize;
         return this.buildings.get(`${gx},${gy}`) || null;
     }
-    
+
+    public isRockAt(x: number, y: number): boolean {
+        for (const rock of this.rocks) {
+            const dx = x - rock.x;
+            const dy = y - rock.y;
+            if (dx * dx + dy * dy < (rock.radius + 10) ** 2) return true;
+        }
+        return false;
+    }
+
     private initInput() {
         this.app.stage.eventMode = 'static';
         this.app.stage.hitArea = this.app.screen;
-        this.app.stage.on('pointermove', (e) => { 
+        this.app.stage.on('pointermove', (e) => {
             if (this.isPaused) return;
             if (this.activeBuildPointerId !== null && e.pointerId !== this.activeBuildPointerId) return;
             if (this.isBuildInputBlocked(e)) {
@@ -210,7 +222,7 @@ export class BuildingSystem {
             if ((e as any).pointerType === 'touch') {
                 this.ghost.visible = true;
             }
-            this.updateGhost(e); 
+            this.updateGhost(e);
             if (this.isDragging) this.handleAction();
         });
         this.app.stage.on('pointerdown', (e) => {
@@ -265,36 +277,36 @@ export class BuildingSystem {
         this.ghost.x = pos.x;
         this.ghost.y = pos.y;
         this.ghost.clear();
-        this.ghost.removeChildren(); 
-        
+        this.ghost.removeChildren();
+
         // Рисуем сетку 3x3 вокруг курсора для удобства
         this.ghost.rect(0, 0, this.gridSize, this.gridSize);
         this.ghost.stroke({ width: 2, color: 0xFFFFFF, alpha: 0.8 }); // Основной квадрат
-        
+
         // Соседние клетки (яркий крестик)
         const ghostGrid = new Graphics();
         const gs = this.gridSize;
         // Линии сетки
-        ghostGrid.moveTo(-gs, 0).lineTo(gs*2, 0); // Верхняя горизонталь
-        ghostGrid.moveTo(-gs, gs).lineTo(gs*2, gs); // Нижняя горизонталь
-        ghostGrid.moveTo(0, -gs).lineTo(0, gs*2); // Левая вертикаль
-        ghostGrid.moveTo(gs, -gs).lineTo(gs, gs*2); // Правая вертикаль
-        
+        ghostGrid.moveTo(-gs, 0).lineTo(gs * 2, 0); // Верхняя горизонталь
+        ghostGrid.moveTo(-gs, gs).lineTo(gs * 2, gs); // Нижняя горизонталь
+        ghostGrid.moveTo(0, -gs).lineTo(0, gs * 2); // Левая вертикаль
+        ghostGrid.moveTo(gs, -gs).lineTo(gs, gs * 2); // Правая вертикаль
+
         ghostGrid.stroke({ width: 1, color: 0x00FFFF, alpha: 0.5 }); // Голубой цвет, 50% прозрачности
         this.ghost.addChild(ghostGrid);
-        
+
         if (this.selectedTool === 'repair') {
             const building = this.getBuildingAt(pos.x, pos.y);
             this.ghost.fill(building && building.hp < building.maxHp ? { color: 0xFFFF00, alpha: 0.5 } : { alpha: 0 });
             return;
         }
         if (this.selectedTool === 'demolish') {
-             const building = this.getBuildingAt(pos.x, pos.y);
-             this.ghost.fill(building ? { color: 0xFF0000, alpha: 0.7 } : { alpha: 0 });
-             return;
+            const building = this.getBuildingAt(pos.x, pos.y);
+            this.ghost.fill(building ? { color: 0xFF0000, alpha: 0.7 } : { alpha: 0 });
+            return;
         }
 
-        const type = this.selectedTool as BuildingType; 
+        const type = this.selectedTool as BuildingType;
         const cost = BUILDING_COSTS[type] || 0;
         const canAfford = this.resourceManager ? this.resourceManager.hasMetal(cost) : false;
         const isPlaceable = this.canBuildAt(pos.x, pos.y);
@@ -303,12 +315,12 @@ export class BuildingSystem {
             let color = 0x00FF00;
             if (type === 'drill') color = 0x3498db;
             if (type === 'generator') color = 0xe67e22;
-            if (type === 'turret') color = 0x2ecc71; 
-            if (type === 'sniper') color = 0x555555; 
-            if (type === 'minigun') color = 0x8e44ad; 
+            if (type === 'turret') color = 0x2ecc71;
+            if (type === 'sniper') color = 0x555555;
+            if (type === 'minigun') color = 0x8e44ad;
             if (type === 'battery') color = 0x2ecc71;
             if (type === 'laser') color = 0xe74c3c;
-            
+
             this.ghost.fill({ color: color, alpha: 0.5 });
 
             // РИСУЕМ РАДИУС
@@ -336,7 +348,7 @@ export class BuildingSystem {
                 const repairCost = 2;
                 if (this.resourceManager && this.resourceManager.hasMetal(repairCost)) {
                     this.resourceManager.spendMetal(repairCost);
-                    building.repair(20); 
+                    building.repair(20);
                     this.soundManager?.playBuild();
                 }
             }
@@ -345,10 +357,10 @@ export class BuildingSystem {
 
         if (this.selectedTool === 'demolish') {
             const building = this.getBuildingAt(x, y);
-            if (building && building.buildingType !== 'core') { 
+            if (building && building.buildingType !== 'core') {
                 const originalCost = BUILDING_COSTS[building.buildingType];
                 this.resourceManager?.addMetal(Math.floor(originalCost * 0.5));
-                
+
                 if (this.onBuildingDestroyed) this.onBuildingDestroyed(building.x, building.y);
 
                 this.world.removeChild(building);
@@ -365,7 +377,7 @@ export class BuildingSystem {
         const gx = Math.floor(x / this.gridSize) * this.gridSize;
         const gy = Math.floor(y / this.gridSize) * this.gridSize;
         const key = `${gx},${gy}`;
-        
+
         if (this.buildings.has(key)) return false;
 
         const cx = x + this.gridSize / 2;
@@ -373,7 +385,7 @@ export class BuildingSystem {
         for (const rock of this.rocks) {
             const dx = cx - rock.x;
             const dy = cy - rock.y;
-            if (dx*dx + dy*dy < (20 + rock.radius) ** 2) return false;
+            if (dx * dx + dy * dy < (20 + rock.radius) ** 2) return false;
         }
 
         const hasResource = this.resources.some(r => r.x === x && r.y === y);
@@ -406,7 +418,7 @@ export class BuildingSystem {
         }
 
         const cost = BUILDING_COSTS[type as BuildingType];
-        
+
         if (this.resourceManager && !this.resourceManager.hasMetal(cost)) return;
         if (this.resourceManager) this.resourceManager.spendMetal(cost);
 
@@ -416,7 +428,7 @@ export class BuildingSystem {
         const building = new Building(type, this.gridSize);
         building.x = gx;
         building.y = gy;
-        building.thornsDamage = this.thornsDamage; 
+        building.thornsDamage = this.thornsDamage;
         if (type === 'drill' && this.resourceManager) {
             const ore = this.resources.find(r => r.x === gx && r.y === gy);
             if (ore) building.startMining(this.resourceManager);

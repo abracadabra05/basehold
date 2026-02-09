@@ -6,7 +6,7 @@ export class Player extends Container {
     public maxHp: number = GameConfig.PLAYER.START_HP;
     public hp: number = GameConfig.PLAYER.START_HP;
     public damage: number = 1;
-    
+
     // ПЕРКИ
     public bulletsPerShot: number = 1;
     public vampirism: number = 0;
@@ -15,37 +15,38 @@ export class Player extends Container {
     public ricochet: boolean = false;
     public critChance: number = 0;
     public slowBullets: boolean = false;
-    
+    public explosiveRounds: boolean = false;
+
     private bodyContainer: Container;
     private bodyGraphics: Graphics;
     private hpBar: Graphics;
-    
+
     private invulnerableTimer: number = 0;
     private invulnerableTime: number = 60;
     private fireCooldown: number = 0;
     public fireRate: number = 10;
-    
+
     public onShoot?: (x: number, y: number, tx: number, ty: number) => void;
     public checkCollision?: (x: number, y: number) => boolean;
 
     constructor(mapSize: number) {
         super();
-        
+
         this.bodyContainer = new Container();
         this.addChild(this.bodyContainer);
 
         this.bodyGraphics = new Graphics();
-        this.bodyGraphics.circle(0, 0, 16).fill(0xFFD700); 
-        this.bodyGraphics.stroke({ width: 2, color: 0xDAA520 }); 
-        this.bodyGraphics.rect(10, -6, 18, 12).fill(0x333333); 
+        this.bodyGraphics.circle(0, 0, 16).fill(0xFFD700);
+        this.bodyGraphics.stroke({ width: 2, color: 0xDAA520 });
+        this.bodyGraphics.rect(10, -6, 18, 12).fill(0x333333);
         this.bodyGraphics.stroke({ width: 1, color: 0x000000 });
         this.bodyContainer.addChild(this.bodyGraphics);
 
         this.hpBar = new Graphics();
-        this.hpBar.y = -30; 
+        this.hpBar.y = -30;
         this.addChild(this.hpBar);
         this.updateHpBar();
-        
+
         this.x = mapSize / 2;
         this.y = mapSize / 2;
     }
@@ -53,7 +54,7 @@ export class Player extends Container {
     public get rotationAngle(): number {
         return this.bodyContainer.rotation;
     }
-    
+
     public set rotationAngle(val: number) {
         this.bodyContainer.rotation = val;
     }
@@ -86,13 +87,13 @@ export class Player extends Container {
                     this.onShoot(spawnX, spawnY, tx, ty);
                 }
             }
-            
+
             this.bodyGraphics.x = -5;
-            this.fireCooldown = this.fireRate; 
+            this.fireCooldown = this.fireRate;
         }
     }
 
-    public handleMovement(vector: {x: number, y: number}, deltaTime: number) {
+    public handleMovement(vector: { x: number, y: number }, deltaTime: number) {
         if (vector.x !== 0 || vector.y !== 0) {
             const moveX = vector.x * this.moveSpeed * deltaTime;
             const moveY = vector.y * this.moveSpeed * deltaTime;
@@ -112,7 +113,7 @@ export class Player extends Container {
 
         if (this.invulnerableTimer > 0) {
             this.invulnerableTimer -= ticker.deltaTime;
-            this.alpha = 0.5; 
+            this.alpha = 0.5;
         } else {
             this.alpha = 1.0;
         }
@@ -123,9 +124,15 @@ export class Player extends Container {
     }
 
     public takeDamage(amount: number) {
-        if (this.invulnerableTimer > 0) return; 
+        if (this.invulnerableTimer > 0) return;
+
+        // Shield reduces incoming damage by 50%
+        if (this.hasShield) {
+            amount *= 0.5;
+        }
+
         this.hp -= amount;
-        this.invulnerableTimer = this.invulnerableTime; 
+        this.invulnerableTimer = this.invulnerableTime;
         this.updateHpBar();
     }
 
@@ -140,7 +147,7 @@ export class Player extends Container {
     private isColliding(newX: number, newY: number): boolean {
         if (!this.checkCollision) return false;
         // Используем радиус 14 для коллизии игрока (чуть меньше визуального 16)
-        const r = 14; 
+        const r = 14;
         const steps = 8; // Проверяем 8 точек по кругу
         for (let i = 0; i < steps; i++) {
             const angle = (i / steps) * Math.PI * 2;

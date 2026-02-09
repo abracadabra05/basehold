@@ -8,7 +8,7 @@ export class UpgradeManager {
     private resourceManager: ResourceManager;
     private uiManager: UIManager;
     private container: HTMLDivElement;
-    private onCloseCallback: (() => void) | null = null; 
+    private onCloseCallback: (() => void) | null = null;
 
     public damageLevel: number = 1;
     public mineSpeedLevel: number = 1;
@@ -18,8 +18,8 @@ export class UpgradeManager {
     public thornsLevel: number = 0;
 
     public onUpgrade?: (type: string) => void;
-    public onUnlock?: (type: string) => void; 
-    
+    public onUnlock?: (type: string) => void;
+
     public onPauseRequest?: () => void;
     public onResumeRequest?: () => void;
 
@@ -29,12 +29,12 @@ export class UpgradeManager {
     constructor(uiManager: UIManager, resourceManager: ResourceManager) {
         this.resourceManager = resourceManager;
         this.uiManager = uiManager;
-        
+
         // Инициализация открытых зданий
         for (const [key, val] of Object.entries(GameConfig.BUILDINGS)) {
             if ((val as any).unlocked) this.unlockedBuildings.add(key);
         }
-        
+
         this.container = document.createElement('div');
         this.initStyles();
         this.hide();
@@ -48,13 +48,13 @@ export class UpgradeManager {
         this.regenLevel = 0;
         this.magnetLevel = 0;
         this.thornsLevel = 0;
-        
+
         // Сбрасываем открытые технологии до дефолтных
         this.unlockedBuildings.clear();
         for (const [key, val] of Object.entries(GameConfig.BUILDINGS)) {
             if ((val as any).unlocked) this.unlockedBuildings.add(key);
         }
-        
+
         // Перерисовываем UI, чтобы сбросить цены и кнопки
         this.createUI();
     }
@@ -132,7 +132,7 @@ export class UpgradeManager {
         });
         closeX.onclick = () => { this.hide(); if (this.onCloseCallback) this.onCloseCallback(); };
         this.container.appendChild(closeX);
-        
+
         const header = document.createElement('div');
         header.innerHTML = `
             <h2 style="margin: 0 0 5px 0; color: #9b59b6; text-transform: uppercase; letter-spacing: 2px;">${this.t('shop_title')}</h2>
@@ -157,7 +157,7 @@ export class UpgradeManager {
         const playerTabBtn = this.createTabBtn("👤", true);
         const baseTabBtn = this.createTabBtn("🏰", false);
         const techTabBtn = this.createTabBtn("🔬", false);
-        
+
         tabsContainer.appendChild(playerTabBtn);
         tabsContainer.appendChild(baseTabBtn);
         tabsContainer.appendChild(techTabBtn);
@@ -182,7 +182,7 @@ export class UpgradeManager {
         playerContent.style.display = 'flex';
         playerContent.style.flexDirection = 'column';
         playerContent.style.gap = '8px';
-        
+
         this.createUpgradeBtn(playerContent, this.t('upg_dmg'), () => this.damageLevel, () => {
             this.damageLevel++;
             if (this.onUpgrade) this.onUpgrade('damage');
@@ -202,7 +202,7 @@ export class UpgradeManager {
 
         // --- BASE ---
         const baseContent = document.createElement('div');
-        baseContent.style.display = 'none'; 
+        baseContent.style.display = 'none';
         baseContent.style.flexDirection = 'column';
         baseContent.style.gap = '8px';
 
@@ -304,7 +304,7 @@ export class UpgradeManager {
 
         const updateState = () => {
             const isUnlocked = this.isBuildingUnlocked(type);
-            
+
             if (isUnlocked) {
                 btn.innerText = this.t('unlocked');
                 btn.disabled = true;
@@ -318,7 +318,7 @@ export class UpgradeManager {
                 info.style.opacity = '1';
                 adBtn.style.display = 'block';
             }
-            
+
             const descKey = `tool_${type}_desc`;
             const desc = this.t(descKey) !== descKey ? this.t(descKey) : '';
             info.innerHTML = `<div style="font-size: 14px; font-weight: bold;">${toolName}</div>
@@ -385,8 +385,8 @@ export class UpgradeManager {
 
         const updateText = () => {
             const lvl = getLevel();
-            const cost = 50 * (lvl === 0 ? 1 : lvl); 
-            
+            const cost = Math.floor(50 * Math.pow(1.5, lvl)); // Exponential scaling
+
             if (lvl >= 10) {
                 btn.innerText = this.t('upg_max');
                 btn.disabled = true;
@@ -395,14 +395,14 @@ export class UpgradeManager {
                 btn.innerText = `${cost} 🧬`;
                 btn.disabled = false;
             }
-            
+
             info.innerHTML = `<div style="font-size: 14px; font-weight: bold;">${label}</div>
                               <div style="font-size: 11px; color: #aaa;">${this.t('upg_level')} ${lvl}</div>`;
         };
 
         btn.onclick = () => {
             const lvl = getLevel();
-            const cost = 50 * (lvl === 0 ? 1 : lvl);
+            const cost = Math.floor(50 * Math.pow(1.5, lvl)); // Exponential scaling
             if (this.resourceManager.spendBiomass(cost)) {
                 onBuy(); updateText();
             } else {

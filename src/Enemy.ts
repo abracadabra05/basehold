@@ -259,7 +259,7 @@ export class Enemy extends Container {
             const buildingX = this.isColliding(checkX, this.y);
             if (!buildingX) {
                 const distToPlayer = Math.sqrt(Math.pow(checkX - this.player.x, 2) + Math.pow(this.y - this.player.y, 2));
-                if (distToPlayer > 25 || this.type === 'boss') {
+                if (distToPlayer > 25) {
                     this.x += moveX;
                 }
             } else {
@@ -269,7 +269,7 @@ export class Enemy extends Container {
             const buildingY = this.isColliding(this.x, checkY);
             if (!buildingY) {
                 const distToPlayer = Math.sqrt(Math.pow(this.x - this.player.x, 2) + Math.pow(checkY - this.player.y, 2));
-                if (distToPlayer > 25 || this.type === 'boss') {
+                if (distToPlayer > 25) {
                     this.y += moveY;
                 }
             } else {

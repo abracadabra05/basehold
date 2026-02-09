@@ -292,8 +292,8 @@ export class Game {
             if (type === 'damage') this.player.damage += 1;
             if (type === 'mine') this.currentMineMultiplier += 0.5;
             if (type === 'speed') this.player.moveSpeed += 0.5;
-            if (type === 'regen') this.buildingSystem.setRegenAmount(1);
-            if (type === 'thorns') this.buildingSystem.setThornsDamage(1);
+            if (type === 'regen') this.buildingSystem.setRegenAmount(this.upgradeManager.regenLevel);
+            if (type === 'thorns') this.buildingSystem.setThornsDamage(this.upgradeManager.thornsLevel);
             if (type === 'magnet') this.magnetRadius += 100;
         };
 
@@ -504,7 +504,7 @@ export class Game {
                 this.buildingSystem.setRegenAmount(2);
                 break;
             case 'explosive_rounds':
-                // Handled in projectile collision
+                this.player.explosiveRounds = true;
                 break;
             // v2.0 Perks
             case 'ricochet':
@@ -517,8 +517,8 @@ export class Game {
                 this.player.slowBullets = true;
                 break;
             case 'life_steal':
-                // Building lifesteal - handled in building damage code
-                this.buildingSystem.setRegenAmount(1);
+                // Turrets heal themselves when dealing damage
+                this.buildingSystem.setLifeSteal(true);
                 break;
         }
     }
@@ -851,7 +851,16 @@ export class Game {
 
     public spawnEnemy(x: number, y: number, type: EnemyType) {
         const enemy = new Enemy(this.coreBuilding, this.player, (ex, ey) => {
-            return this.buildingSystem.getBuildingAt(ex, ey);
+            // Check building collision
+            const building = this.buildingSystem.getBuildingAt(ex, ey);
+            if (building) return building;
+
+            // Check rock collision - return a "fake" building to stop enemy movement
+            if (this.buildingSystem.isRockAt(ex, ey)) {
+                return this.coreBuilding; // Use core as blocker (enemy won't attack it twice)
+            }
+
+            return null;
         }, type);
 
         enemy.x = x;
@@ -945,6 +954,27 @@ export class Game {
                         // Slow bullets effect
                         if (this.player.slowBullets) {
                             enemy.speedMultiplier = Math.min(enemy.speedMultiplier, 0.5);
+                        }
+
+                        // Vampirism effect - heal player on hit
+                        if (this.player.vampirism > 0 && Math.random() < this.player.vampirism) {
+                            this.player.hp = Math.min(this.player.hp + 1, this.player.maxHp);
+                            this.spawnFloatingText(this.player.x, this.player.y - 20, '+1 HP', '#e74c3c', 12);
+                        }
+
+                        // Explosive rounds - AOE damage
+                        if (this.player.explosiveRounds) {
+                            this.createExplosion(enemy.x, enemy.y, 0xFF6600, 10);
+                            for (const otherEnemy of this.enemies) {
+                                if (otherEnemy === enemy) continue;
+                                const aoeDx = otherEnemy.x - enemy.x;
+                                const aoeDy = otherEnemy.y - enemy.y;
+                                const aoeDist = Math.sqrt(aoeDx * aoeDx + aoeDy * aoeDy);
+                                if (aoeDist < 60) {
+                                    otherEnemy.takeDamage(finalDamage * 0.5);
+                                    this.statsTracker.addDamage(finalDamage * 0.5);
+                                }
+                            }
                         }
 
                         // Visual feedback
