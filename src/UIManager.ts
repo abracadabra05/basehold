@@ -2,7 +2,7 @@ import type { BuildingType } from './Building';
 import { Icons } from './Icons';
 import { Translations, type Language } from './Localization';
 import { yaSdk } from './YandexSDK';
-import { Z_INDEX, TOUCH_SIZES, COLORS } from './UIConstants';
+import { Z_INDEX, COLORS } from './UIConstants';
 import { VERSION, CHANGELOG } from './ChangelogData';
 import type { GameStats } from './StatsTracker';
 
@@ -178,6 +178,11 @@ export class UIManager {
     }
 
     private updateElementPositions() {
+        // Get computed CSS variables for responsive sizing
+        const computedStyle = getComputedStyle(document.documentElement);
+        const hudFontSize = computedStyle.getPropertyValue('--hud-font-size').trim() || '12px';
+        const panelPadding = computedStyle.getPropertyValue('--panel-padding').trim() || '10px';
+
         // Update settings button position
         const settingsBtn = document.getElementById('ingame-settings-btn');
         if (settingsBtn) {
@@ -196,18 +201,20 @@ export class UIManager {
             const bottomPadding = this.isMobile ? '20px' : '25px';
             this.container.style.bottom = `calc(${bottomPadding} + env(safe-area-inset-bottom, 0px))`;
             this.container.style.gap = this.isMobile ? '4px' : '6px';
-            this.container.style.padding = this.isMobile ? '6px' : '10px';
+            this.container.style.padding = panelPadding;
         }
 
-        // Update HUD panels
+        // Update HUD panels with responsive font size
         if (this.hudPlayer) {
-            this.hudPlayer.style.fontSize = this.isMobile ? '10px' : '11px';
+            this.hudPlayer.style.fontSize = hudFontSize;
         }
 
         if (this.hudCore) {
-            const barWidth = this.isMobile ? '120px' : '180px';
+            // Scale bar width based on screen size
+            const isSmallScreen = window.innerWidth < 480;
+            const barWidth = isSmallScreen ? '100px' : (this.isMobile ? '120px' : '180px');
             this.hudCore.style.gap = this.isMobile ? '5px' : '8px';
-            this.hudCore.style.padding = this.isMobile ? '5px 8px' : '6px 12px';
+            this.hudCore.style.padding = panelPadding;
             const barDiv = this.hudCore.querySelector('div > div') as HTMLElement;
             if (barDiv) {
                 barDiv.style.width = barWidth;
@@ -899,9 +906,10 @@ export class UIManager {
 
     private createButtons() {
         this.container.innerHTML = '';
-        // Minimum 44px for touch-friendly buttons (Apple HIG)
-        const btnSize = this.isMobile ? `${TOUCH_SIZES.MIN_BUTTON}px` : '50px';
-        const iconSize = this.isMobile ? '18px' : '20px';
+
+        // Use CSS variables for responsive sizing
+        const btnSize = 'var(--btn-size, 50px)';
+        const iconSize = 'var(--btn-icon-size, 20px)';
         const costFontSize = this.isMobile ? '8px' : '9px';
 
         this.items.forEach((item, index) => {
