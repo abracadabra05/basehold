@@ -156,6 +156,13 @@ export class InputSystem {
     const isLandscape = window.innerWidth > window.innerHeight;
     const positions = (isLandscape ? UI_POSITIONS.LANDSCAPE_MOBILE : UI_POSITIONS) as any;
 
+    // Resize controls for small screens
+    const isSmallHeight = window.innerHeight < 450;
+    const joystickSize = (isLandscape && isSmallHeight) ? 100 : 130;
+
+    if (this.leftJoystick) this.leftJoystick.resize(joystickSize);
+    if (this.rightJoystick) this.rightJoystick.resize(joystickSize);
+
     // Apply Left Joystick Position
     const leftPos = positions.JOYSTICK_LEFT;
     Object.assign(this.leftJoystickContainer.style, {

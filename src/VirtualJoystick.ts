@@ -197,6 +197,19 @@ export class VirtualJoystick {
         this.value.y = dy / this.maxRadius;
     }
 
+    public resize(size: number) {
+        const scale = size / 130;  // 130 is default
+        const knobSize = 55 * scale;
+
+        this.maxRadius = 55 * scale;
+
+        this.container.style.width = `${size}px`;
+        this.container.style.height = `${size}px`;
+
+        this.knob.style.width = `${knobSize}px`;
+        this.knob.style.height = `${knobSize}px`;
+    }
+
     private reset() {
         this.isActive = false;
         this.touchId = null;
