@@ -34,6 +34,8 @@ export class UIManager {
     public isSettingsOpen: boolean = false; // Добавлено
     private currentTool: ToolType | null = 'wall'; // Текущий выбранный инструмент (null = ничего)
 
+    public get isMobileDevice(): boolean { return this.isMobile; }
+
 
     private lang: Language = 'en';
     private showTutorialFlag: boolean = true;
@@ -419,6 +421,11 @@ export class UIManager {
     }
 
     public showTutorial(onComplete: () => void) {
+        if (localStorage.getItem('basehold_tutorial_shown') === 'true') {
+            onComplete();
+            return;
+        }
+
         const steps = this.isMobile ? [
             { text: this.t('tut_move_mobile'), icon: "🕹️" },
             { text: this.t('tut_shoot_mobile'), icon: "🎯" },
@@ -466,6 +473,7 @@ export class UIManager {
         const showStep = () => {
             if (stepIndex >= steps.length) {
                 document.body.removeChild(overlay);
+                localStorage.setItem('basehold_tutorial_shown', 'true');
                 onComplete();
                 return;
             }
@@ -977,7 +985,9 @@ export class UIManager {
         this.infoPanel.style.minWidth = '120px';
         this.infoPanel.style.background = 'rgba(10, 10, 10, 0.5)';
         this.infoPanel.style.backdropFilter = 'blur(6px)';
+        this.infoPanel.style.backdropFilter = 'blur(6px)';
         this.infoPanel.style.zIndex = '1000';
+        this.infoPanel.style.maxWidth = '90vw'; // Prevent overflow on small screens
     }
 
     private createButtons() {

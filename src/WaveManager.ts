@@ -2,7 +2,7 @@ import { Ticker } from 'pixi.js';
 import type { ResourceManager } from './ResourceManager';
 import type { UIManager } from './UIManager';
 import { Translations } from './Localization';
-import { Z_INDEX, COLORS } from './UIConstants';
+import { Z_INDEX } from './UIConstants';
 import { calculateEnemyCount, calculateSkipBonus, shouldOpenShop } from './logic/WaveLogic';
 
 export class WaveManager {
@@ -27,6 +27,8 @@ export class WaveManager {
     public isBossActive: boolean = false;
     private isActive: boolean = false; // Блокирует обновления до старта игры
 
+    private isMobile: boolean = false;
+
     constructor(
         resourceManager: ResourceManager,
         uiManager: UIManager,
@@ -38,11 +40,13 @@ export class WaveManager {
         this.spawnCallback = spawnCallback;
         this.onOpenShopCallback = onOpenShopCallback;
 
+        this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || ('ontouchstart' in window);
+
         // Main container
         this.container = document.createElement('div');
         Object.assign(this.container.style, {
             position: 'absolute',
-            top: '55px',
+            top: this.uiManager.isMobileDevice ? '25px' : '55px', // Will be overridden by UIManager but good default
             left: '50%',
             transform: 'translateX(-50%)',
             display: 'flex',
@@ -56,7 +60,7 @@ export class WaveManager {
         // Timer text - compact size
         this.timerText = document.createElement('div');
         Object.assign(this.timerText.style, {
-            fontSize: '14px',
+            fontSize: this.isMobile ? '12px' : '14px',
             fontWeight: '700',
             color: 'white',
             textShadow: '0 1px 4px rgba(0,0,0,0.8)',
@@ -66,30 +70,29 @@ export class WaveManager {
         });
         this.container.appendChild(this.timerText);
 
-        // Skip button - very subtle on mobile, more visible on desktop
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || ('ontouchstart' in window);
+        // Skip button - verify subtle
         this.skipButton = document.createElement('button');
-        this.skipButton.innerText = isMobile ? ">>" : "SKIP >>";
+        this.skipButton.innerText = this.isMobile ? "SKIP >>" : "SKIP NEXT WAVE >>";
         Object.assign(this.skipButton.style, {
-            marginTop: '4px',
-            padding: isMobile ? '4px 10px' : '6px 12px',
-            minHeight: isMobile ? '24px' : '32px',
-            fontSize: isMobile ? '9px' : '10px',
+            marginTop: '2px',
+            padding: this.isMobile ? '2px 8px' : '6px 12px',
+            minHeight: this.isMobile ? '20px' : '32px',
+            fontSize: this.isMobile ? '9px' : '10px',
             cursor: 'pointer',
-            backgroundColor: isMobile ? 'rgba(39, 174, 96, 0.2)' : 'rgba(39, 174, 96, 0.5)',
-            color: isMobile ? 'rgba(255,255,255,0.5)' : 'white',
-            border: isMobile ? '1px solid rgba(46, 204, 113, 0.3)' : '1px solid rgba(46, 204, 113, 0.6)',
-            borderRadius: '16px',
+            backgroundColor: 'rgba(0, 0, 0, 0.2)', // Very transparent dark
+            color: 'rgba(255, 255, 255, 0.8)', // Visible text
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            borderRadius: '12px',
             transition: 'all 0.2s',
             pointerEvents: 'auto',
-            backdropFilter: 'blur(4px)',
+            backdropFilter: 'blur(2px)',
             textTransform: 'uppercase',
             fontWeight: 'bold',
             touchAction: 'manipulation'
         });
 
-        this.skipButton.onpointerdown = () => this.skipButton.style.backgroundColor = COLORS.SUCCESS;
-        this.skipButton.onpointerup = () => this.skipButton.style.backgroundColor = 'rgba(39, 174, 96, 0.6)';
+        this.skipButton.onpointerdown = () => this.skipButton.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+        this.skipButton.onpointerup = () => this.skipButton.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
         this.skipButton.onclick = (e) => { e.preventDefault(); this.skipWait(); };
         this.skipButton.ontouchstart = (e) => { e.preventDefault(); this.skipWait(); };
 

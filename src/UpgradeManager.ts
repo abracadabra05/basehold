@@ -93,17 +93,23 @@ export class UpgradeManager {
     private initStyles() {
         Object.assign(this.container.style, {
             position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-            display: 'flex', flexDirection: 'column', padding: '20px',
-            background: 'rgba(15, 15, 15, 0.98)', border: '2px solid #9b59b6', borderRadius: '15px',
-            boxShadow: '0 0 40px rgba(155, 89, 182, 0.4)', color: 'white',
+            display: 'flex', flexDirection: 'column', padding: '24px',
+            background: 'linear-gradient(145deg, rgba(16, 16, 20, 0.98), rgba(30, 15, 40, 0.98))',
+            border: '1px solid rgba(155, 89, 182, 0.5)',
+            borderRadius: '20px',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.5), 0 0 30px rgba(155, 89, 182, 0.2)',
+            color: 'white',
             fontFamily: "'Segoe UI', sans-serif", zIndex: '2000', textAlign: 'center',
-            maxHeight: '85vh', width: '420px', maxWidth: '94vw'
+            maxHeight: '85vh', width: '450px', maxWidth: '94vw',
+            backdropFilter: 'blur(20px)',
+            webkitBackdropFilter: 'blur(20px)'
         });
 
         if (this.isMobileLayout()) {
             Object.assign(this.container.style, {
-                width: '94vw', maxWidth: '94vw', height: '88vh', maxHeight: '88vh',
-                padding: '12px'
+                width: '94vw', maxWidth: '94vw', height: 'auto', maxHeight: '92vh',
+                padding: '16px',
+                border: '1px solid rgba(155, 89, 182, 0.3)'
             });
         }
     }
