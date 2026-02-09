@@ -79,6 +79,7 @@ export class Game {
     private isEndlessMode: boolean = false;
     private endlessDifficultyMultiplier: number = 1.0;
     private resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+    private rockBlocker: Building | null = null; // Indestructible blocker for rock collisions
 
     constructor(app: Application) {
         this.app = app;
@@ -850,14 +851,22 @@ export class Game {
     }
 
     public spawnEnemy(x: number, y: number, type: EnemyType) {
+        // Create rock blocker lazily - indestructible building for rock collisions
+        if (!this.rockBlocker) {
+            this.rockBlocker = new Building('wall', this.gridSize);
+            this.rockBlocker.hp = Infinity;
+            this.rockBlocker.maxHp = Infinity;
+            this.rockBlocker.visible = false; // Invisible, just for collision
+        }
+
         const enemy = new Enemy(this.coreBuilding, this.player, (ex, ey) => {
             // Check building collision
             const building = this.buildingSystem.getBuildingAt(ex, ey);
             if (building) return building;
 
-            // Check rock collision - return a "fake" building to stop enemy movement
+            // Check rock collision - return indestructible blocker (not core!)
             if (this.buildingSystem.isRockAt(ex, ey)) {
-                return this.coreBuilding; // Use core as blocker (enemy won't attack it twice)
+                return this.rockBlocker; // Can't be damaged, just blocks movement
             }
 
             return null;
