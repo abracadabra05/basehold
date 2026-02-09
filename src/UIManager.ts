@@ -433,10 +433,10 @@ export class UIManager {
             </div>` : ''}
 
             <!-- VERSION NUMBER -->
-            <div style="position: absolute; bottom: 20px; left: 20px; font-size: 12px; color: #666; z-index: 20;">v${VERSION}</div>
+            <div style="position: absolute; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); left: 20px; font-size: 12px; color: #666; z-index: 20;">v${VERSION}</div>
 
             <!-- КНОПКИ (Настройки, Фуллскрин) - ВЕРНУЛИ ВНИЗ -->
-            <div style="position: absolute; bottom: 20px; right: 20px; display: flex; gap: 15px; z-index: 20;">
+            <div style="position: absolute; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); right: 20px; display: flex; gap: 15px; z-index: 20;">
                 <button id="achievements-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">🏅</button>
                 <button id="changelog-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white; position: relative;">
                     📋${this.hasUnreadChangelog ? `<span style="position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 10px; padding: 2px 5px; border-radius: 10px; font-weight: bold;">${this.t('changelog_new')}</span>` : ''}
@@ -497,12 +497,12 @@ export class UIManager {
         });
 
         overlay.innerHTML = `
-            <div style="background: #1e272e; padding: 20px; borderRadius: 12px; width: 85%; max-width: 350px; text-align: center; border: 1px solid #444;">
+            <div style="background: #1e272e; padding: 20px; borderRadius: 12px; width: 85%; max-width: 350px; text-align: center; border: 1px solid #444; max-height: 90dvh; overflow-y: auto; display: flex; flex-direction: column;">
                 <h3 style="margin-top: 0; color: #f1c40f;">🏆 ${this.t('leaderboard')}</h3>
-                <div style="max-height: 60vh; overflow-y: auto; margin-bottom: 15px;">
+                <div style="max-height: 60vh; overflow-y: auto; margin-bottom: 15px; flex-shrink: 1;">
                     ${listHtml || `<div style="color: #777;">${this.t('leaderboard_empty')}</div>`}
                 </div>
-                <button id="close-lb" style="padding: 10px 30px; background: #3498db; border: none; color: white; borderRadius: 4px; cursor: pointer;">${this.t('btn_ok')}</button>
+                <button id="close-lb" style="padding: 10px 30px; background: #3498db; border: none; color: white; borderRadius: 4px; cursor: pointer; flex-shrink: 0;">${this.t('btn_ok')}</button>
             </div>
         `;
         overlay.querySelector('#close-lb')?.addEventListener('click', () => document.body.removeChild(overlay));
@@ -587,7 +587,7 @@ export class UIManager {
         });
 
         overlay.innerHTML = `
-            <div style="background: rgba(30,39,46,0.95); padding: 25px 35px; border-radius: 12px; border: 1px solid #3498db; min-width: 280px;">
+            <div style="background: rgba(30,39,46,0.95); padding: 25px 35px; border-radius: 12px; border: 1px solid #3498db; min-width: 280px; max-height: 90dvh; overflow-y: auto;">
                 <h2 style="margin: 0 0 20px 0; text-align: center; color: #3498db; font-size: 22px; text-transform: uppercase; letter-spacing: 2px;">${this.t('settings_title')}</h2>
 
                 <div style="margin-bottom: 20px;">
