@@ -149,39 +149,46 @@ button:active {
 /* Tiny screens (very small phones, split screen) */
 @media screen and (max-width: 360px) {
   :root {
-    --ui-scale: 0.65;
+    --ui-scale: 0.6;
     --btn-size: 36px;
     --btn-icon-size: 14px;
     --hud-font-size: 9px;
-    --panel-padding: 5px;
+    --panel-padding: 4px;
   }
 }
 
-/* Landscape mode on short screens */
+/* Landscape mode on short screens (Mobile Landscape) */
 @media screen and (orientation: landscape) and (max-height: 500px) {
   :root {
-    --ui-scale: 0.7;
-    --btn-size: 38px;
-    --btn-icon-size: 16px;
+    --ui-scale: 0.65;
+    /* Sligthly smaller */
+    --btn-size: 36px;
+    --btn-icon-size: 14px;
     --hud-font-size: 9px;
-    --panel-padding: 5px;
+    --panel-padding: 4px;
+  }
+
+  /* Optimize vertical space */
+  .hud-panel {
+    padding: 4px !important;
   }
 }
 
-/* Very short landscape (notched phones in landscape) */
+/* Very short landscape (notched phones in landscape with browser bar) */
 @media screen and (orientation: landscape) and (max-height: 400px) {
   :root {
-    --ui-scale: 0.6;
-    --btn-size: 34px;
-    --btn-icon-size: 14px;
+    --ui-scale: 0.55;
+    /* Aggressive scaling */
+    --btn-size: 32px;
+    --btn-icon-size: 12px;
     --hud-font-size: 8px;
-    --panel-padding: 4px;
+    --panel-padding: 2px;
   }
 }
 
 /* Apply scale to UI elements */
 .scaled-ui {
   transform: scale(var(--ui-scale));
-  transform-origin: center center;
+  transform-origin: bottom center;
+  /* Scale from bottom */
 }
-

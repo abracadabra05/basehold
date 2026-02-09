@@ -2,7 +2,7 @@ import type { BuildingType } from './Building';
 import { Icons } from './Icons';
 import { Translations, type Language } from './Localization';
 import { yaSdk } from './YandexSDK';
-import { Z_INDEX, COLORS } from './UIConstants';
+import { Z_INDEX, COLORS, UI_POSITIONS } from './UIConstants';
 import { VERSION, CHANGELOG } from './ChangelogData';
 import type { GameStats } from './StatsTracker';
 
@@ -119,6 +119,19 @@ export class UIManager {
         this.currentTool = 'wall'; // Инициализируем текущий инструмент
         this.highlightButton('wall');
         this.showGameHUD();
+
+        // Add listeners for responsive UI
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', () => this.resizeHandler());
+            window.visualViewport.addEventListener('scroll', () => this.resizeHandler());
+        }
+        window.addEventListener('resize', () => this.resizeHandler());
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => this.resizeHandler(), 100);
+            setTimeout(() => this.resizeHandler(), 500);
+        });
+
+        this.resizeHandler();
     }
 
     public showGameHUD() {
@@ -173,51 +186,114 @@ export class UIManager {
     }
 
     public resize() {
+        this.resizeHandler();
+    }
+
+    private resizeHandler() {
         this.detectPlatform();
+
+        // Calculate 1vh logic for mobile browsers
+        const vh = window.visualViewport ? window.visualViewport.height * 0.01 : window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+
         this.updateElementPositions();
     }
 
     private updateElementPositions() {
-        // Get computed CSS variables for responsive sizing
+        // Get computed CSS variables
         const computedStyle = getComputedStyle(document.documentElement);
         const hudFontSize = computedStyle.getPropertyValue('--hud-font-size').trim() || '12px';
         const panelPadding = computedStyle.getPropertyValue('--panel-padding').trim() || '10px';
 
-        // Update settings button position
+        const isLandscape = window.innerWidth > window.innerHeight;
+        // Cast to any to access nested properties dynamically
+        const positions = (isLandscape && this.isMobile ? UI_POSITIONS.LANDSCAPE_MOBILE : UI_POSITIONS) as any;
+
+        // --- UPDATE SETTINGS BUTTON ---
         const settingsBtn = document.getElementById('ingame-settings-btn');
         if (settingsBtn) {
-            const minimapSize = this.isMobile ? 80 : 100;
-            settingsBtn.style.top = this.isMobile ? `${10 + minimapSize + 15}px` : 'auto';
-            settingsBtn.style.bottom = this.isMobile ? 'auto' : '20px';
+            const pos = positions.SETTINGS_BUTTON || UI_POSITIONS.SETTINGS_BUTTON_OFFSET;
+
+            if (typeof pos === 'object') {
+                Object.assign(settingsBtn.style, {
+                    top: pos.top !== undefined ? `${pos.top}px` : 'auto',
+                    bottom: pos.bottom !== undefined ? `${pos.bottom}px` : 'auto',
+                    left: pos.left !== undefined ? `${pos.left}px` : 'auto',
+                    right: pos.right !== undefined ? `${pos.right}px` : 'auto'
+                });
+            } else {
+                // Legacy fallback
+                const minimapSize = this.isMobile ? 80 : 100;
+                settingsBtn.style.top = this.isMobile ? `${10 + minimapSize + 15}px` : 'auto';
+                settingsBtn.style.bottom = this.isMobile ? 'auto' : '20px';
+                settingsBtn.style.right = '10px';
+                settingsBtn.style.left = 'auto';
+            }
         }
 
-        // Update info panel position
+        // --- UPDATE INFO PANEL ---
         if (this.infoPanel) {
-            this.infoPanel.style.bottom = this.isMobile ? '120px' : '140px';
+            // Usually bottom-center
+            const bottomPos = isLandscape && this.isMobile ? '10px' : (this.isMobile ? '120px' : '140px');
+            this.infoPanel.style.bottom = bottomPos;
+            if (isLandscape && this.isMobile) {
+                this.infoPanel.style.top = '5px';
+                this.infoPanel.style.bottom = 'auto';
+            }
         }
 
-        // Update toolbar styles
+        // --- UPDATE TOOLBAR ---
         if (this.container) {
-            const bottomPadding = this.isMobile ? '20px' : '25px';
-            this.container.style.bottom = `calc(${bottomPadding} + env(safe-area-inset-bottom, 0px))`;
+            const pos = positions.TOOLBAR;
+            const bottomPadding = pos && pos.bottom !== undefined ? pos.bottom : (this.isMobile ? 20 : 25);
+
+            this.container.style.bottom = `calc(${bottomPadding}px + env(safe-area-inset-bottom, 0px))`;
             this.container.style.gap = this.isMobile ? '4px' : '6px';
             this.container.style.padding = panelPadding;
         }
 
-        // Update HUD panels with responsive font size
+        // --- UPDATE HUD PLAYER ---
         if (this.hudPlayer) {
             this.hudPlayer.style.fontSize = hudFontSize;
+            const pos = positions.HUD_PLAYER;
+            if (pos) {
+                Object.assign(this.hudPlayer.style, {
+                    top: pos.top !== undefined ? `${pos.top}px` : '10px',
+                    left: pos.left !== undefined ? `${pos.left}px` : '10px',
+                    padding: panelPadding
+                });
+            }
         }
 
+        // --- UPDATE HUD CORE ---
         if (this.hudCore) {
+            const pos = positions.HUD_CORE;
+            if (pos) {
+                this.hudCore.style.top = pos.top !== undefined ? `${pos.top}px` : '10px';
+            }
+
             // Scale bar width based on screen size
             const isSmallScreen = window.innerWidth < 480;
-            const barWidth = isSmallScreen ? '100px' : (this.isMobile ? '120px' : '180px');
+            const isLandscapeMobile = isLandscape && this.isMobile;
+
+            const barWidth = isSmallScreen || isLandscapeMobile ? '100px' : (this.isMobile ? '120px' : '180px');
             this.hudCore.style.gap = this.isMobile ? '5px' : '8px';
             this.hudCore.style.padding = panelPadding;
             const barDiv = this.hudCore.querySelector('div > div') as HTMLElement;
             if (barDiv) {
                 barDiv.style.width = barWidth;
+            }
+        }
+
+        // --- UPDATE MINIMAP --- 
+        const minimap = document.getElementById('minimap-container');
+        if (minimap) {
+            const pos = positions.MINIMAP;
+            if (pos) {
+                Object.assign(minimap.style, {
+                    top: pos.top !== undefined ? `${pos.top}px` : 'auto',
+                    right: pos.right !== undefined ? `${pos.right}px` : 'auto',
+                });
             }
         }
     }

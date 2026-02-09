@@ -1,6 +1,6 @@
 import { FederatedPointerEvent, Container, Rectangle } from "pixi.js";
 import { VirtualJoystick } from "./VirtualJoystick";
-import { Z_INDEX, TOUCH_SIZES } from "./UIConstants";
+import { Z_INDEX, TOUCH_SIZES, UI_POSITIONS } from "./UIConstants";
 
 export class InputSystem {
   private stage: Container;
@@ -92,23 +92,23 @@ export class InputSystem {
       this.keys = {};
     });
 
-        // --- KEYBOARD ---
-        window.addEventListener('keydown', (e) => {
-            this.keys[e.code] = true;
-            if (e.code === 'Space') {
-                if (this.onSpacePressed) this.onSpacePressed();
-            }
-            if (e.code === 'Escape') {
-                if (this.onToggleBuildMode) this.onToggleBuildMode(); 
-            }
-            // Цифры 1-9
-            if (e.code.startsWith('Digit')) {
-                const num = parseInt(e.code.replace('Digit', ''));
-                if (!isNaN(num) && num > 0 && num <= 9) {
-                    if (this.onNumberPressed) this.onNumberPressed(num - 1); // Индекс 0-8
-                }
-            }
-        });
+    // --- KEYBOARD ---
+    window.addEventListener('keydown', (e) => {
+      this.keys[e.code] = true;
+      if (e.code === 'Space') {
+        if (this.onSpacePressed) this.onSpacePressed();
+      }
+      if (e.code === 'Escape') {
+        if (this.onToggleBuildMode) this.onToggleBuildMode();
+      }
+      // Цифры 1-9
+      if (e.code.startsWith('Digit')) {
+        const num = parseInt(e.code.replace('Digit', ''));
+        if (!isNaN(num) && num > 0 && num <= 9) {
+          if (this.onNumberPressed) this.onNumberPressed(num - 1); // Индекс 0-8
+        }
+      }
+    });
     window.addEventListener("keyup", (e) => {
       this.keys[e.code] = false;
     });
@@ -122,96 +122,119 @@ export class InputSystem {
     this.isMobile = this.isMobile || "ontouchstart" in window;
   }
 
-    private leftJoystickContainer: HTMLDivElement | null = null;
-    private rightJoystickContainer: HTMLDivElement | null = null;
-    private mobileControlsCreated: boolean = false;
+  private leftJoystickContainer: HTMLDivElement | null = null;
+  private rightJoystickContainer: HTMLDivElement | null = null;
+  private mobileControlsCreated: boolean = false;
 
-    private destroyMobileControls() {
-        // Destroy existing joysticks first
-        if (this.leftJoystick) {
-            this.leftJoystick.destroy();
-            this.leftJoystick = null!;
-        }
-        if (this.rightJoystick) {
-            this.rightJoystick.destroy();
-            this.rightJoystick = null!;
-        }
-
-        // Remove containers from DOM
-        if (this.leftJoystickContainer && this.leftJoystickContainer.parentNode) {
-            this.leftJoystickContainer.parentNode.removeChild(this.leftJoystickContainer);
-            this.leftJoystickContainer = null;
-        }
-        if (this.rightJoystickContainer && this.rightJoystickContainer.parentNode) {
-            this.rightJoystickContainer.parentNode.removeChild(this.rightJoystickContainer);
-            this.rightJoystickContainer = null;
-        }
-
-        this.mobileControlsCreated = false;
+  private destroyMobileControls() {
+    // Destroy existing joysticks first
+    if (this.leftJoystick) {
+      this.leftJoystick.destroy();
+      this.leftJoystick = null!;
+    }
+    if (this.rightJoystick) {
+      this.rightJoystick.destroy();
+      this.rightJoystick = null!;
     }
 
-    private createMobileControls() {
-        if (!this.isMobile) return;
-
-        // Avoid recreating if already created
-        if (this.mobileControlsCreated) return;
-
-        // Clean up any existing controls first
-        this.destroyMobileControls();
-
-        const joystickSize = `${TOUCH_SIZES.JOYSTICK}px`;
-        // Position joysticks lower - closer to the bottom edge
-        const bottomOffset = 'calc(20px + env(safe-area-inset-bottom, 0px))';
-        const sideOffset = '15px';
-
-        this.leftJoystickContainer = document.createElement('div');
-        Object.assign(this.leftJoystickContainer.style, {
-            width: joystickSize,
-            height: joystickSize,
-            position: 'absolute',
-            bottom: bottomOffset,
-            left: sideOffset,
-            pointerEvents: 'auto',
-            touchAction: 'none',
-            zIndex: `${Z_INDEX.JOYSTICKS}`,
-            display: 'none'
-        });
-        document.body.appendChild(this.leftJoystickContainer);
-
-        this.rightJoystickContainer = document.createElement('div');
-        Object.assign(this.rightJoystickContainer.style, {
-            width: joystickSize,
-            height: joystickSize,
-            position: 'absolute',
-            bottom: bottomOffset,
-            right: sideOffset,
-            pointerEvents: 'auto',
-            touchAction: 'none',
-            zIndex: `${Z_INDEX.JOYSTICKS}`,
-            display: 'none'
-        });
-        document.body.appendChild(this.rightJoystickContainer);
-
-        this.leftJoystick = new VirtualJoystick(this.leftJoystickContainer, 'left');
-        this.leftJoystick.show();
-
-        this.rightJoystick = new VirtualJoystick(this.rightJoystickContainer, 'right');
-        this.rightJoystick.show();
-
-        this.mobileControlsCreated = true;
+    // Remove containers from DOM
+    if (this.leftJoystickContainer && this.leftJoystickContainer.parentNode) {
+      this.leftJoystickContainer.parentNode.removeChild(this.leftJoystickContainer);
+      this.leftJoystickContainer = null;
+    }
+    if (this.rightJoystickContainer && this.rightJoystickContainer.parentNode) {
+      this.rightJoystickContainer.parentNode.removeChild(this.rightJoystickContainer);
+      this.rightJoystickContainer = null;
     }
 
-    public showControls() {
-        if (!this.isMobile) return;
-        if (this.leftJoystickContainer) this.leftJoystickContainer.style.display = 'block';
-        if (this.rightJoystickContainer) this.rightJoystickContainer.style.display = 'block';
+    this.mobileControlsCreated = false;
+  }
+
+  private updateJoystickPositions() {
+    if (!this.leftJoystickContainer || !this.rightJoystickContainer) return;
+
+    const isLandscape = window.innerWidth > window.innerHeight;
+    const positions = (isLandscape ? UI_POSITIONS.LANDSCAPE_MOBILE : UI_POSITIONS) as any;
+
+    // Apply Left Joystick Position
+    const leftPos = positions.JOYSTICK_LEFT;
+    Object.assign(this.leftJoystickContainer.style, {
+      bottom: typeof leftPos.bottom === 'number' ? `${leftPos.bottom}px` : leftPos.bottom,
+      left: typeof leftPos.left === 'number' ? `${leftPos.left}px` : leftPos.left,
+      right: 'auto',
+      top: 'auto'
+    });
+
+    // Apply Right Joystick Position
+    const rightPos = positions.JOYSTICK_RIGHT;
+    Object.assign(this.rightJoystickContainer.style, {
+      bottom: typeof rightPos.bottom === 'number' ? `${rightPos.bottom}px` : rightPos.bottom,
+      right: typeof rightPos.right === 'number' ? `${rightPos.right}px` : rightPos.right,
+      left: 'auto',
+      top: 'auto'
+    });
+  }
+
+  private createMobileControls() {
+    if (!this.isMobile) return;
+
+    // Avoid recreating if already created
+    if (this.mobileControlsCreated) {
+      this.updateJoystickPositions();
+      return;
     }
 
-    public hideControls() {
-        if (!this.isMobile) return;
-        if (this.leftJoystickContainer) this.leftJoystickContainer.style.display = 'none';
-        if (this.rightJoystickContainer) this.rightJoystickContainer.style.display = 'none';
-    }
+    // Clean up any existing controls first
+    this.destroyMobileControls();
+
+    const joystickSize = `${TOUCH_SIZES.JOYSTICK}px`;
+
+    this.leftJoystickContainer = document.createElement('div');
+    Object.assign(this.leftJoystickContainer.style, {
+      width: joystickSize,
+      height: joystickSize,
+      position: 'absolute',
+      pointerEvents: 'auto',
+      touchAction: 'none',
+      zIndex: `${Z_INDEX.JOYSTICKS}`,
+      display: 'none'
+    });
+    document.body.appendChild(this.leftJoystickContainer);
+
+    this.rightJoystickContainer = document.createElement('div');
+    Object.assign(this.rightJoystickContainer.style, {
+      width: joystickSize,
+      height: joystickSize,
+      position: 'absolute',
+      pointerEvents: 'auto',
+      touchAction: 'none',
+      zIndex: `${Z_INDEX.JOYSTICKS}`,
+      display: 'none'
+    });
+    document.body.appendChild(this.rightJoystickContainer);
+
+    this.updateJoystickPositions();
+
+    this.leftJoystick = new VirtualJoystick(this.leftJoystickContainer, 'left');
+    this.leftJoystick.show();
+
+    this.rightJoystick = new VirtualJoystick(this.rightJoystickContainer, 'right');
+    this.rightJoystick.show();
+
+    this.mobileControlsCreated = true;
+  }
+
+  public showControls() {
+    if (!this.isMobile) return;
+    if (this.leftJoystickContainer) this.leftJoystickContainer.style.display = 'block';
+    if (this.rightJoystickContainer) this.rightJoystickContainer.style.display = 'block';
+  }
+
+  public hideControls() {
+    if (!this.isMobile) return;
+    if (this.leftJoystickContainer) this.leftJoystickContainer.style.display = 'none';
+    if (this.rightJoystickContainer) this.rightJoystickContainer.style.display = 'none';
+  }
 
   public getMovementVector(): { x: number; y: number } {
     const v = { x: 0, y: 0 };
@@ -261,10 +284,19 @@ export class InputSystem {
   }
 
   public resize(screenRect: Rectangle) {
-    // Only update hit area, don't recreate controls
+    // Only update hit area
     this.stage.hitArea = screenRect;
 
-    // Re-check mobile status (orientation change may affect this)
+    // Re-check mobile status
+    const wasMobile = this.isMobile;
     this.checkMobile();
+
+    if (this.isMobile && !wasMobile) {
+      this.createMobileControls();
+    } else if (!this.isMobile && wasMobile) {
+      this.destroyMobileControls();
+    } else if (this.isMobile) {
+      this.updateJoystickPositions();
+    }
   }
 }

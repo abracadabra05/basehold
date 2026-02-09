@@ -214,8 +214,25 @@ export class Enemy extends Container {
                 return;
             }
 
-            // Melee/Boss Logic - Stop and Attack Target
-            // Boss и другие милишники идут таранить, но если они уже в range (для босса 50), они бьют
+            // Melee/Boss Logic - Check for obstacles first!
+            // Fix Ghost Damage: Don't attack target through walls just because dist < range
+            const dirX = dx / dist;
+            const dirY = dy / dist;
+            // Check a bit ahead towards target
+            const checkDist = Math.min(dist, 20);
+            const checkX = this.x + dirX * checkDist;
+            const checkY = this.y + dirY * checkDist;
+
+            const obstacle = this.checkCollision(checkX, checkY);
+
+            // If obstacle exists and it's NOT the target (and targeting building)
+            if (obstacle && obstacle !== this.target) {
+                // We are blocked by something else (wall/rockTarget)
+                // Attack the obstacle instead!
+                this.attackBuilding(obstacle);
+                return;
+            }
+
             this.vx = 0;
             this.vy = 0;
             isAttacking = true;

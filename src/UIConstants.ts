@@ -81,8 +81,18 @@ export const UI_POSITIONS = {
     // Bottom-right: Right joystick (mobile) - NO hudTime here!
     JOYSTICK_RIGHT: { bottom: 30, right: 30 },
 
-    // Time indicator moved to top-left area (below resources on desktop)
-    // or hidden on mobile
+    // Mobile Landscape specific overrides
+    LANDSCAPE_MOBILE: {
+        HUD_PLAYER: { top: 5, left: 30 }, // Left of the notch area (if any)
+        HUD_CORE: { top: 5 },
+        MINIMAP: { top: 5, right: 30 },
+        SETTINGS_BUTTON: { top: 5, right: 90 }, // Left of minimap
+        WAVE_PANEL: { top: 40 }, // Higher up
+        RESOURCES: { top: 50, left: 30 }, // More compact vertical layout
+        TOOLBAR: { bottom: 10 },
+        JOYSTICK_LEFT: { bottom: 40, left: 40 },
+        JOYSTICK_RIGHT: { bottom: 40, right: 40 },
+    }
 } as const;
 
 // Colors
