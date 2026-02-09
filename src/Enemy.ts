@@ -6,23 +6,23 @@ export type EnemyType = 'basic' | 'fast' | 'tank' | 'boss' | 'kamikaze' | 'shoot
 
 export class Enemy extends Container {
     private body: Graphics;
-    private target: Container; 
+    private target: Container;
     private player: Container; // Добавили поле
-    private speed: number = 2; 
+    private speed: number = 2;
     private checkCollision: (x: number, y: number) => Building | null;
-    
-    public hp: number = 3; 
+
+    public hp: number = 3;
     public isDead: boolean = false;
-    
+
     public vx: number = 0;
     public vy: number = 0;
 
     private attackTimer: number = 0;
     private attackSpeed: number = 60;
-    public damage: number = 5; 
+    public damage: number = 5;
     public type: EnemyType;
-    public hitboxRadius: number = 15; 
-    
+    public hitboxRadius: number = 15;
+
     private attackRange: number = 5;
 
     // Колбеки
@@ -42,7 +42,7 @@ export class Enemy extends Container {
     public speedMultiplier: number = 1.0;
 
     constructor(
-        target: Container, 
+        target: Container,
         player: Container, // Добавили аргумент
         checkCollision: (x: number, y: number) => Building | null,
         type: EnemyType = 'basic'
@@ -54,7 +54,7 @@ export class Enemy extends Container {
         this.type = type;
 
         this.body = new Graphics();
-        
+
         // Получаем конфиг для данного типа
         const configKey = type.toUpperCase() as keyof typeof GameConfig.ENEMIES;
         const stats = GameConfig.ENEMIES[configKey];
@@ -71,53 +71,53 @@ export class Enemy extends Container {
                 this.attackRange = 5;
             }
             // attackSpeed пока хардкод или дефолт, можно добавить в конфиг позже
-             if (type === 'boss' || type === 'shooter') {
-                 this.attackSpeed = 120;
-             }
-             
-             // Special stats for v2.0 enemies
-             if ('healRange' in stats) {
-                 this.healRange = (stats as any).healRange;
-                 this.healAmount = (stats as any).healAmount;
-             }
-             if ('shieldRange' in stats) {
-                 this.shieldRange = (stats as any).shieldRange;
-             }
-             if ('splitCount' in stats) {
-                 this.splitCount = (stats as any).splitCount;
-             }
+            if (type === 'boss' || type === 'shooter') {
+                this.attackSpeed = 120;
+            }
 
-             // Рисуем тело
-             const color = stats.color;
-             if (type === 'boss') {
-                 this.body.rect(-40, -40, 80, 80).fill(color).stroke({ width: 4, color: 0x9b59b6 });
-             } else if (type === 'miniboss') {
-                 this.body.rect(-30, -30, 60, 60).fill(color).stroke({ width: 3, color: 0xffffff });
-             } else if (type === 'kamikaze') {
-                 this.body.circle(0, 0, stats.radius).fill(color);
-             } else if (type === 'shooter') {
-                 this.body.moveTo(0, -15).lineTo(10, 10).lineTo(-10, 10).fill(color);
-             } else if (type === 'healer') {
-                 // Cross shape for healer
-                 this.body.rect(-5, -15, 10, 30).fill(color);
-                 this.body.rect(-15, -5, 30, 10).fill(color);
-             } else if (type === 'splitter') {
-                 // Diamond shape
-                 this.body.moveTo(0, -stats.radius).lineTo(stats.radius, 0).lineTo(0, stats.radius).lineTo(-stats.radius, 0).fill(color);
-             } else if (type === 'shieldbearer') {
-                 // Shield shape
-                 this.body.moveTo(0, -stats.radius).lineTo(stats.radius, -stats.radius/2).lineTo(stats.radius, stats.radius/2).lineTo(0, stats.radius).lineTo(-stats.radius, stats.radius/2).lineTo(-stats.radius, -stats.radius/2).fill(color);
-                 this.body.circle(0, 0, stats.radius * 1.5).stroke({ width: 2, color: 0x00FFFF, alpha: 0.5 });
-             } else {
-                 // Basic, Fast, Tank - прямоугольники
-                 const s = stats.radius * 2; // примерно под размер радиуса
-                 this.body.rect(-stats.radius, -stats.radius, s, s).fill(color);
-             }
+            // Special stats for v2.0 enemies
+            if ('healRange' in stats) {
+                this.healRange = (stats as any).healRange;
+                this.healAmount = (stats as any).healAmount;
+            }
+            if ('shieldRange' in stats) {
+                this.shieldRange = (stats as any).shieldRange;
+            }
+            if ('splitCount' in stats) {
+                this.splitCount = (stats as any).splitCount;
+            }
+
+            // Рисуем тело
+            const color = stats.color;
+            if (type === 'boss') {
+                this.body.rect(-40, -40, 80, 80).fill(color).stroke({ width: 4, color: 0x9b59b6 });
+            } else if (type === 'miniboss') {
+                this.body.rect(-30, -30, 60, 60).fill(color).stroke({ width: 3, color: 0xffffff });
+            } else if (type === 'kamikaze') {
+                this.body.circle(0, 0, stats.radius).fill(color);
+            } else if (type === 'shooter') {
+                this.body.moveTo(0, -15).lineTo(10, 10).lineTo(-10, 10).fill(color);
+            } else if (type === 'healer') {
+                // Cross shape for healer
+                this.body.rect(-5, -15, 10, 30).fill(color);
+                this.body.rect(-15, -5, 30, 10).fill(color);
+            } else if (type === 'splitter') {
+                // Diamond shape
+                this.body.moveTo(0, -stats.radius).lineTo(stats.radius, 0).lineTo(0, stats.radius).lineTo(-stats.radius, 0).fill(color);
+            } else if (type === 'shieldbearer') {
+                // Shield shape
+                this.body.moveTo(0, -stats.radius).lineTo(stats.radius, -stats.radius / 2).lineTo(stats.radius, stats.radius / 2).lineTo(0, stats.radius).lineTo(-stats.radius, stats.radius / 2).lineTo(-stats.radius, -stats.radius / 2).fill(color);
+                this.body.circle(0, 0, stats.radius * 1.5).stroke({ width: 2, color: 0x00FFFF, alpha: 0.5 });
+            } else {
+                // Basic, Fast, Tank - прямоугольники
+                const s = stats.radius * 2; // примерно под размер радиуса
+                this.body.rect(-stats.radius, -stats.radius, s, s).fill(color);
+            }
         }
-        
+
         this.addChild(this.body);
     }
-    
+
     public takeDamage(amount: number) {
         // If shielded, reduce damage by 50%
         const actualDamage = this.isShielded ? amount * 0.5 : amount;
@@ -188,19 +188,23 @@ export class Enemy extends Container {
 
         let targetX = this.target.x;
         let targetY = this.target.y;
-        
+
         if ('buildingType' in this.target) { targetX += 20; targetY += 20; }
-        
+
         const dx = targetX - this.x;
         const dy = targetY - this.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        
+
         // ЛОГИКА АТАКИ
+        // ЛОГИКА АТАКИ
+        let isAttacking = false;
+
         if (dist < this.attackRange) {
-            this.vx = 0;
-            this.vy = 0;
-            
+            // Shooter logic
             if (this.type === 'shooter') {
+                this.vx = 0;
+                this.vy = 0;
+
                 if (this.attackTimer <= 0) {
                     if (this.onShoot) {
                         this.onShoot(this.x, this.y, targetX, targetY, this.damage);
@@ -209,72 +213,99 @@ export class Enemy extends Container {
                 }
                 return;
             }
-            // Boss и другие милишники идут таранить, кроме момента самого удара
+
+            // Melee/Boss Logic - Stop and Attack Target
+            // Boss и другие милишники идут таранить, но если они уже в range (для босса 50), они бьют
+            this.vx = 0;
+            this.vy = 0;
+            isAttacking = true;
+
+            if (this.attackTimer <= 0) {
+                // Try to attack TARGET directly
+                // Target can be Building (Core) or Player. Both have takeDamage/hp logic but need checking.
+
+                // Visual feedback
+                const originalScale = this.scale.x;
+                this.scale.set(originalScale * 1.1);
+                setTimeout(() => this.scale.set(originalScale), 100);
+
+                // Deal damage
+                if ('takeDamage' in this.target) {
+                    (this.target as any).takeDamage(this.damage);
+                } else if (this.target === this.player) {
+                    (this.player as any).takeDamage(this.damage);
+                }
+
+                if (this.onHit) this.onHit(); // Sound/Shake
+                this.attackTimer = this.attackSpeed;
+            }
         }
 
-        const dirX = dx / dist;
-        const dirY = dy / dist;
+        if (!isAttacking) {
+            const dirX = dx / dist;
+            const dirY = dy / dist;
 
-        const effectiveSpeed = this.speed * this.speedMultiplier;
-        this.vx = dirX * effectiveSpeed;
-        this.vy = dirY * effectiveSpeed;
+            const effectiveSpeed = this.speed * this.speedMultiplier;
+            this.vx = dirX * effectiveSpeed;
+            this.vy = dirY * effectiveSpeed;
 
-        const moveX = this.vx * ticker.deltaTime;
-        const moveY = this.vy * ticker.deltaTime;
+            const moveX = this.vx * ticker.deltaTime;
+            const moveY = this.vy * ticker.deltaTime;
 
-        const checkDist = this.hitboxRadius + 5;
-        const checkX = this.x + moveX + (dirX * checkDist);
-        const checkY = this.y + moveY + (dirY * checkDist);
+            const checkDist = this.hitboxRadius + 5;
+            const checkX = this.x + moveX + (dirX * checkDist);
+            const checkY = this.y + moveY + (dirY * checkDist);
 
-        const buildingX = this.isColliding(checkX, this.y); 
-        if (!buildingX) {
-             const distToPlayer = Math.sqrt(Math.pow(checkX - this.player.x, 2) + Math.pow(this.y - this.player.y, 2));
-             if (distToPlayer > 25 || this.type === 'boss') {
-                this.x += moveX; 
-             }
-        } else {
-             this.attackBuilding(buildingX);
-        }
+            const buildingX = this.isColliding(checkX, this.y);
+            if (!buildingX) {
+                const distToPlayer = Math.sqrt(Math.pow(checkX - this.player.x, 2) + Math.pow(this.y - this.player.y, 2));
+                if (distToPlayer > 25 || this.type === 'boss') {
+                    this.x += moveX;
+                }
+            } else {
+                this.attackBuilding(buildingX);
+            }
 
-        const buildingY = this.isColliding(this.x, checkY);
-        if (!buildingY) {
-             const distToPlayer = Math.sqrt(Math.pow(this.x - this.player.x, 2) + Math.pow(checkY - this.player.y, 2));
-             if (distToPlayer > 25 || this.type === 'boss') {
-                this.y += moveY; 
-             }
-        } else {
-             this.attackBuilding(buildingY);
+            const buildingY = this.isColliding(this.x, checkY);
+            if (!buildingY) {
+                const distToPlayer = Math.sqrt(Math.pow(this.x - this.player.x, 2) + Math.pow(checkY - this.player.y, 2));
+                if (distToPlayer > 25 || this.type === 'boss') {
+                    this.y += moveY;
+                }
+            } else {
+                this.attackBuilding(buildingY);
+            }
         }
     }
 
     private attackBuilding(building: Building) {
-        this.vx = 0; 
+        this.vx = 0;
         this.vy = 0;
-        
+
         if (this.type === 'kamikaze') {
             if (this.onExplode) {
-                this.onExplode(this.x, this.y, this.damage, 100); 
+                this.onExplode(this.x, this.y, this.damage, 100);
             }
-            this.isDead = true; 
+            this.isDead = true;
             return;
         }
 
         if (this.attackTimer <= 0) {
             building.takeDamage(this.damage);
             if (this.onHit) this.onHit(); // Триггерим звук и тряску
-            
+
             if (building.thornsDamage > 0) {
                 this.takeDamage(building.thornsDamage);
             }
 
             this.attackTimer = this.attackSpeed;
             const originalScale = this.scale.x;
-            this.scale.set(originalScale * 1.1); 
+            this.scale.set(originalScale * 1.1);
             setTimeout(() => this.scale.set(originalScale), 100);
         }
     }
 
-    private isColliding(newX: number, newY: number): Building | null { 
-        return this.checkCollision(newX, newY); 
+    private isColliding(newX: number, newY: number): Building | null {
+        return this.checkCollision(newX, newY);
     }
 }
