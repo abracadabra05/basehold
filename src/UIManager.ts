@@ -252,6 +252,13 @@ export class UIManager {
             this.container.style.bottom = `calc(${bottomPadding}px + env(safe-area-inset-bottom, 0px))`;
             this.container.style.gap = this.isMobile ? '4px' : '6px';
             this.container.style.padding = panelPadding;
+
+            // Constrain width on mobile landscape to avoid joysticks
+            if (isLandscape && this.isMobile) {
+                this.container.style.maxWidth = '60vw';
+            } else {
+                this.container.style.maxWidth = '95vw';
+            }
         }
 
         // --- UPDATE HUD PLAYER ---
@@ -502,16 +509,19 @@ export class UIManager {
     }
 
     private updateMainMenuContent(div: HTMLDivElement) {
-        const titleSize = this.isMobile ? '40px' : '70px'; // Чуть меньше для ПК
-        const subSize = this.isMobile ? '12px' : '16px';
-        const gap = this.isMobile ? '15px' : '30px';
+        const isLandscape = window.innerWidth > window.innerHeight;
+        const titleSize = this.isMobile ? (isLandscape ? '10vmin' : '12vmin') : '70px';
+        const subSize = this.isMobile ? '4vmin' : '16px';
+        const gap = this.isMobile ? '4vmin' : '30px';
+        const btnPadding = this.isMobile ? '2vmin 6vmin' : '16px 50px';
+        const btnFontSize = this.isMobile ? '5vmin' : '22px';
 
         div.innerHTML = `
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%; z-index: 10;">
                 <h1 style="font-size: ${titleSize}; color: #3498db; margin: 0; text-transform: uppercase; letter-spacing: 5px; font-weight: 900; text-shadow: 0 4px 10px rgba(0,0,0,0.5);">${this.t('game_title')}</h1>
                 <p style="color: #aaa; margin-bottom: ${gap}; font-size: ${subSize}; letter-spacing: 2px;">${this.t('subtitle')}</p>
                 
-                <button id="start-btn" style="padding: ${this.isMobile ? '12px 40px' : '16px 50px'}; font-size: ${this.isMobile ? '18px' : '22px'}; cursor: pointer; background: rgba(52, 152, 219, 0.15); color: #3498db; border: 2px solid #3498db; borderRadius: 4px; text-transform: uppercase; letter-spacing: 3px; font-weight: bold; transition: all 0.2s; backdrop-filter: blur(4px);">
+                <button id="start-btn" style="padding: ${btnPadding}; font-size: ${btnFontSize}; cursor: pointer; background: rgba(52, 152, 219, 0.15); color: #3498db; border: 2px solid #3498db; borderRadius: 4px; text-transform: uppercase; letter-spacing: 3px; font-weight: bold; transition: all 0.2s; backdrop-filter: blur(4px);">
                     ${this.t('start')}
                 </button>
             </div>

@@ -86,12 +86,12 @@ export const UI_POSITIONS = {
         HUD_PLAYER: { top: 5, left: 10 },
         HUD_CORE: { top: 5 },
         MINIMAP: { top: 5, right: 10 },
-        SETTINGS_BUTTON: { top: 135, right: 10 }, // Below minimap (assuming ~120px height)
-        WAVE_PANEL: { top: 25 }, // Higher, closer to Core HUD
-        RESOURCES: { top: 60, left: 10 }, // Lower to avoid overlap with HUD Player
-        TOOLBAR: { bottom: 2 },
-        JOYSTICK_LEFT: { bottom: 10, left: 10 },
-        JOYSTICK_RIGHT: { bottom: 10, right: 10 },
+        SETTINGS_BUTTON: { top: 115, right: 10 }, // Reduced spacing (below minimap)
+        WAVE_PANEL: { top: 25 },
+        RESOURCES: { top: 60, left: 10 },
+        TOOLBAR: { bottom: 5 }, // Slightly higher
+        JOYSTICK_LEFT: { bottom: 15, left: 15 }, // Adjusted
+        JOYSTICK_RIGHT: { bottom: 15, right: 15 }, // Adjusted
     }
 } as const;
 

@@ -93,7 +93,7 @@ export class AchievementManager {
                 updated = true;
                 break;
             case 'energy':
-                this.updateAchievement('energetic', amount);
+                this.setAchievementProgress('energetic', amount);
                 updated = true;
                 break;
         }
