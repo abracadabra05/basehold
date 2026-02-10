@@ -178,6 +178,12 @@ export class Enemy extends Container {
         }
     }
 
+    // Stuck detection
+    private stuckTimer: number = 0;
+    private lastX: number = 0;
+    private lastY: number = 0;
+    private slideDirection: number = 1; // 1 = clockwise, -1 = counter-clockwise
+
     public update(ticker: Ticker) {
         if (!this.target) return;
         if (this.attackTimer > 0) this.attackTimer -= ticker.deltaTime;
@@ -195,8 +201,7 @@ export class Enemy extends Container {
         const dy = targetY - this.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        // ЛОГИКА АТАКИ
-        // ЛОГИКА АТАКИ
+        // ATTACK LOGIC
         let isAttacking = false;
 
         if (dist < this.attackRange) {
@@ -214,48 +219,46 @@ export class Enemy extends Container {
                 return;
             }
 
-            // Melee/Boss Logic - Check for obstacles first!
-            // Fix Ghost Damage: Don't attack target through walls just because dist < range
+            // Melee/Boss Logic - Check line-of-sight before attacking!
             const dirX = dx / dist;
             const dirY = dy / dist;
-            // Check a bit ahead towards target
             const checkDist = Math.min(dist, 20);
             const checkX = this.x + dirX * checkDist;
             const checkY = this.y + dirY * checkDist;
 
             const obstacle = this.checkCollision(checkX, checkY);
 
-            // If obstacle exists and it's NOT the target (and targeting building)
+            // If obstacle exists and it's NOT the target — don't attack core through wall
             if (obstacle && obstacle !== this.target) {
-                // We are blocked by something else (wall/rockTarget)
-                // Attack the obstacle instead!
-                this.attackBuilding(obstacle);
-                return;
-            }
-
-            this.vx = 0;
-            this.vy = 0;
-            isAttacking = true;
-
-            if (this.attackTimer <= 0) {
-                // Try to attack TARGET directly
-                // Target can be Building (Core) or Player. Both have takeDamage/hp logic but need checking.
-
-                // Visual feedback
-                const originalScale = this.scale.x;
-                this.scale.set(originalScale * 1.1);
-                setTimeout(() => this.scale.set(originalScale), 100);
-
-                // Deal damage
-                if ('takeDamage' in this.target) {
-                    (this.target as any).takeDamage(this.damage);
-                } else if (this.target === this.player) {
-                    (this.player as any).takeDamage(this.damage);
+                // Don't attack indestructible rocks — slide around instead
+                if (obstacle.hp === Infinity || !isFinite(obstacle.hp)) {
+                    // Will be handled by movement below
+                } else {
+                    this.attackBuilding(obstacle);
+                    return;
                 }
+            } else if (!obstacle) {
+                // Clear line of sight — can attack
+                this.vx = 0;
+                this.vy = 0;
+                isAttacking = true;
 
-                if (this.onHit) this.onHit(); // Sound/Shake
-                this.attackTimer = this.attackSpeed;
+                if (this.attackTimer <= 0) {
+                    const originalScale = this.scale.x;
+                    this.scale.set(originalScale * 1.1);
+                    setTimeout(() => this.scale.set(originalScale), 100);
+
+                    if ('takeDamage' in this.target) {
+                        (this.target as any).takeDamage(this.damage);
+                    } else if (this.target === this.player) {
+                        (this.player as any).takeDamage(this.damage);
+                    }
+
+                    if (this.onHit) this.onHit();
+                    this.attackTimer = this.attackSpeed;
+                }
             }
+            // If obstacle is indestructible and blocks us, fall through to movement
         }
 
         if (!isAttacking) {
@@ -263,35 +266,76 @@ export class Enemy extends Container {
             const dirY = dy / dist;
 
             const effectiveSpeed = this.speed * this.speedMultiplier;
-            this.vx = dirX * effectiveSpeed;
-            this.vy = dirY * effectiveSpeed;
 
-            const moveX = this.vx * ticker.deltaTime;
-            const moveY = this.vy * ticker.deltaTime;
+            // --- Stuck detection ---
+            const movedDist = Math.abs(this.x - this.lastX) + Math.abs(this.y - this.lastY);
+            if (movedDist < 0.5) {
+                this.stuckTimer += ticker.deltaTime;
+                // After being stuck for ~30 frames, flip direction
+                if (this.stuckTimer > 30) {
+                    this.slideDirection *= -1;
+                    this.stuckTimer = 0;
+                }
+            } else {
+                this.stuckTimer = 0;
+            }
+            this.lastX = this.x;
+            this.lastY = this.y;
+
+            // Try direct movement first
+            const moveX = dirX * effectiveSpeed * ticker.deltaTime;
+            const moveY = dirY * effectiveSpeed * ticker.deltaTime;
 
             const checkDist = this.hitboxRadius + 5;
-            const checkX = this.x + moveX + (dirX * checkDist);
-            const checkY = this.y + moveY + (dirY * checkDist);
+            const checkAheadX = this.x + moveX + (dirX * checkDist);
+            const checkAheadY = this.y + moveY + (dirY * checkDist);
 
-            const buildingX = this.isColliding(checkX, this.y);
-            if (!buildingX) {
-                const distToPlayer = Math.sqrt(Math.pow(checkX - this.player.x, 2) + Math.pow(this.y - this.player.y, 2));
+            const collisionX = this.isColliding(checkAheadX, this.y);
+            const collisionY = this.isColliding(this.x, checkAheadY);
+
+            const isRockX = collisionX && (collisionX.hp === Infinity || !isFinite(collisionX.hp));
+            const isRockY = collisionY && (collisionY.hp === Infinity || !isFinite(collisionY.hp));
+
+            if (!collisionX) {
+                // No collision: move X
+                const distToPlayer = Math.sqrt(Math.pow(checkAheadX - this.player.x, 2) + Math.pow(this.y - this.player.y, 2));
                 if (distToPlayer > 25) {
                     this.x += moveX;
                 }
+            } else if (isRockX) {
+                // Rock collision on X — slide perpendicular (along Y)
+                const slideY = dirY !== 0 ? Math.sign(dirY) : this.slideDirection;
+                const slideAmount = effectiveSpeed * ticker.deltaTime;
+                const slideCheckY = this.y + slideY * (checkDist + slideAmount);
+                if (!this.isColliding(this.x, slideCheckY)) {
+                    this.y += slideY * slideAmount;
+                }
             } else {
-                this.attackBuilding(buildingX);
+                // Destructible building — attack it
+                this.attackBuilding(collisionX);
             }
 
-            const buildingY = this.isColliding(this.x, checkY);
-            if (!buildingY) {
-                const distToPlayer = Math.sqrt(Math.pow(this.x - this.player.x, 2) + Math.pow(checkY - this.player.y, 2));
+            if (!collisionY) {
+                // No collision: move Y
+                const distToPlayer = Math.sqrt(Math.pow(this.x - this.player.x, 2) + Math.pow(checkAheadY - this.player.y, 2));
                 if (distToPlayer > 25) {
                     this.y += moveY;
                 }
+            } else if (isRockY) {
+                // Rock collision on Y — slide perpendicular (along X)
+                const slideX = dirX !== 0 ? Math.sign(dirX) : this.slideDirection;
+                const slideAmount = effectiveSpeed * ticker.deltaTime;
+                const slideCheckX = this.x + slideX * (checkDist + slideAmount);
+                if (!this.isColliding(slideCheckX, this.y)) {
+                    this.x += slideX * slideAmount;
+                }
             } else {
-                this.attackBuilding(buildingY);
+                // Destructible building — attack it
+                this.attackBuilding(collisionY);
             }
+
+            this.vx = this.x - this.lastX;
+            this.vy = this.y - this.lastY;
         }
     }
 
