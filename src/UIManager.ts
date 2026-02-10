@@ -536,14 +536,14 @@ export class UIManager {
             <!-- VERSION NUMBER -->
             <div style="position: absolute; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); left: 20px; font-size: 12px; color: #666; z-index: 20;">v${VERSION}</div>
 
-            <!-- КНОПКИ (Настройки, Фуллскрин) - ВЕРНУЛИ ВНИЗ -->
-            <div style="position: absolute; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); right: 20px; display: flex; gap: 15px; z-index: 20;">
-                <button id="achievements-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">🏅</button>
-                <button id="changelog-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white; position: relative;">
-                    📋${this.hasUnreadChangelog ? `<span style="position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 10px; padding: 2px 5px; border-radius: 10px; font-weight: bold;">${this.t('changelog_new')}</span>` : ''}
+            <!-- КНОПКИ (Настройки, Фуллскрин) - Адаптивные иконки -->
+            <div style="position: absolute; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); right: 20px; display: flex; gap: ${this.isMobile ? '3vmin' : '15px'}; z-index: 20; align-items: center;">
+                <button id="achievements-btn" style="background: none; border: none; font-size: ${this.isMobile ? '7vmin' : '28px'}; cursor: pointer; opacity: 0.7; color: white; padding: 0; line-height: 1;">🏅</button>
+                <button id="changelog-btn" style="background: none; border: none; font-size: ${this.isMobile ? '7vmin' : '28px'}; cursor: pointer; opacity: 0.7; color: white; position: relative; padding: 0; line-height: 1;">
+                    📋${this.hasUnreadChangelog ? `<span style="position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: ${this.isMobile ? '2.5vmin' : '10px'}; padding: 2px 5px; border-radius: 10px; font-weight: bold;">${this.t('changelog_new')}</span>` : ''}
                 </button>
-                ${this.isMobile ? `<button id="mob-lb-btn" style="background: none; border: none; font-size: 28px; cursor: pointer;">🏆</button>` : ''}
-                <button id="settings-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; opacity: 0.7; color: white;">⚙️</button>
+                ${this.isMobile ? `<button id="mob-lb-btn" style="background: none; border: none; font-size: 7vmin; cursor: pointer; padding: 0; line-height: 1;">🏆</button>` : ''}
+                <button id="settings-btn" style="background: none; border: none; font-size: ${this.isMobile ? '7vmin' : '28px'}; cursor: pointer; opacity: 0.7; color: white; padding: 0; line-height: 1;">⚙️</button>
             </div>
         `;
 
@@ -587,26 +587,45 @@ export class UIManager {
         overlay.innerHTML = `<div style="font-size: 20px;">Loading...</div>`;
         document.body.appendChild(overlay);
 
-        const entries = await yaSdk.getLeaderboardEntries();
-        let listHtml = '';
-        entries.forEach(e => {
-            listHtml += `<div style="display: flex; justify-content: space-between; width: 100%; padding: 8px; border-bottom: 1px solid #444; font-size: 14px;">
-                <span style="color: #f1c40f;">#${e.rank}</span>
-                <span style="flex: 1; text-align: left; margin-left: 10px;">${e.player.name}</span>
-                <span style="color: #3498db;">${e.score}</span>
-            </div>`;
-        });
+        const entries = await yaSdk.getLeaderboardEntries(5);
+        const listHtml = this.renderLeaderboardList(entries, 5, '14px');
 
         overlay.innerHTML = `
-            <div style="background: #1e272e; padding: 20px; borderRadius: 12px; width: 85%; max-width: 350px; text-align: center; border: 1px solid #444; max-height: 90dvh; overflow-y: auto; display: flex; flex-direction: column;">
+            <div style="background: #1e272e; padding: 20px; border-radius: 12px; width: 85%; max-width: 350px; text-align: center; border: 1px solid #444; max-height: 90dvh; overflow-y: auto; display: flex; flex-direction: column;">
                 <h3 style="margin-top: 0; color: #f1c40f;">🏆 ${this.t('leaderboard')}</h3>
                 <div style="max-height: 60vh; overflow-y: auto; margin-bottom: 15px; flex-shrink: 1;">
                     ${listHtml || `<div style="color: #777;">${this.t('leaderboard_empty')}</div>`}
                 </div>
-                <button id="close-lb" style="padding: 10px 30px; background: #3498db; border: none; color: white; borderRadius: 4px; cursor: pointer; flex-shrink: 0;">${this.t('btn_ok')}</button>
+                <button id="close-lb" style="padding: 10px 30px; background: #3498db; border: none; color: white; border-radius: 4px; cursor: pointer; flex-shrink: 0;">${this.t('btn_ok')}</button>
             </div>
         `;
         overlay.querySelector('#close-lb')?.addEventListener('click', () => document.body.removeChild(overlay));
+    }
+
+    // Shared leaderboard renderer — TOP-N + user row (if outside top)
+    private renderLeaderboardList(entries: import('./YandexSDK').LeaderboardEntry[], topLimit: number, fontSize: string): string {
+        if (entries.length === 0) return '';
+        let html = '';
+        let addedSeparator = false;
+
+        for (const e of entries) {
+            const isUser = !!e.isCurrentUser;
+            const highlight = isUser ? 'background: rgba(52,152,219,0.15); border-left: 3px solid #3498db;' : '';
+            const nameColor = isUser ? '#3498db' : 'inherit';
+
+            // Add separator before user row if outside top
+            if (isUser && e.rank > topLimit && !addedSeparator) {
+                html += `<div style="text-align: center; color: #666; padding: 4px 0; font-size: ${fontSize};">. . .</div>`;
+                addedSeparator = true;
+            }
+
+            html += `<div style="display: flex; justify-content: space-between; width: 100%; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: ${fontSize}; ${highlight} border-radius: 4px; box-sizing: border-box;">
+                <span style="color: #f1c40f; min-width: 28px;">#${e.rank}</span>
+                <span style="flex: 1; text-align: left; margin-left: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: ${nameColor}; font-weight: ${isUser ? 'bold' : 'normal'};">${e.player.name}</span>
+                <span style="color: #3498db; font-weight: bold;">${e.score}</span>
+            </div>`;
+        }
+        return html;
     }
 
     private showChangelog() {
@@ -664,14 +683,7 @@ export class UIManager {
     private async loadEmbeddedLeaderboard(container: HTMLElement) {
         if (!container) return;
         const entries = await yaSdk.getLeaderboardEntries(5);
-        let listHtml = '';
-        entries.forEach(e => {
-            listHtml += `<div style="display: flex; justify-content: space-between; width: 100%; margin-bottom: 5px;">
-                <span style="color: #f1c40f;">#${e.rank}</span>
-                <span style="flex: 1; text-align: left; margin-left: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${e.player.name}</span>
-                <span style="color: #3498db;">${e.score}</span>
-            </div>`;
-        });
+        const listHtml = this.renderLeaderboardList(entries, 5, '12px');
         container.innerHTML = listHtml || `<div style="color: #777; text-align: center;">${this.t('leaderboard_empty')}</div>`;
     }
 

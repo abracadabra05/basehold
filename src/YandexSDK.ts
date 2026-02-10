@@ -16,6 +16,7 @@ export interface LeaderboardEntry {
     rank: number;
     score: number;
     player: { name: string };
+    isCurrentUser?: boolean;
 }
 
 export class YandexSDK {
@@ -32,7 +33,7 @@ export class YandexSDK {
     public onPause?: () => void;
     public onResume?: () => void;
 
-    constructor() {}
+    constructor() { }
 
     public async init(): Promise<void> {
         try {
@@ -42,13 +43,13 @@ export class YandexSDK {
                 this.ysdk = await window.YaGames.init();
                 this.isReady = true;
                 this.isYandexEnvironment = true;
-                
+
                 const env = this.ysdk.environment;
                 if (env && env.i18n && env.i18n.lang === 'ru') {
                     this.lang = 'ru';
                 }
                 console.log(`Yandex SDK initialized. Lang: ${this.lang}`);
-                
+
                 try {
                     this.player = await this.ysdk.getPlayer();
                 } catch (e) {
@@ -195,39 +196,78 @@ export class YandexSDK {
         });
     }
 
-    public async getLeaderboardEntries(limit: number = 10): Promise<LeaderboardEntry[]> {
+    public async getLeaderboardEntries(limit: number = 5): Promise<LeaderboardEntry[]> {
         if (this.isYandexEnvironment && this.ysdk?.leaderboards) {
             try {
-                // Новый API: ysdk.leaderboards.getEntries()
                 const result = await this.ysdk.leaderboards.getEntries(this.LEADERBOARD_NAME, {
                     quantityTop: limit,
                     includeUser: true,
-                    quantityAround: 3
+                    quantityAround: 0
                 });
-                return result.entries.map((e: any) => ({
-                    rank: e.rank,
-                    score: e.score,
-                    player: { name: e.player.publicName || 'Пользователь скрыт' }
-                }));
+
+                // Get current player unique ID
+                const currentPlayerId = this.player?.getUniqueID?.() || null;
+
+                const topEntries: LeaderboardEntry[] = [];
+                let userEntry: LeaderboardEntry | null = null;
+
+                for (const e of result.entries) {
+                    const isUser = currentPlayerId && e.player?.uniqueID === currentPlayerId;
+                    const entry: LeaderboardEntry = {
+                        rank: e.rank,
+                        score: e.score,
+                        player: { name: e.player.publicName || 'Пользователь скрыт' },
+                        isCurrentUser: !!isUser
+                    };
+
+                    if (e.rank <= limit) {
+                        topEntries.push(entry);
+                        if (isUser) userEntry = entry; // User is in top
+                    } else if (isUser && !userEntry) {
+                        userEntry = entry; // User is outside top
+                    }
+                }
+
+                // If user is outside top-5, add them as 6th entry
+                if (userEntry && !topEntries.find(e => e.isCurrentUser)) {
+                    topEntries.push(userEntry);
+                }
+
+                return topEntries;
             } catch (e) {
                 console.warn('Failed to get Yandex leaderboard, falling back to local', e);
-                // Fallback to local logic below
             }
         }
 
-        // ЛОКАЛЬНЫЙ РЕЖИМ (или если лидерборд недоступен)
+        // LOCAL/DEV MODE
         console.log('[YandexSDK] Fetching local leaderboard. Environment:', this.isYandexEnvironment);
         const raw = localStorage.getItem('basehold_leaderboard');
         let entries = raw ? JSON.parse(raw) : [];
 
-        console.log('[YandexSDK] Entries:', entries);
-
         entries.sort((a: any, b: any) => b.score - a.score);
-        return entries.slice(0, limit).map((e: any, index: number) => ({
+
+        const top: LeaderboardEntry[] = entries.slice(0, limit).map((e: any, index: number) => ({
             rank: index + 1,
             score: e.score,
-            player: { name: e.name || 'You' }
+            player: { name: e.name || 'You' },
+            isCurrentUser: (e.name || 'You') === 'You'
         }));
+
+        // If "You" is not in top-5 but exists somewhere below
+        const userInTop = top.find(e => e.isCurrentUser);
+        if (!userInTop) {
+            const userIndex = entries.findIndex((e: any) => (e.name || 'You') === 'You');
+            if (userIndex >= limit) {
+                top.push({
+                    rank: userIndex + 1,
+                    score: entries[userIndex].score,
+                    player: { name: 'You' },
+                    isCurrentUser: true
+                });
+            }
+        }
+
+        return top;
     }
 
     public async setLeaderboardScore(score: number) {
