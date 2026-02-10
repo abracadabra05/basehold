@@ -1,4 +1,4 @@
-export const VERSION = '2.0.0';
+export const VERSION = '2.5.0';
 
 export interface ChangelogEntry {
     version: string;
@@ -10,6 +10,30 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '2.5.0',
+        date: '2025-02-10',
+        changes: {
+            ru: [
+                'Умный ИИ врагов: A* патфайндинг вокруг зданий и камней',
+                'Два лидерборда: «Волны» и «Очки» с табами переключения',
+                'Настройки графики: Высокая / Низкая для слабых устройств',
+                'Исправлен сброс перков при рестарте',
+                'Враги теперь наносят свой реальный урон при столкновении',
+                'Исправлено освещение лазерных башен',
+                'Защита от зависания при генерации мира'
+            ],
+            en: [
+                'Smart enemy AI: A* pathfinding around buildings and rocks',
+                'Dual leaderboards: Waves and Score with tab switching',
+                'Graphics settings: High / Low for weaker devices',
+                'Fixed perks not resetting on game restart',
+                'Enemies now deal correct collision damage',
+                'Fixed laser tower lighting',
+                'Protected world generation from infinite loops'
+            ]
+        }
+    },
     {
         version: '2.0.0',
         date: '2025-01-24',

@@ -23,8 +23,9 @@ export class YandexSDK {
     private ysdk: any = null;
     private player: any = null;
 
-    // Техническое название лидерборда в консоли Yandex Games
-    private readonly LEADERBOARD_NAME = 'maxWave';
+    // Два лидерборда в консоли Yandex Games
+    private readonly LEADERBOARD_WAVES = 'maxWave';
+    private readonly LEADERBOARD_SCORE = 'maxScore';
 
     public isReady: boolean = false;
     public isYandexEnvironment: boolean = false;
@@ -196,16 +197,18 @@ export class YandexSDK {
         });
     }
 
-    public async getLeaderboardEntries(limit: number = 5): Promise<LeaderboardEntry[]> {
+    public async getLeaderboardEntries(boardName: 'waves' | 'score' = 'waves', limit: number = 5): Promise<LeaderboardEntry[]> {
+        const leaderboardKey = boardName === 'score' ? this.LEADERBOARD_SCORE : this.LEADERBOARD_WAVES;
+        const localKey = boardName === 'score' ? 'basehold_leaderboard_score' : 'basehold_leaderboard';
+
         if (this.isYandexEnvironment && this.ysdk?.leaderboards) {
             try {
-                const result = await this.ysdk.leaderboards.getEntries(this.LEADERBOARD_NAME, {
+                const result = await this.ysdk.leaderboards.getEntries(leaderboardKey, {
                     quantityTop: limit,
                     includeUser: true,
                     quantityAround: 0
                 });
 
-                // Get current player unique ID
                 const currentPlayerId = this.player?.getUniqueID?.() || null;
 
                 const topEntries: LeaderboardEntry[] = [];
@@ -222,13 +225,12 @@ export class YandexSDK {
 
                     if (e.rank <= limit) {
                         topEntries.push(entry);
-                        if (isUser) userEntry = entry; // User is in top
+                        if (isUser) userEntry = entry;
                     } else if (isUser && !userEntry) {
-                        userEntry = entry; // User is outside top
+                        userEntry = entry;
                     }
                 }
 
-                // If user is outside top-5, add them as 6th entry
                 if (userEntry && !topEntries.find(e => e.isCurrentUser)) {
                     topEntries.push(userEntry);
                 }
@@ -240,10 +242,8 @@ export class YandexSDK {
         }
 
         // LOCAL/DEV MODE
-        console.log('[YandexSDK] Fetching local leaderboard. Environment:', this.isYandexEnvironment);
-        const raw = localStorage.getItem('basehold_leaderboard');
+        const raw = localStorage.getItem(localKey);
         let entries = raw ? JSON.parse(raw) : [];
-
         entries.sort((a: any, b: any) => b.score - a.score);
 
         const top: LeaderboardEntry[] = entries.slice(0, limit).map((e: any, index: number) => ({
@@ -253,7 +253,6 @@ export class YandexSDK {
             isCurrentUser: (e.name || 'You') === 'You'
         }));
 
-        // If "You" is not in top-5 but exists somewhere below
         const userInTop = top.find(e => e.isCurrentUser);
         if (!userInTop) {
             const userIndex = entries.findIndex((e: any) => (e.name || 'You') === 'You');
@@ -270,15 +269,16 @@ export class YandexSDK {
         return top;
     }
 
-    public async setLeaderboardScore(score: number) {
+    public async setLeaderboardScore(score: number, boardName: 'waves' | 'score' = 'waves') {
+        const leaderboardKey = boardName === 'score' ? this.LEADERBOARD_SCORE : this.LEADERBOARD_WAVES;
+        const localKey = boardName === 'score' ? 'basehold_leaderboard_score' : 'basehold_leaderboard';
+
         if (this.isYandexEnvironment && this.ysdk?.leaderboards) {
             try {
-                // Проверяем доступность метода для пользователя
                 const canSet = await this.ysdk.isAvailableMethod('leaderboards.setScore');
                 if (canSet) {
-                    // Новый API: ysdk.leaderboards.setScore()
-                    await this.ysdk.leaderboards.setScore(this.LEADERBOARD_NAME, score);
-                    console.log(`[Yandex] Leaderboard score set: ${score}`);
+                    await this.ysdk.leaderboards.setScore(leaderboardKey, score);
+                    console.log(`[Yandex] ${boardName} leaderboard score set: ${score}`);
                 } else {
                     console.warn('Leaderboard setScore not available (user not authorized)');
                 }
@@ -287,19 +287,13 @@ export class YandexSDK {
             }
         }
 
-        // Всегда сохраняем локально как fallback для неавторизованных
-        console.log(`[Local] Leaderboard score set: ${score}`);
-        const raw = localStorage.getItem('basehold_leaderboard');
+        // Локальный fallback
+        const raw = localStorage.getItem(localKey);
         let entries = raw ? JSON.parse(raw) : [];
-
-        // Добавляем новый результат
         entries.push({ name: 'You', score: score });
-
-        // Сортируем и режем
         entries.sort((a: any, b: any) => b.score - a.score);
         entries = entries.slice(0, 20);
-
-        localStorage.setItem('basehold_leaderboard', JSON.stringify(entries));
+        localStorage.setItem(localKey, JSON.stringify(entries));
     }
 
     public async saveData(data: YandexData) {

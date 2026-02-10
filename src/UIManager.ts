@@ -3,6 +3,7 @@ import { Icons } from './Icons';
 import { Translations, type Language } from './Localization';
 import { yaSdk } from './YandexSDK';
 import { Z_INDEX, COLORS, UI_POSITIONS } from './UIConstants';
+import { graphicsSettings } from './GraphicsSettings';
 import { VERSION, CHANGELOG } from './ChangelogData';
 import type { GameStats } from './StatsTracker';
 
@@ -587,19 +588,37 @@ export class UIManager {
         overlay.innerHTML = `<div style="font-size: 20px;">Loading...</div>`;
         document.body.appendChild(overlay);
 
-        const entries = await yaSdk.getLeaderboardEntries(5);
-        const listHtml = this.renderLeaderboardList(entries, 5, '14px');
+        let activeBoard: 'waves' | 'score' = 'waves';
 
-        overlay.innerHTML = `
-            <div style="background: #1e272e; padding: 20px; border-radius: 12px; width: 85%; max-width: 350px; text-align: center; border: 1px solid #444; max-height: 90dvh; overflow-y: auto; display: flex; flex-direction: column;">
-                <h3 style="margin-top: 0; color: #f1c40f;">🏆 ${this.t('leaderboard')}</h3>
-                <div style="max-height: 60vh; overflow-y: auto; margin-bottom: 15px; flex-shrink: 1;">
-                    ${listHtml || `<div style="color: #777;">${this.t('leaderboard_empty')}</div>`}
+        const renderModal = async () => {
+            const entries = await yaSdk.getLeaderboardEntries(activeBoard, 5);
+            const listHtml = this.renderLeaderboardList(entries, 5, '14px');
+
+            const tabStyle = (tab: string) => {
+                const isActive = tab === activeBoard;
+                return `padding: 8px 16px; border: none; border-radius: 6px 6px 0 0; cursor: pointer; font-weight: bold; font-size: 13px; ` +
+                    (isActive ? 'background: #2c3a47; color: #f1c40f;' : 'background: transparent; color: #777;');
+            };
+
+            overlay.innerHTML = `
+                <div style="background: #1e272e; padding: 20px; border-radius: 12px; width: 85%; max-width: 350px; text-align: center; border: 1px solid #444; max-height: 90dvh; overflow-y: auto; display: flex; flex-direction: column;">
+                    <h3 style="margin-top: 0; color: #f1c40f;">\uD83C\uDFC6 ${this.t('leaderboard')}</h3>
+                    <div style="display: flex; gap: 4px; justify-content: center; margin-bottom: 10px;">
+                        <button id="tab-waves" style="${tabStyle('waves')}">${this.t('leaderboard_waves')}</button>
+                        <button id="tab-score" style="${tabStyle('score')}">${this.t('leaderboard_score')}</button>
+                    </div>
+                    <div style="max-height: 60vh; overflow-y: auto; margin-bottom: 15px; flex-shrink: 1;" id="lb-content">
+                        ${listHtml || `<div style="color: #777;">${this.t('leaderboard_empty')}</div>`}
+                    </div>
+                    <button id="close-lb" style="padding: 10px 30px; background: #3498db; border: none; color: white; border-radius: 4px; cursor: pointer; flex-shrink: 0;">${this.t('btn_ok')}</button>
                 </div>
-                <button id="close-lb" style="padding: 10px 30px; background: #3498db; border: none; color: white; border-radius: 4px; cursor: pointer; flex-shrink: 0;">${this.t('btn_ok')}</button>
-            </div>
-        `;
-        overlay.querySelector('#close-lb')?.addEventListener('click', () => document.body.removeChild(overlay));
+            `;
+            overlay.querySelector('#close-lb')?.addEventListener('click', () => document.body.removeChild(overlay));
+            overlay.querySelector('#tab-waves')?.addEventListener('click', () => { activeBoard = 'waves'; renderModal(); });
+            overlay.querySelector('#tab-score')?.addEventListener('click', () => { activeBoard = 'score'; renderModal(); });
+        };
+
+        await renderModal();
     }
 
     // Shared leaderboard renderer — TOP-N + user row (if outside top)
@@ -682,9 +701,31 @@ export class UIManager {
 
     private async loadEmbeddedLeaderboard(container: HTMLElement) {
         if (!container) return;
-        const entries = await yaSdk.getLeaderboardEntries(5);
-        const listHtml = this.renderLeaderboardList(entries, 5, '12px');
-        container.innerHTML = listHtml || `<div style="color: #777; text-align: center;">${this.t('leaderboard_empty')}</div>`;
+
+        let activeBoard: 'waves' | 'score' = 'waves';
+
+        const render = async () => {
+            const entries = await yaSdk.getLeaderboardEntries(activeBoard, 5);
+            const listHtml = this.renderLeaderboardList(entries, 5, '12px');
+
+            const tabStyle = (tab: string) => {
+                const isActive = tab === activeBoard;
+                return `padding: 5px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; ` +
+                    (isActive ? 'background: #2c3a47; color: #f1c40f;' : 'background: transparent; color: #666;');
+            };
+
+            container.innerHTML = `
+                <div style="display: flex; gap: 4px; justify-content: center; margin-bottom: 6px;">
+                    <button id="emb-tab-waves" style="${tabStyle('waves')}">${this.t('leaderboard_waves')}</button>
+                    <button id="emb-tab-score" style="${tabStyle('score')}">${this.t('leaderboard_score')}</button>
+                </div>
+                ${listHtml || `<div style="color: #777; text-align: center;">${this.t('leaderboard_empty')}</div>`}
+            `;
+            container.querySelector('#emb-tab-waves')?.addEventListener('click', () => { activeBoard = 'waves'; render(); });
+            container.querySelector('#emb-tab-score')?.addEventListener('click', () => { activeBoard = 'score'; render(); });
+        };
+
+        await render();
     }
 
     private showSettings() {
@@ -729,6 +770,15 @@ export class UIManager {
                     </div>
                 </div>
 
+                <div style="border-top: 1px solid #444; padding-top: 15px; margin-bottom: 15px;">
+                    <div style="display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.05); margin-bottom: 12px;">
+                        <span style="font-size: 16px;">${this.t('settings_graphics')}</span>
+                        <div id="gfx-toggle" style="margin-left: auto; display: flex; gap: 6px;">
+                            <button id="gfx-high" style="padding: 6px 14px; border: 2px solid ${graphicsSettings.quality === 'high' ? '#3498db' : '#555'}; background: ${graphicsSettings.quality === 'high' ? '#3498db' : 'rgba(51,51,51,0.8)'}; color: white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">${this.t('settings_gfx_high')}</button>
+                            <button id="gfx-low" style="padding: 6px 14px; border: 2px solid ${graphicsSettings.quality === 'low' ? '#3498db' : '#555'}; background: ${graphicsSettings.quality === 'low' ? '#3498db' : 'rgba(51,51,51,0.8)'}; color: white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">${this.t('settings_gfx_low')}</button>
+                        </div>
+                    </div>
+
                 <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
                     <button id="set-exit" style="padding: 12px; background: #c0392b; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: bold; display: none; transition: all 0.2s;">${this.t('settings_exit')}</button>
                     <button id="set-close" style="padding: 12px; background: #27ae60; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s;">${this.t('btn_ok')}</button>
@@ -754,6 +804,9 @@ export class UIManager {
         overlay.querySelector('#set-ru')?.addEventListener('click', () => { this.lang = 'ru'; this.refreshUI(); document.body.removeChild(overlay); this.showSettings(); });
 
         overlay.querySelector('#set-tut')?.addEventListener('change', (e: any) => { this.showTutorialFlag = e.target.checked; });
+
+        overlay.querySelector('#gfx-high')?.addEventListener('click', () => { graphicsSettings.setQuality('high'); document.body.removeChild(overlay); this.showSettings(); });
+        overlay.querySelector('#gfx-low')?.addEventListener('click', () => { graphicsSettings.setQuality('low'); document.body.removeChild(overlay); this.showSettings(); });
 
         const volumeSlider = overlay.querySelector('#volume-slider') as HTMLInputElement;
         const volumeIcon = overlay.querySelector('#volume-icon') as HTMLElement;

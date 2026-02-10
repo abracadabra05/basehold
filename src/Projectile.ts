@@ -1,4 +1,5 @@
 import { Container, Graphics, Ticker } from "pixi.js";
+import { graphicsSettings } from './GraphicsSettings';
 
 export class Projectile extends Container {
     private graphics: Graphics;
@@ -6,7 +7,7 @@ export class Projectile extends Container {
     private speed: number = 10;
     private vx: number = 0;
     private vy: number = 0;
-    
+
     public damage: number = 0;
     public shouldDestroy: boolean = false;
     public isEnemy: boolean = false;
@@ -18,7 +19,7 @@ export class Projectile extends Container {
 
     constructor() {
         super();
-        
+
         // Сначала трейл, чтобы он был ПОД пулей
         this.trail = new Graphics();
         this.addChild(this.trail);
@@ -42,11 +43,13 @@ export class Projectile extends Container {
         const color = isEnemy ? 0x00FF00 : 0xFFFF00;
 
         this.graphics.clear();
-        
-        // Glow (Свечение)
-        this.graphics.circle(0, 0, 8).fill({ color: color, alpha: 0.3 }); // Гало
-        this.graphics.circle(0, 0, 4).fill(0xFFFFFF); // Ядро белое для контраста
-        
+
+        // Glow (Свечение) — only on high quality
+        if (graphicsSettings.config.projectileGlow) {
+            this.graphics.circle(0, 0, 8).fill({ color: color, alpha: 0.3 });
+        }
+        this.graphics.circle(0, 0, 4).fill(0xFFFFFF);
+
         // Очищаем старый трейл
         this.trail.clear();
 
@@ -54,7 +57,7 @@ export class Projectile extends Container {
         const dx = targetX - x;
         const dy = targetY - y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        
+
         if (dist > 0) {
             this.vx = (dx / dist) * this.speed;
             this.vy = (dy / dist) * this.speed;
@@ -72,13 +75,13 @@ export class Projectile extends Container {
         this.x += this.vx * ticker.deltaTime;
         this.y += this.vy * ticker.deltaTime;
 
-        // Рисуем трейл от прошлой позиции к текущей (смаз)
-        // Чтобы он был длиннее, можно хранить историю, но пока сделаем просто "Motion Blur" линию
-        this.trail.clear();
-        // Длина хвоста зависит от скорости. Рисуем линию назад.
-        this.trail.moveTo(0, 0); // В локальных координатах пули это (0,0)
-        this.trail.lineTo(this.lastX - this.x, this.lastY - this.y); // Линия назад
-        this.trail.stroke({ width: 3, color: this.isEnemy ? 0x00FF00 : 0xFFFF00, alpha: 0.5 });
+        // Trail rendering
+        if (graphicsSettings.config.showTrails) {
+            this.trail.clear();
+            this.trail.moveTo(0, 0);
+            this.trail.lineTo(this.lastX - this.x, this.lastY - this.y);
+            this.trail.stroke({ width: 3, color: this.isEnemy ? 0x00FF00 : 0xFFFF00, alpha: 0.5 });
+        }
 
 
         if (Math.abs(this.x) > 5000 || Math.abs(this.y) > 5000) {

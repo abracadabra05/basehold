@@ -5,18 +5,20 @@ export const Translations: Record<Language, any> = {
         game_title: 'BASEHOLD', // Добавлено для модерации
         title: 'BASEHOLD',
         subtitle: 'Обороняй. Строй. Выживай.',
-        
+
         start: 'Начать миссию',
         restart: 'Начать заново',
-        leaderboard: 'Лидеры', // Добавлено
-        leaderboard_empty: 'Рекордов нет. Будь первым!', // Добавлено
+        leaderboard: 'Лидеры',
+        leaderboard_empty: 'Рекордов нет. Будь первым!',
+        leaderboard_waves: 'Волны',
+        leaderboard_score: 'Очки',
         game_over: 'МИССИЯ ПРОВАЛЕНА',
         revive: 'ВОСКРЕСНУТЬ', // Добавлено
         tutorial_toggle: 'Обучение',
-        
+
         hud_hp: 'Здоровье', // Было Целостность
         hud_core_short: 'ЯДРО',
-        
+
         res_metal: 'Металл',
         res_biomass: 'Биомасса',
         res_energy: 'Энергия',
@@ -26,9 +28,9 @@ export const Translations: Record<Language, any> = {
         res_status_draining: 'РАЗРЯДКА',
         res_status_charging: 'ЗАРЯДКА',
         res_status_charged: 'ЗАРЯЖЕНО',
-        
+
         void_damage: 'УРОН ПУСТОТЫ!',
-        
+
         tut_move: 'Двигайся на WASD',
         tut_shoot: 'ЛКМ - Стрелять, Стой рядом с ресурсом для добычи',
         tut_move_mobile: 'Используй левый джойстик для движения',
@@ -39,7 +41,7 @@ export const Translations: Record<Language, any> = {
         tut_drill: 'Ставь буры на синие точки',
         tut_play: 'Поехали!',
         tut_next: 'Далее',
-        
+
         tool_wall: 'Стена',
         tool_drill: 'Бур',
         tool_generator: 'Генератор',
@@ -51,7 +53,7 @@ export const Translations: Record<Language, any> = {
         tool_repair: 'Ремонт',
         tool_remove: 'Снос',
         tool_power: 'Энергия',
-        
+
         upg_dmg: 'Урон',
         upg_speed: 'Скорость',
         upg_mine: 'Добыча',
@@ -60,16 +62,19 @@ export const Translations: Record<Language, any> = {
         upg_magnet: 'Магнит',
         upg_level: 'Уровень',
         upg_max: 'МАКС',
-        
+
         shop_title: 'Исследования и Улучшения',
         shop_subtitle: 'Тратьте биомассу на развитие технологий',
         shop_close: 'Закрыть',
         btn_ok: 'ОК',
-        
+
         settings_title: 'Настройки',
         settings_sound: 'Звук', // Добавлено
         settings_exit: 'Выйти в меню', // Добавлено
         settings_language: 'Язык',
+        settings_graphics: 'Графика',
+        settings_gfx_high: 'Высокая',
+        settings_gfx_low: 'Низкая',
         locked: 'ЗАКРЫТО', // Заблокированная технология
         unlocked: 'ОТКРЫТО', // Разблокированная технология
         tech_unlocked: 'ТЕХНОЛОГИЯ ОТКРЫТА!',
@@ -100,7 +105,7 @@ export const Translations: Record<Language, any> = {
         wave_shop: 'МАГАЗИН',
         wave_boss: 'БИТВА С БОССОМ',
         wave_skip: 'СКИП',
-        
+
         // Perks
         perk_title: 'Выберите Усиление',
         perk_double_shot: 'Мульти-выстрел',
@@ -187,18 +192,20 @@ export const Translations: Record<Language, any> = {
         game_title: 'BASEHOLD',
         title: 'BASEHOLD',
         subtitle: 'Defend. Build. Survive.',
-        
+
         start: 'Start Mission',
         restart: 'Restart Game',
         leaderboard: 'Leaders',
-        leaderboard_empty: 'No records yet. Be the first!', // Добавлено
+        leaderboard_empty: 'No records yet. Be the first!',
+        leaderboard_waves: 'Waves',
+        leaderboard_score: 'Score',
         game_over: 'MISSION FAILED',
         revive: 'REVIVE',
         tutorial_toggle: 'Show Tutorial',
-        
+
         hud_hp: 'HP', // Was Integrity
         hud_core_short: 'CORE',
-        
+
         res_metal: 'Metal',
         res_biomass: 'Biomass',
         res_energy: 'Energy',
@@ -208,9 +215,9 @@ export const Translations: Record<Language, any> = {
         res_status_draining: 'DRAINING',
         res_status_charging: 'CHARGING',
         res_status_charged: 'CHARGED',
-        
+
         void_damage: 'VOID DAMAGE!',
-        
+
         tut_move: 'Use WASD to Move',
         tut_shoot: 'LMB to Shoot, stand near node to mine',
         tut_move_mobile: 'Use left joystick to move',
@@ -221,7 +228,7 @@ export const Translations: Record<Language, any> = {
         tut_drill: 'Place drills on blue nodes to mine metal',
         tut_play: 'I am ready!',
         tut_next: 'Next',
-        
+
         tool_wall: 'Wall',
         tool_drill: 'Drill',
         tool_generator: 'Generator',
@@ -233,7 +240,7 @@ export const Translations: Record<Language, any> = {
         tool_repair: 'Repair',
         tool_remove: 'Remove',
         tool_power: 'Power',
-        
+
         upg_dmg: 'Damage',
         upg_speed: 'Move Speed',
         upg_mine: 'Mining Eff.',
@@ -242,7 +249,7 @@ export const Translations: Record<Language, any> = {
         upg_magnet: 'Magnet',
         upg_level: 'Level',
         upg_max: 'MAX',
-        
+
         shop_title: 'Research & Upgrades',
         shop_subtitle: 'Spend biomass to upgrade systems',
         shop_close: 'Close',
@@ -252,6 +259,9 @@ export const Translations: Record<Language, any> = {
         settings_sound: 'Sound',
         settings_exit: 'Exit to Menu',
         settings_language: 'Language',
+        settings_graphics: 'Graphics',
+        settings_gfx_high: 'High',
+        settings_gfx_low: 'Low',
         locked: 'LOCKED', // Locked technology
         unlocked: 'UNLOCKED', // Unlocked technology
         tech_unlocked: 'TECH UNLOCKED!',

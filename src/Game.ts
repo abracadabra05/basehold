@@ -26,6 +26,8 @@ import { PerkManager } from './PerkManager';
 import { yaSdk } from './YandexSDK';
 import { StatsTracker } from './StatsTracker';
 import { AchievementManager } from './AchievementManager';
+import { Pathfinder } from './Pathfinder';
+import { graphicsSettings } from './GraphicsSettings';
 
 export class Game {
     private app: Application;
@@ -80,6 +82,7 @@ export class Game {
     private endlessDifficultyMultiplier: number = 1.0;
     private resizeTimeout: ReturnType<typeof setTimeout> | null = null;
     private rockBlocker: Building | null = null; // Indestructible blocker for rock collisions
+    private pathfinder: Pathfinder = new Pathfinder();
 
     constructor(app: Application) {
         this.app = app;
@@ -167,6 +170,7 @@ export class Game {
         this.drawGrid();
         this.generateResources();
         this.generateRocks();
+        this.rebuildPathfinderGrid();
     }
 
     private initManagers(): void {
@@ -201,11 +205,13 @@ export class Game {
 
         this.buildingSystem.onBuildingDestroyed = (x, y) => {
             this.createExplosion(x + 20, y + 20, 0x555555, 15);
+            this.rebuildPathfinderGrid();
         };
 
         this.buildingSystem.onBuildingPlaced = () => {
             this.statsTracker.addBuilding();
             this.achievementManager.addProgress('build');
+            this.rebuildPathfinderGrid();
         };
 
         this.buildingSystem.onChainLightning = (x, y, targets) => {
@@ -223,6 +229,21 @@ export class Game {
                 lastY = target.y;
             }
         };
+    }
+
+    /** Rebuild pathfinder grid from current rocks and buildings */
+    private rebuildPathfinderGrid(): void {
+        this.pathfinder.resetGrid();
+
+        // Block rock tiles
+        for (const rock of this.rocks) {
+            this.pathfinder.blockRock(rock);
+        }
+
+        // Block building tiles (walls, turrets, etc.)
+        for (const building of this.buildingSystem.activeBuildings) {
+            this.pathfinder.blockWorld(building.x, building.y);
+        }
     }
 
     private initPlayer(): { x: number; y: number } {
@@ -445,28 +466,34 @@ export class Game {
     }
 
     private updateVisuals(ticker: Ticker): void {
-        this.lightingSystem.update(ticker.deltaMS, this.app.screen.width, this.app.screen.height);
-        this.lightingSystem.clearLights();
+        // Lighting (skip when graphics quality is low)
+        if (graphicsSettings.config.lightingEnabled) {
+            this.lightingSystem.update(ticker.deltaMS, this.app.screen.width, this.app.screen.height);
+            this.lightingSystem.clearLights();
 
-        this.miniMap.setDarkness(this.lightingSystem.currentAlpha);
+            this.miniMap.setDarkness(this.lightingSystem.currentAlpha);
 
-        const pScreen = this.world.toGlobal({ x: this.player.x, y: this.player.y });
-        this.lightingSystem.renderLight(pScreen.x, pScreen.y, 350, this.player.rotationAngle, 1.2);
+            const pScreen = this.world.toGlobal({ x: this.player.x, y: this.player.y });
+            this.lightingSystem.renderLight(pScreen.x, pScreen.y, 350, this.player.rotationAngle, 1.2);
 
-        for (const b of this.buildingSystem.activeBuildings) {
-            const bPos = this.world.toGlobal({ x: b.x + 20, y: b.y + 20 });
-            if (['turret', 'sniper', 'minigun', 'laser'].includes(b.buildingType)) {
-                this.lightingSystem.renderLight(bPos.x, bPos.y, 450, b.rotationAngle, 0.8);
-            } else if (b.buildingType === 'laser') {
-                this.lightingSystem.renderLight(bPos.x, bPos.y, 600, b.rotationAngle, 0.3);
-            } else if (b.buildingType === 'core') {
-                this.lightingSystem.renderLight(bPos.x, bPos.y, 300);
-            } else if (b.buildingType === 'generator' || b.buildingType === 'battery') {
-                this.lightingSystem.renderLight(bPos.x, bPos.y, 100);
+            for (const b of this.buildingSystem.activeBuildings) {
+                const bPos = this.world.toGlobal({ x: b.x + 20, y: b.y + 20 });
+                if (b.buildingType === 'laser') {
+                    this.lightingSystem.renderLight(bPos.x, bPos.y, 600, b.rotationAngle, 0.3);
+                } else if (['turret', 'sniper', 'minigun'].includes(b.buildingType)) {
+                    this.lightingSystem.renderLight(bPos.x, bPos.y, 450, b.rotationAngle, 0.8);
+                } else if (b.buildingType === 'core') {
+                    this.lightingSystem.renderLight(bPos.x, bPos.y, 300);
+                } else if (b.buildingType === 'generator' || b.buildingType === 'battery') {
+                    this.lightingSystem.renderLight(bPos.x, bPos.y, 100);
+                }
             }
-        }
 
-        this.uiManager.updateTime(this.lightingSystem.cycleProgress);
+            this.uiManager.updateTime(this.lightingSystem.cycleProgress);
+        } else {
+            this.miniMap.setDarkness(0);
+            this.uiManager.updateTime(0);
+        }
 
         const worldMouse = this.inputSystem.getMouseWorldPosition(this.world);
         const info = this.buildingSystem.getBuildingInfoAt(worldMouse.x, worldMouse.y);
@@ -649,6 +676,7 @@ export class Game {
         // Генерация нового мира
         this.generateResources();
         this.generateRocks();
+        this.rebuildPathfinderGrid();
 
         // Сброс игрока
         const coreGridX = Math.floor((this.mapSizePixel / 2) / 40) * 40;
@@ -657,8 +685,22 @@ export class Game {
 
         this.player.x = coreGridX + 20;
         this.player.y = coreGridY + 80;
-        this.player.hp = this.player.maxHp = GameConfig.PLAYER.START_HP; // Сброс HP и макс HP (если были апгрейды)
+        this.player.hp = this.player.maxHp = GameConfig.PLAYER.START_HP;
         this.player.visible = true;
+
+        // v2.5: Сброс перков и статов игрока
+        this.player.moveSpeed = GameConfig.PLAYER.BASE_SPEED;
+        this.player.damage = 1;
+        this.player.fireRate = 10;
+        this.player.bulletsPerShot = 1;
+        this.player.vampirism = 0;
+        this.player.hasShield = false;
+        this.player.ricochet = false;
+        this.player.critChance = 0;
+        this.player.slowBullets = false;
+        this.player.explosiveRounds = false;
+        this.currentMineMultiplier = 1;
+        this.magnetRadius = 0;
 
         // Сброс менеджеров
         this.resourceManager.reset();
@@ -682,10 +724,13 @@ export class Game {
     }
 
     public spawnShell(x: number, y: number) {
+        if (!graphicsSettings.config.showShells) return;
         this.createParticle(x, y, 0, 'shell');
     }
 
     public createParticle(x: number, y: number, color: number, type: ParticleType = 'explosion') {
+        // Hard cap on particles
+        if (this.particles.length >= graphicsSettings.config.maxParticles) return;
         const p = this.particlePool.get();
         p.init(x, y, color, type);
         this.world.addChild(p);
@@ -693,7 +738,8 @@ export class Game {
     }
 
     public createExplosion(x: number, y: number, color: number, count: number = 10) {
-        for (let i = 0; i < count; i++) {
+        const effectiveCount = Math.ceil(count * graphicsSettings.config.particleMultiplier);
+        for (let i = 0; i < effectiveCount; i++) {
             this.createParticle(x, y, color, 'explosion');
         }
     }
@@ -871,7 +917,7 @@ export class Game {
             }
 
             return null;
-        }, type);
+        }, type, this.pathfinder);
 
         enemy.x = x;
         enemy.y = y;
@@ -1042,9 +1088,9 @@ export class Game {
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < 30) {
                 if (this.player.hp > 0) {
-                    this.player.takeDamage(1);
+                    this.player.takeDamage(enemy.damage);
                     this.soundManager.playEnemyHit();
-                    this.camera.shake(5, 0.1); // Небольшая тряска
+                    this.camera.shake(5, 0.1);
                 }
             }
         }
@@ -1132,8 +1178,9 @@ export class Game {
         this.statsTracker.setWave(this.waveManager.waveCount);
         const stats = this.statsTracker.getStats();
 
-        // Отправляем рекорд
-        yaSdk.setLeaderboardScore(this.waveManager.waveCount);
+        // Отправляем рекорды в оба лидерборда
+        yaSdk.setLeaderboardScore(this.waveManager.waveCount, 'waves');
+        yaSdk.setLeaderboardScore(this.score, 'score');
 
         // Show Game Over screen directly - ads will be shown when user clicks Restart (per Yandex requirements)
         setTimeout(() => {
@@ -1226,43 +1273,49 @@ export class Game {
         const gridSize = this.gridSize;
         const tiles = this.mapWidthTiles;
         for (let i = 0; i < 40; i++) {
-            const node = new ResourceNode(gridSize);
-            let rx = Math.floor(Math.random() * tiles) * gridSize;
-            let ry = Math.floor(Math.random() * tiles) * gridSize;
-            const centerX = this.mapSizePixel / 2;
-            const centerY = this.mapSizePixel / 2;
-            if (Math.abs(rx - centerX) < 200 && Math.abs(ry - centerY) < 200) {
-                i--; continue;
+            let placed = false;
+            for (let attempt = 0; attempt < 100; attempt++) {
+                const rx = Math.floor(Math.random() * tiles) * gridSize;
+                const ry = Math.floor(Math.random() * tiles) * gridSize;
+                const centerX = this.mapSizePixel / 2;
+                const centerY = this.mapSizePixel / 2;
+                if (Math.abs(rx - centerX) < 200 && Math.abs(ry - centerY) < 200) continue;
+                const node = new ResourceNode(gridSize);
+                node.x = rx; node.y = ry;
+                this.world.addChild(node);
+                this.resources.push(node);
+                placed = true;
+                break;
             }
-            node.x = rx; node.y = ry;
-            this.world.addChild(node);
-            this.resources.push(node);
+            if (!placed) break; // Map is too full, stop
         }
     }
 
     private generateRocks() {
         for (let i = 0; i < 20; i++) {
-            const radius = 20 + Math.random() * 20;
-            const rock = new Rock(radius);
-            let rx = Math.random() * this.mapSizePixel;
-            let ry = Math.random() * this.mapSizePixel;
-            const centerX = this.mapSizePixel / 2;
-            const centerY = this.mapSizePixel / 2;
-            if (Math.abs(rx - centerX) < 300 && Math.abs(ry - centerY) < 300) {
-                i--; continue;
-            }
-            let overlap = false;
-            for (const res of this.resources) {
-                if (Math.abs(res.x - rx) < 50 && Math.abs(res.y - ry) < 50) {
-                    overlap = true; break;
+            let placed = false;
+            for (let attempt = 0; attempt < 100; attempt++) {
+                const radius = 20 + Math.random() * 20;
+                const rx = Math.random() * this.mapSizePixel;
+                const ry = Math.random() * this.mapSizePixel;
+                const centerX = this.mapSizePixel / 2;
+                const centerY = this.mapSizePixel / 2;
+                if (Math.abs(rx - centerX) < 300 && Math.abs(ry - centerY) < 300) continue;
+                let overlap = false;
+                for (const res of this.resources) {
+                    if (Math.abs(res.x - rx) < 50 && Math.abs(res.y - ry) < 50) {
+                        overlap = true; break;
+                    }
                 }
+                if (overlap) continue;
+                const rock = new Rock(radius);
+                rock.x = rx; rock.y = ry;
+                this.world.addChild(rock);
+                this.rocks.push(rock);
+                placed = true;
+                break;
             }
-            if (overlap) {
-                i--; continue;
-            }
-            rock.x = rx; rock.y = ry;
-            this.world.addChild(rock);
-            this.rocks.push(rock);
+            if (!placed) break;
         }
     }
 

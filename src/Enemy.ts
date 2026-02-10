@@ -1,6 +1,7 @@
 import { Container, Graphics, Ticker } from 'pixi.js';
 import type { Building } from './Building';
 import { GameConfig } from './GameConfig';
+import type { Pathfinder, PathPoint } from './Pathfinder';
 
 export type EnemyType = 'basic' | 'fast' | 'tank' | 'boss' | 'kamikaze' | 'shooter' | 'healer' | 'splitter' | 'shieldbearer' | 'miniboss';
 
@@ -41,17 +42,26 @@ export class Enemy extends Container {
     public splitCount: number = 0;
     public speedMultiplier: number = 1.0;
 
+    // Pathfinding
+    private pathfinder: Pathfinder | null = null;
+    private currentPath: PathPoint[] = [];
+    private pathRecalcTimer: number = 0;
+    private pathRecalcInterval: number = 60; // Recalculate every ~1 second
+    private currentWaypointIndex: number = 0;
+
     constructor(
         target: Container,
-        player: Container, // Добавили аргумент
+        player: Container,
         checkCollision: (x: number, y: number) => Building | null,
-        type: EnemyType = 'basic'
+        type: EnemyType = 'basic',
+        pathfinder: Pathfinder | null = null
     ) {
         super();
         this.target = target;
-        this.player = player; // Сохранили
+        this.player = player;
         this.checkCollision = checkCollision;
         this.type = type;
+        this.pathfinder = pathfinder;
 
         this.body = new Graphics();
 
@@ -180,8 +190,6 @@ export class Enemy extends Container {
 
     // Stuck detection
     private stuckTimer: number = 0;
-    private lastX: number = 0;
-    private lastY: number = 0;
     private slideDirection: number = 1; // 1 = clockwise, -1 = counter-clockwise
 
     public update(ticker: Ticker) {
@@ -230,7 +238,7 @@ export class Enemy extends Container {
 
             // If obstacle exists and it's NOT the target — don't attack core through wall
             if (obstacle && obstacle !== this.target) {
-                // Don't attack indestructible rocks — slide around instead
+                // Don't attack indestructible rocks — navigate around instead
                 if (obstacle.hp === Infinity || !isFinite(obstacle.hp)) {
                     // Will be handled by movement below
                 } else {
@@ -262,80 +270,152 @@ export class Enemy extends Container {
         }
 
         if (!isAttacking) {
-            const dirX = dx / dist;
-            const dirY = dy / dist;
+            this.moveToTarget(ticker, targetX, targetY, dist);
+        }
+    }
 
-            const effectiveSpeed = this.speed * this.speedMultiplier;
+    /**
+     * Movement with A* pathfinding.
+     * Uses pathfinder to compute waypoints around rocks, with fallback to direct movement.
+     */
+    private moveToTarget(ticker: Ticker, targetX: number, targetY: number, distToTarget: number) {
+        const effectiveSpeed = this.speed * this.speedMultiplier;
+        const prevX = this.x;
+        const prevY = this.y;
 
-            // --- Stuck detection ---
-            const movedDist = Math.abs(this.x - this.lastX) + Math.abs(this.y - this.lastY);
-            if (movedDist < 0.5) {
-                this.stuckTimer += ticker.deltaTime;
-                // After being stuck for ~30 frames, flip direction
-                if (this.stuckTimer > 30) {
-                    this.slideDirection *= -1;
-                    this.stuckTimer = 0;
+        // --- Path recalculation ---
+        this.pathRecalcTimer += ticker.deltaTime;
+        if (this.pathRecalcTimer >= this.pathRecalcInterval || this.currentPath.length === 0) {
+            this.pathRecalcTimer = 0;
+            this.recalculatePath(targetX, targetY);
+        }
+
+        // --- Follow path waypoints ---
+        if (this.currentPath.length > 0 && this.currentWaypointIndex < this.currentPath.length) {
+            const wp = this.currentPath[this.currentWaypointIndex];
+            const wpDx = wp.x - this.x;
+            const wpDy = wp.y - this.y;
+            const wpDist = Math.sqrt(wpDx * wpDx + wpDy * wpDy);
+
+            if (wpDist < 15) {
+                // Reached waypoint — advance
+                this.currentWaypointIndex++;
+                if (this.currentWaypointIndex >= this.currentPath.length) {
+                    // Reached end of path
+                    this.currentPath = [];
+                    this.currentWaypointIndex = 0;
                 }
             } else {
+                // Move toward waypoint
+                const dirX = wpDx / wpDist;
+                const dirY = wpDy / wpDist;
+                const moveX = dirX * effectiveSpeed * ticker.deltaTime;
+                const moveY = dirY * effectiveSpeed * ticker.deltaTime;
+
+                // Collision check on each axis
+                const checkDist = this.hitboxRadius + 5;
+
+                const collisionX = this.isColliding(this.x + moveX + dirX * checkDist, this.y);
+                const collisionY = this.isColliding(this.x, this.y + moveY + dirY * checkDist);
+
+                if (!collisionX) {
+                    const distToPlayer = Math.sqrt(Math.pow(this.x + moveX - this.player.x, 2) + Math.pow(this.y - this.player.y, 2));
+                    if (distToPlayer > 25) this.x += moveX;
+                } else if (collisionX && !(collisionX.hp === Infinity || !isFinite(collisionX.hp))) {
+                    // Hit a destructible building — attack it
+                    this.attackBuilding(collisionX);
+                }
+
+                if (!collisionY) {
+                    const distToPlayer = Math.sqrt(Math.pow(this.x - this.player.x, 2) + Math.pow(this.y + moveY - this.player.y, 2));
+                    if (distToPlayer > 25) this.y += moveY;
+                } else if (collisionY && !(collisionY.hp === Infinity || !isFinite(collisionY.hp))) {
+                    this.attackBuilding(collisionY);
+                }
+            }
+        } else {
+            // No path — fallback: direct movement with slide
+            this.moveDirectFallback(ticker, targetX, targetY, distToTarget, effectiveSpeed);
+        }
+
+        // --- Stuck detection ---
+        const movedDist = Math.abs(this.x - prevX) + Math.abs(this.y - prevY);
+        if (movedDist < 0.5) {
+            this.stuckTimer += ticker.deltaTime;
+            if (this.stuckTimer > 30) {
+                // Stuck — force path recalculation and flip slide direction
+                this.slideDirection *= -1;
                 this.stuckTimer = 0;
+                this.pathRecalcTimer = this.pathRecalcInterval; // Force recalc next frame
+                this.currentPath = [];
             }
-            this.lastX = this.x;
-            this.lastY = this.y;
+        } else {
+            this.stuckTimer = 0;
+        }
+        this.vx = this.x - prevX;
+        this.vy = this.y - prevY;
+    }
 
-            // Try direct movement first
-            const moveX = dirX * effectiveSpeed * ticker.deltaTime;
-            const moveY = dirY * effectiveSpeed * ticker.deltaTime;
+    private recalculatePath(targetX: number, targetY: number) {
+        if (this.pathfinder) {
+            this.currentPath = this.pathfinder.findPath(this.x, this.y, targetX, targetY);
+            this.currentWaypointIndex = 0;
 
-            const checkDist = this.hitboxRadius + 5;
-            const checkAheadX = this.x + moveX + (dirX * checkDist);
-            const checkAheadY = this.y + moveY + (dirY * checkDist);
-
-            const collisionX = this.isColliding(checkAheadX, this.y);
-            const collisionY = this.isColliding(this.x, checkAheadY);
-
-            const isRockX = collisionX && (collisionX.hp === Infinity || !isFinite(collisionX.hp));
-            const isRockY = collisionY && (collisionY.hp === Infinity || !isFinite(collisionY.hp));
-
-            if (!collisionX) {
-                // No collision: move X
-                const distToPlayer = Math.sqrt(Math.pow(checkAheadX - this.player.x, 2) + Math.pow(this.y - this.player.y, 2));
-                if (distToPlayer > 25) {
-                    this.x += moveX;
+            // Skip first waypoints that are very close (prevent jitter)
+            while (this.currentWaypointIndex < this.currentPath.length - 1) {
+                const wp = this.currentPath[this.currentWaypointIndex];
+                const d = Math.sqrt(Math.pow(wp.x - this.x, 2) + Math.pow(wp.y - this.y, 2));
+                if (d < 15) {
+                    this.currentWaypointIndex++;
+                } else {
+                    break;
                 }
-            } else if (isRockX) {
-                // Rock collision on X — slide perpendicular (along Y)
-                const slideY = dirY !== 0 ? Math.sign(dirY) : this.slideDirection;
-                const slideAmount = effectiveSpeed * ticker.deltaTime;
-                const slideCheckY = this.y + slideY * (checkDist + slideAmount);
-                if (!this.isColliding(this.x, slideCheckY)) {
-                    this.y += slideY * slideAmount;
-                }
-            } else {
-                // Destructible building — attack it
-                this.attackBuilding(collisionX);
             }
+        } else {
+            // No pathfinder — direct path
+            this.currentPath = [{ x: targetX, y: targetY }];
+            this.currentWaypointIndex = 0;
+        }
+    }
 
-            if (!collisionY) {
-                // No collision: move Y
-                const distToPlayer = Math.sqrt(Math.pow(this.x - this.player.x, 2) + Math.pow(checkAheadY - this.player.y, 2));
-                if (distToPlayer > 25) {
-                    this.y += moveY;
-                }
-            } else if (isRockY) {
-                // Rock collision on Y — slide perpendicular (along X)
-                const slideX = dirX !== 0 ? Math.sign(dirX) : this.slideDirection;
-                const slideAmount = effectiveSpeed * ticker.deltaTime;
-                const slideCheckX = this.x + slideX * (checkDist + slideAmount);
-                if (!this.isColliding(slideCheckX, this.y)) {
-                    this.x += slideX * slideAmount;
-                }
-            } else {
-                // Destructible building — attack it
-                this.attackBuilding(collisionY);
+    /** Fallback direct movement with slide for when pathfinding has no result */
+    private moveDirectFallback(ticker: Ticker, targetX: number, targetY: number, dist: number, effectiveSpeed: number) {
+        if (dist < 1) return;
+
+        const dirX = (targetX - this.x) / dist;
+        const dirY = (targetY - this.y) / dist;
+        const moveX = dirX * effectiveSpeed * ticker.deltaTime;
+        const moveY = dirY * effectiveSpeed * ticker.deltaTime;
+        const checkDist = this.hitboxRadius + 5;
+
+        const collisionX = this.isColliding(this.x + moveX + dirX * checkDist, this.y);
+        const collisionY = this.isColliding(this.x, this.y + moveY + dirY * checkDist);
+
+        const isRockX = collisionX && (collisionX.hp === Infinity || !isFinite(collisionX.hp));
+        const isRockY = collisionY && (collisionY.hp === Infinity || !isFinite(collisionY.hp));
+
+        if (!collisionX) {
+            this.x += moveX;
+        } else if (isRockX) {
+            const slideY = dirY !== 0 ? Math.sign(dirY) : this.slideDirection;
+            const slideAmount = effectiveSpeed * ticker.deltaTime;
+            if (!this.isColliding(this.x, this.y + slideY * (checkDist + slideAmount))) {
+                this.y += slideY * slideAmount;
             }
+        } else {
+            this.attackBuilding(collisionX);
+        }
 
-            this.vx = this.x - this.lastX;
-            this.vy = this.y - this.lastY;
+        if (!collisionY) {
+            this.y += moveY;
+        } else if (isRockY) {
+            const slideX = dirX !== 0 ? Math.sign(dirX) : this.slideDirection;
+            const slideAmount = effectiveSpeed * ticker.deltaTime;
+            if (!this.isColliding(this.x + slideX * (checkDist + slideAmount), this.y)) {
+                this.x += slideX * slideAmount;
+            }
+        } else {
+            this.attackBuilding(collisionY);
         }
     }
 
