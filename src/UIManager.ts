@@ -708,25 +708,52 @@ export class UIManager {
 
         let activeBoard: 'waves' | 'score' = 'waves';
 
-        const render = async () => {
-            const entries = await yaSdk.getLeaderboardEntries(activeBoard, 5);
-            const listHtml = this.renderLeaderboardList(entries, 5, '12px');
-
+        const render = async (isLoading: boolean = false) => {
             const tabStyle = (tab: string) => {
                 const isActive = tab === activeBoard;
                 return `padding: 5px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; ` +
                     (isActive ? 'background: #2c3a47; color: #f1c40f;' : 'background: transparent; color: #666;');
             };
 
-            container.innerHTML = `
+            const headerHtml = `
                 <div style="display: flex; gap: 4px; justify-content: center; margin-bottom: 6px;">
                     <button id="emb-tab-waves" style="${tabStyle('waves')}">${this.t('leaderboard_waves')}</button>
                     <button id="emb-tab-score" style="${tabStyle('score')}">${this.t('leaderboard_score')}</button>
-                </div>
+                </div>`;
+
+            if (isLoading) {
+                container.innerHTML = `
+                    ${headerHtml}
+                    <div style="color: #777; text-align: center; font-size: 12px; padding: 20px;">Loading...</div>
+                `;
+                // Re-attach listeners even during loading to allow switching back if needed (or just consistency)
+                attachListeners();
+                return;
+            }
+
+            const entries = await yaSdk.getLeaderboardEntries(activeBoard, 5);
+            const listHtml = this.renderLeaderboardList(entries, 5, '12px');
+
+            container.innerHTML = `
+                ${headerHtml}
                 ${listHtml || `<div style="color: #777; text-align: center;">${this.t('leaderboard_empty')}</div>`}
             `;
-            container.querySelector('#emb-tab-waves')?.addEventListener('click', () => { activeBoard = 'waves'; render(); });
-            container.querySelector('#emb-tab-score')?.addEventListener('click', () => { activeBoard = 'score'; render(); });
+            attachListeners();
+        };
+
+        const attachListeners = () => {
+            container.querySelector('#emb-tab-waves')?.addEventListener('click', () => {
+                if (activeBoard === 'waves') return;
+                activeBoard = 'waves';
+                render(true); // Show loading immediately
+                render(); // Fetch and update
+            });
+            container.querySelector('#emb-tab-score')?.addEventListener('click', () => {
+                if (activeBoard === 'score') return;
+                activeBoard = 'score';
+                render(true); // Show loading immediately
+                render(); // Fetch and update
+            });
         };
 
         await render();
