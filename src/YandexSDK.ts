@@ -242,31 +242,38 @@ export class YandexSDK {
         }
 
         // LOCAL/DEV MODE
-        const raw = localStorage.getItem(localKey);
-        let entries = raw ? JSON.parse(raw) : [];
-        entries.sort((a: any, b: any) => b.score - a.score);
+        try {
+            const raw = localStorage.getItem(localKey);
+            let entries = raw ? JSON.parse(raw) : [];
+            entries.sort((a: any, b: any) => b.score - a.score);
 
-        const top: LeaderboardEntry[] = entries.slice(0, limit).map((e: any, index: number) => ({
-            rank: index + 1,
-            score: e.score,
-            player: { name: e.name || 'You' },
-            isCurrentUser: (e.name || 'You') === 'You'
-        }));
+            const top: LeaderboardEntry[] = entries.slice(0, limit).map((e: any, index: number) => ({
+                rank: index + 1,
+                score: e.score,
+                player: { name: e.name || 'You' },
+                isCurrentUser: (e.name || 'You') === 'You'
+            }));
 
-        const userInTop = top.find(e => e.isCurrentUser);
-        if (!userInTop) {
-            const userIndex = entries.findIndex((e: any) => (e.name || 'You') === 'You');
-            if (userIndex >= limit) {
-                top.push({
-                    rank: userIndex + 1,
-                    score: entries[userIndex].score,
-                    player: { name: 'You' },
-                    isCurrentUser: true
-                });
+            const userInTop = top.find(e => e.isCurrentUser);
+            if (!userInTop) {
+                const userIndex = entries.findIndex((e: any) => (e.name || 'You') === 'You');
+                if (userIndex >= limit) {
+                    top.push({
+                        rank: userIndex + 1,
+                        score: entries[userIndex].score,
+                        player: { name: 'You' },
+                        isCurrentUser: true
+                    });
+                }
             }
+
+            return top;
+        } catch (e) {
+            console.warn('Local leaderboard fallback failed', e);
+            return [];
         }
 
-        return top;
+
     }
 
     public async setLeaderboardScore(score: number, boardName: 'waves' | 'score' = 'waves') {
@@ -288,12 +295,16 @@ export class YandexSDK {
         }
 
         // Локальный fallback
-        const raw = localStorage.getItem(localKey);
-        let entries = raw ? JSON.parse(raw) : [];
-        entries.push({ name: 'You', score: score });
-        entries.sort((a: any, b: any) => b.score - a.score);
-        entries = entries.slice(0, 20);
-        localStorage.setItem(localKey, JSON.stringify(entries));
+        try {
+            const raw = localStorage.getItem(localKey);
+            let entries = raw ? JSON.parse(raw) : [];
+            entries.push({ name: 'You', score: score });
+            entries.sort((a: any, b: any) => b.score - a.score);
+            entries = entries.slice(0, 20);
+            localStorage.setItem(localKey, JSON.stringify(entries));
+        } catch (e) {
+            console.warn('Local leaderboard save failed', e);
+        }
     }
 
     public async saveData(data: YandexData) {
@@ -304,7 +315,11 @@ export class YandexSDK {
                 console.error('Save error', e);
             }
         } else {
-            localStorage.setItem('basehold_save', JSON.stringify(data));
+            try {
+                localStorage.setItem('basehold_save', JSON.stringify(data));
+            } catch (e) {
+                console.warn('Local save failed', e);
+            }
         }
     }
 
@@ -319,8 +334,13 @@ export class YandexSDK {
                 return null;
             }
         } else {
-            const raw = localStorage.getItem('basehold_save');
-            return raw ? JSON.parse(raw) : null;
+            try {
+                const raw = localStorage.getItem('basehold_save');
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) {
+                console.warn('Local load failed', e);
+                return null;
+            }
         }
     }
 }

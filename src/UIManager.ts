@@ -79,7 +79,11 @@ export class UIManager {
         this.lang = yaSdk.lang;
 
         // Check for unread changelog
-        this.lastSeenVersion = localStorage.getItem('basehold_lastSeenVersion') || '';
+        try {
+            this.lastSeenVersion = localStorage.getItem('basehold_lastSeenVersion') || '';
+        } catch (e) {
+            this.lastSeenVersion = '';
+        }
         this.hasUnreadChangelog = this.lastSeenVersion !== VERSION;
 
         this.mainMenu = this.createMainMenu();
@@ -778,6 +782,7 @@ export class UIManager {
                             <button id="gfx-low" style="padding: 6px 14px; border: 2px solid ${graphicsSettings.quality === 'low' ? '#3498db' : '#555'}; background: ${graphicsSettings.quality === 'low' ? '#3498db' : 'rgba(51,51,51,0.8)'}; color: white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">${this.t('settings_gfx_low')}</button>
                         </div>
                     </div>
+                </div>
 
                 <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
                     <button id="set-exit" style="padding: 12px; background: #c0392b; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: bold; display: none; transition: all 0.2s;">${this.t('settings_exit')}</button>
