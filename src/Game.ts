@@ -241,8 +241,10 @@ export class Game {
         }
 
         // Block building tiles (walls, turrets, etc.)
-        for (const building of this.buildingSystem.activeBuildings) {
-            this.pathfinder.blockWorld(building.x, building.y);
+        if (this.buildingSystem) {
+            for (const building of this.buildingSystem.activeBuildings) {
+                this.pathfinder.blockWorld(building.x, building.y);
+            }
         }
     }
 
@@ -596,7 +598,7 @@ export class Game {
         }
 
         // Обновляем позицию UI через CSS
-        this.uiManager.resize();
+        if (this.uiManager) this.uiManager.resize();
         if (this.resourceManager) this.resourceManager.resize();
     }
 
