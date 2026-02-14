@@ -40,6 +40,7 @@ import {
 } from './logic/WaveMutatorLogic';
 import { AdaptiveQualityController } from './performance/AdaptiveQualityController';
 import type { PerkId } from './types/GameContent';
+import { STORE_ITEMS, TECH_PRODUCT_PREFIX } from './store/StoreCatalog';
 
 export class Game {
     private app: Application;
@@ -100,6 +101,12 @@ export class Game {
     private salvageBonusMultiplier: number = 1.0;
     private eliteDamageMultiplier: number = 1.0;
     private waveStatMultiplier: number = 1.0;
+    private autosaveTimer: number = 0;
+    private hasLoadedProgress: boolean = false;
+    private doubleRewardsUntil: number = 0;
+    private combatOverdriveUntil: number = 0;
+    private rewardAdProgress: Record<string, number> = {};
+    private premiumTechUnlocks: Set<string> = new Set();
 
     constructor(app: Application) {
         this.app = app;
@@ -135,15 +142,21 @@ export class Game {
         this.initUICallbacks();
         this.initLightingAndOverlays();
         this.initGameLoop();
+        void this.loadProgress();
     }
 
     private initEventListeners(): void {
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
+                void this.saveProgress(true);
                 this.pauseGame();
             } else {
                 this.resumeGame();
             }
+        });
+
+        window.addEventListener('beforeunload', () => {
+            void this.saveProgress(true);
         });
 
         window.addEventListener('resize', () => {
@@ -212,6 +225,10 @@ export class Game {
         };
 
         this.resourceManager.setLanguage(this.uiManager.currentLang);
+        this.uiManager.getStoreCatalog = async () => yaSdk.getCatalog();
+        this.uiManager.onAuthRequest = async () => yaSdk.openAuthDialog();
+        this.uiManager.onStorePurchase = async (productId: string) => this.purchaseStoreItem(productId);
+        this.uiManager.onStoreReward = async (productId: string) => this.rewardStoreItem(productId);
     }
 
     private initBuildingSystem(): void {
@@ -414,6 +431,7 @@ export class Game {
             this.updateSystems(ticker);
             this.updateVisuals(ticker);
             this.checkGameOver();
+            this.updateAutosave(ticker);
         });
     }
 
@@ -483,6 +501,7 @@ export class Game {
         this.updateParticles(ticker);
         this.updateDrops(ticker);
         this.updateFloatingTexts(ticker);
+        this.updateBoosters();
     }
 
     private updateVisuals(ticker: Ticker): void {
@@ -585,6 +604,7 @@ export class Game {
                 this.eliteDamageMultiplier = 1.25;
                 break;
         }
+        void this.saveProgress(false);
     }
 
     public startGame() {
@@ -744,11 +764,17 @@ export class Game {
         this.salvageBonusMultiplier = 1.0;
         this.eliteDamageMultiplier = 1.0;
         this.activeWaveMutator = null;
+        this.doubleRewardsUntil = 0;
+        this.combatOverdriveUntil = 0;
+        this.rewardAdProgress = {};
 
         // Сброс менеджеров
         this.resourceManager.reset();
         this.waveManager.reset();
         this.upgradeManager.reset();
+        for (const techId of this.premiumTechUnlocks) {
+            this.upgradeManager.unlockBuilding(techId);
+        }
         this.statsTracker.reset();
 
         this.isGameStarted = false; // Останавливаем игру
@@ -758,6 +784,205 @@ export class Game {
         this.uiManager.updateHUD({ hp: this.player.hp, maxHp: this.player.maxHp }, { hp: this.coreBuilding.hp, maxHp: this.coreBuilding.maxHp });
         this.uiManager.updateScore(0);
         this.uiManager.updateWave(1);
+        void this.saveProgress(true);
+    }
+
+    private updateAutosave(ticker: Ticker): void {
+        if (!this.hasLoadedProgress || this.isGameOver || !this.isGameStarted) return;
+        this.autosaveTimer += ticker.deltaMS;
+        if (this.autosaveTimer >= 15000) {
+            this.autosaveTimer = 0;
+            void this.saveProgress(false);
+        }
+    }
+
+    private updateBoosters(): void {
+        const now = Date.now();
+        if (this.combatOverdriveUntil > 0 && now > this.combatOverdriveUntil) {
+            this.combatOverdriveUntil = 0;
+            this.player.moveSpeed = Math.max(this.player.moveSpeed - 0.6, GameConfig.PLAYER.BASE_SPEED);
+        }
+    }
+
+    private isDoubleRewardsActive(): boolean {
+        return this.doubleRewardsUntil > Date.now();
+    }
+
+    private isCombatOverdriveActive(): boolean {
+        return this.combatOverdriveUntil > Date.now();
+    }
+
+    private applyGrantPayload(payload: { metal?: number; biomass?: number; booster?: 'double_rewards' | 'combat_overdrive'; durationSec?: number }): boolean {
+        if (!payload) return false;
+        if (payload.metal) this.resourceManager.addMetal(payload.metal);
+        if (payload.biomass) this.resourceManager.addBiomass(payload.biomass);
+
+        if (payload.booster === 'double_rewards') {
+            this.doubleRewardsUntil = Date.now() + (payload.durationSec || 0) * 1000;
+        }
+        if (payload.booster === 'combat_overdrive') {
+            const wasActive = this.isCombatOverdriveActive();
+            this.combatOverdriveUntil = Date.now() + (payload.durationSec || 0) * 1000;
+            if (!wasActive) this.player.moveSpeed += 0.6;
+        }
+        return true;
+    }
+
+    private applyStoreGrant(productId: string, mode: 'paid' | 'reward' = 'paid'): boolean {
+        if (productId.startsWith(TECH_PRODUCT_PREFIX)) {
+            const techId = productId.slice(TECH_PRODUCT_PREFIX.length);
+            const unlocked = this.upgradeManager.unlockBuilding(techId);
+            if (unlocked && mode === 'paid') {
+                this.premiumTechUnlocks.add(techId);
+            }
+            if (unlocked) this.uiManager.updateButtonsState();
+            return unlocked;
+        }
+
+        const item = STORE_ITEMS.find(i => i.id === productId);
+        if (!item) return false;
+        const payload = mode === 'reward' ? (item.rewardPayload || item.payload) : item.payload;
+        return this.applyGrantPayload(payload);
+    }
+
+    private async purchaseStoreItem(productId: string): Promise<boolean> {
+        const purchase = await yaSdk.purchaseProduct(productId);
+        if (!purchase.success) return false;
+
+        const granted = this.applyStoreGrant(productId);
+        if (granted && purchase.purchaseToken) {
+            await yaSdk.consumePurchase(purchase.purchaseToken);
+        }
+        if (granted) void this.saveProgress(false);
+        return granted;
+    }
+
+    private async rewardStoreItem(productId: string): Promise<{ status: 'granted' | 'progress' | 'failed'; progress?: number; required?: number }> {
+        const item = STORE_ITEMS.find(i => i.id === productId);
+        if (!item) return { status: 'failed' };
+        const required = item.rewardedAdsRequired || 1;
+
+        return new Promise<{ status: 'granted' | 'progress' | 'failed'; progress?: number; required?: number }>((resolve) => {
+            yaSdk.showRewardedVideo(
+                () => {
+                    const current = (this.rewardAdProgress[productId] || 0) + 1;
+                    this.rewardAdProgress[productId] = current;
+                    if (current >= required) {
+                        this.rewardAdProgress[productId] = 0;
+                        const granted = this.applyStoreGrant(productId, 'reward');
+                        if (granted) {
+                            void this.saveProgress(false);
+                            resolve({ status: 'granted', progress: required, required });
+                        } else {
+                            resolve({ status: 'failed' });
+                        }
+                    } else {
+                        resolve({ status: 'progress', progress: current, required });
+                    }
+                },
+                () => this.pauseGame(),
+                () => this.resumeGame()
+            );
+        });
+    }
+
+    private async processPendingPurchases(): Promise<void> {
+        const processed = await yaSdk.processPendingPurchases(async (productId) => {
+            this.applyStoreGrant(productId);
+        });
+        if (processed > 0) {
+            this.spawnFloatingText(this.player.x, this.player.y - 70, this.t('store_pending_applied'), '#2ecc71', 16);
+            void this.saveProgress(true);
+        }
+    }
+
+    private collectSaveData() {
+        const up = this.upgradeManager.getProgressState();
+        return {
+            saveVersion: '3.0.0',
+            wave: Math.max(1, this.waveManager.waveCount),
+            biomass: this.resourceManager.getBiomass(),
+            metal: this.resourceManager.getMetal(),
+            score: this.score,
+            tech: up.unlockedBuildings,
+            upgrades: up.upgrades,
+            endless: {
+                unlocked: this.isEndlessMode,
+                multiplier: this.endlessDifficultyMultiplier,
+            },
+            activeBoosters: {
+                doubleRewardsUntil: this.doubleRewardsUntil,
+                combatOverdriveUntil: this.combatOverdriveUntil,
+            },
+            records: {
+                waves: this.waveManager.waveCount,
+                score: this.score,
+            },
+            v3: {
+                discoveredMutators: [],
+                perksUnlocked: [],
+                eliteKills: 0,
+                premiumTechUnlocks: Array.from(this.premiumTechUnlocks),
+            },
+            meta: {
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                build: '3.0.0',
+            },
+        } as any;
+    }
+
+    private async saveProgress(flush: boolean): Promise<void> {
+        try {
+            await yaSdk.saveData(this.collectSaveData(), flush);
+            await yaSdk.saveStats({ maxWave: this.waveManager.waveCount, maxScore: this.score });
+        } catch (e) {
+            console.warn('saveProgress failed', e);
+        }
+    }
+
+    private applyUpgradeLevelsToRuntime(): void {
+        this.player.damage = this.upgradeManager.damageLevel;
+        this.player.moveSpeed = GameConfig.PLAYER.BASE_SPEED + (this.upgradeManager.moveSpeedLevel - 1) * 0.5;
+        this.currentMineMultiplier = 1 + (this.upgradeManager.mineSpeedLevel - 1) * 0.5;
+        this.magnetRadius = this.upgradeManager.magnetLevel * 100;
+        this.buildingSystem.setRegenAmount(this.upgradeManager.regenLevel);
+        this.buildingSystem.setThornsDamage(this.upgradeManager.thornsLevel);
+    }
+
+    private async loadProgress(): Promise<void> {
+        try {
+            const data = await yaSdk.loadData();
+            this.hasLoadedProgress = true;
+            if (!data) return;
+
+            this.resourceManager.setResourceState(data.metal ?? 100, data.biomass ?? 0);
+            this.score = Math.max(0, Math.floor(data.score ?? 0));
+            this.uiManager.updateScore(this.score);
+
+            this.upgradeManager.applyProgressState({
+                upgrades: data.upgrades,
+                unlockedBuildings: data.tech,
+            });
+            this.premiumTechUnlocks = new Set(data.v3?.premiumTechUnlocks || []);
+            for (const techId of this.premiumTechUnlocks) {
+                this.upgradeManager.unlockBuilding(techId);
+            }
+            this.applyUpgradeLevelsToRuntime();
+            this.uiManager.updateButtonsState();
+
+            this.isEndlessMode = !!data.endless?.unlocked;
+            this.endlessDifficultyMultiplier = Math.max(1, data.endless?.multiplier ?? 1);
+            this.doubleRewardsUntil = data.activeBoosters?.doubleRewardsUntil ?? 0;
+            this.combatOverdriveUntil = data.activeBoosters?.combatOverdriveUntil ?? 0;
+            if (this.isCombatOverdriveActive()) {
+                this.player.moveSpeed += 0.6;
+            }
+
+            await this.processPendingPurchases();
+        } catch (e) {
+            console.warn('loadProgress failed', e);
+        }
     }
 
     public spawnFloatingText(x: number, y: number, text: string, color: string = '#ffffff', size: number = 16) {
@@ -1041,6 +1266,9 @@ export class Game {
                         // Critical hit check
                         let finalDamage = p.damage;
                         let isCrit = false;
+                        if (this.isCombatOverdriveActive()) {
+                            finalDamage *= 1.25;
+                        }
                         if (this.eliteDamageMultiplier > 1.0 && ['boss', 'miniboss', 'juggernaut', 'shieldbearer'].includes(enemy.type)) {
                             finalDamage *= this.eliteDamageMultiplier;
                         }
@@ -1222,6 +1450,7 @@ export class Game {
         this.statsTracker.stop();
         this.statsTracker.setWave(this.waveManager.waveCount);
         const stats = this.statsTracker.getStats();
+        void this.saveProgress(true);
 
         // Отправляем рекорды в оба лидерборда последовательно, чтобы избежать гонки вызовов SDK
         void (async () => {
@@ -1295,15 +1524,17 @@ export class Game {
                     this.dropItems.push(drop);
                 } else if (enemy.type === 'miniboss') {
                     // Mini-boss drops bonus resources
-                    const bonusMetal = Math.floor((100 + this.waveManager.waveCount * 5) * this.salvageBonusMultiplier);
+                    const rewardMult = this.salvageBonusMultiplier * (this.isDoubleRewardsActive() ? 2 : 1);
+                    const bonusMetal = Math.floor((100 + this.waveManager.waveCount * 5) * rewardMult);
                     this.resourceManager.addMetal(bonusMetal);
-                    this.resourceManager.addBiomass(Math.floor(50 * this.salvageBonusMultiplier));
-                    const bonusBio = Math.floor(50 * this.salvageBonusMultiplier);
+                    this.resourceManager.addBiomass(Math.floor(50 * rewardMult));
+                    const bonusBio = Math.floor(50 * rewardMult);
                     this.spawnFloatingText(enemy.x, enemy.y - 30, `+${bonusMetal} 🔩 +${bonusBio} 🧬`, '#2ecc71', 18);
                 } else {
                     // Шанс дропа обычных ресурсов повышен до 70%
                     if (Math.random() < 0.7) {
-                        const reward = Math.floor((GameConfig.ENEMIES[enemy.type.toUpperCase() as keyof typeof GameConfig.ENEMIES]?.reward || 5) * this.salvageBonusMultiplier);
+                        const rewardMult = this.salvageBonusMultiplier * (this.isDoubleRewardsActive() ? 2 : 1);
+                        const reward = Math.floor((GameConfig.ENEMIES[enemy.type.toUpperCase() as keyof typeof GameConfig.ENEMIES]?.reward || 5) * rewardMult);
                         const drop = new DropItem(enemy.x, enemy.y, reward);
                         this.world.addChild(drop);
                         this.dropItems.push(drop);

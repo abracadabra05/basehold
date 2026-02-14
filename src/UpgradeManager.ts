@@ -59,8 +59,56 @@ export class UpgradeManager {
         this.createUI();
     }
 
+    public getProgressState(): {
+        upgrades: { damage: number; speed: number; mine: number; regen: number; thorns: number; magnet: number };
+        unlockedBuildings: string[];
+    } {
+        return {
+            upgrades: {
+                damage: this.damageLevel,
+                speed: this.moveSpeedLevel,
+                mine: this.mineSpeedLevel,
+                regen: this.regenLevel,
+                thorns: this.thornsLevel,
+                magnet: this.magnetLevel,
+            },
+            unlockedBuildings: Array.from(this.unlockedBuildings),
+        };
+    }
+
+    public applyProgressState(state: {
+        upgrades?: Partial<{ damage: number; speed: number; mine: number; regen: number; thorns: number; magnet: number }>;
+        unlockedBuildings?: string[];
+    }): void {
+        const upgrades = state.upgrades || {};
+        this.damageLevel = Math.max(1, Math.floor(upgrades.damage ?? this.damageLevel));
+        this.moveSpeedLevel = Math.max(1, Math.floor(upgrades.speed ?? this.moveSpeedLevel));
+        this.mineSpeedLevel = Math.max(1, Math.floor(upgrades.mine ?? this.mineSpeedLevel));
+        this.regenLevel = Math.max(0, Math.floor(upgrades.regen ?? this.regenLevel));
+        this.thornsLevel = Math.max(0, Math.floor(upgrades.thorns ?? this.thornsLevel));
+        this.magnetLevel = Math.max(0, Math.floor(upgrades.magnet ?? this.magnetLevel));
+
+        if (Array.isArray(state.unlockedBuildings)) {
+            this.unlockedBuildings.clear();
+            for (const [key, val] of Object.entries(GameConfig.BUILDINGS)) {
+                if ((val as any).unlocked) this.unlockedBuildings.add(key);
+            }
+            for (const type of state.unlockedBuildings) {
+                this.unlockedBuildings.add(type);
+            }
+        }
+    }
+
     public isBuildingUnlocked(type: string): boolean {
         return this.unlockedBuildings.has(type);
+    }
+
+    public unlockBuilding(type: string): boolean {
+        if (!GameConfig.BUILDINGS[type as keyof typeof GameConfig.BUILDINGS]) return false;
+        if (this.unlockedBuildings.has(type)) return false;
+        this.unlockedBuildings.add(type);
+        if (this.onUnlock) this.onUnlock(type);
+        return true;
     }
 
     private t(key: string): string {
@@ -305,6 +353,15 @@ export class UpgradeManager {
             boxSizing: 'border-box'
         });
 
+        // In-app purchase button (portal currency)
+        const iapBtn = document.createElement('button');
+        iapBtn.innerText = '💎 BUY';
+        Object.assign(iapBtn.style, {
+            cursor: 'pointer', padding: '4px 12px', background: '#8e44ad', color: 'white',
+            border: 'none', borderRadius: '3px', fontWeight: 'bold', width: '90px', fontSize: '10px',
+            boxSizing: 'border-box'
+        });
+
         const cost = (GameConfig.BUILDINGS as any)[type].researchCost || 100;
         const toolName = this.t(`tool_${type}`);
 
@@ -317,12 +374,14 @@ export class UpgradeManager {
                 btn.style.background = '#27ae60';
                 info.style.opacity = '0.5';
                 adBtn.style.display = 'none'; // Скрываем рекламу, если куплено
+                iapBtn.style.display = 'none';
             } else {
                 btn.innerText = `${cost} 🧬`;
                 btn.disabled = false;
                 btn.style.background = '#3498db';
                 info.style.opacity = '1';
                 adBtn.style.display = 'block';
+                iapBtn.style.display = 'block';
             }
 
             const descKey = `tool_${type}_desc`;
@@ -354,10 +413,27 @@ export class UpgradeManager {
             );
         };
 
+        iapBtn.onclick = async () => {
+            if (this.onPauseRequest) this.onPauseRequest();
+            try {
+                const productId = `tech${type}`;
+                const purchase = await yaSdk.purchaseProduct(productId);
+                if (purchase.success) {
+                    doUnlock();
+                    if (purchase.purchaseToken) {
+                        await yaSdk.consumePurchase(purchase.purchaseToken);
+                    }
+                }
+            } finally {
+                if (this.onResumeRequest) this.onResumeRequest();
+            }
+        };
+
         updateState();
         wrapper.appendChild(info);
         wrapper.appendChild(btnContainer);
         btnContainer.appendChild(btn);
+        btnContainer.appendChild(iapBtn);
         btnContainer.appendChild(adBtn);
         parent.appendChild(wrapper);
     }

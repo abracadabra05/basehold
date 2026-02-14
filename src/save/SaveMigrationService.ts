@@ -15,6 +15,16 @@ export interface YandexDataV3 {
     thorns: number;
     magnet: number;
   };
+  metal?: number;
+  score?: number;
+  endless?: {
+    unlocked: boolean;
+    multiplier: number;
+  };
+  activeBoosters?: {
+    doubleRewardsUntil?: number;
+    combatOverdriveUntil?: number;
+  };
   records?: {
     waves?: number;
     score?: number;
@@ -23,6 +33,7 @@ export interface YandexDataV3 {
     discoveredMutators: string[];
     perksUnlocked: PerkId[];
     eliteKills: number;
+    premiumTechUnlocks?: string[];
   };
   meta?: {
     createdAt: number;
@@ -65,6 +76,16 @@ const migrateLegacyAny = (input: unknown, version: string): YandexDataV3 => {
       thorns: clampNumber(upgrades.thorns, 0),
       magnet: clampNumber(upgrades.magnet, 0),
     },
+    metal: clampNumber(data.metal, 100),
+    score: clampNumber(data.score, 0),
+    endless: {
+      unlocked: !!(data as any).endless?.unlocked,
+      multiplier: typeof (data as any).endless?.multiplier === 'number' ? Math.max(1, (data as any).endless.multiplier) : 1,
+    },
+    activeBoosters: {
+      doubleRewardsUntil: clampNumber((data as any).activeBoosters?.doubleRewardsUntil, 0),
+      combatOverdriveUntil: clampNumber((data as any).activeBoosters?.combatOverdriveUntil, 0),
+    },
     records: {
       waves: clampNumber((data.records as any)?.waves, 0),
       score: clampNumber((data.records as any)?.score, 0),
@@ -73,6 +94,7 @@ const migrateLegacyAny = (input: unknown, version: string): YandexDataV3 => {
       discoveredMutators: [],
       perksUnlocked: [],
       eliteKills: 0,
+      premiumTechUnlocks: asStringArray((data as any)?.v3?.premiumTechUnlocks),
     },
     meta: {
       createdAt: clampNumber((data.meta as any)?.createdAt, now),
@@ -141,6 +163,7 @@ export class SaveMigrationService {
         discoveredMutators: asStringArray(v3.discoveredMutators),
         perksUnlocked: asStringArray(v3.perksUnlocked) as PerkId[],
         eliteKills: clampNumber(v3.eliteKills, 0),
+        premiumTechUnlocks: asStringArray(v3.premiumTechUnlocks),
       },
     };
   }

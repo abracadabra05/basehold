@@ -205,7 +205,28 @@ export const Translations: Record<Language, any> = {
         wave_pattern_heavy: '⚠️ ТЯЖЁЛЫЙ ШТУРМ',
         wave_mutator_fog: 'МУТАТОР: ТУМАН',
         wave_mutator_overcharge: 'МУТАТОР: ПЕРЕГРУЗКА',
-        wave_mutator_swarm: 'МУТАТОР: РОЙ'
+        wave_mutator_swarm: 'МУТАТОР: РОЙ',
+
+        store_title: 'Виртуальный магазин',
+        store_buy: 'Купить',
+        store_reward: 'За рекламу',
+        store_auth: 'Войти',
+        store_auth_desc: 'Войдите, чтобы покупки сохранялись в аккаунте.',
+        store_pack_biomass_s: 'Пак биомассы S',
+        store_pack_biomass_s_desc: '+500 биомассы',
+        store_pack_biomass_l: 'Пак биомассы L',
+        store_pack_biomass_l_desc: '+2200 биомассы',
+        store_pack_metal_s: 'Пак металла S',
+        store_pack_metal_s_desc: '+800 металла',
+        store_booster_double_rewards: 'x2 награды',
+        store_booster_double_rewards_desc: 'Удваивает награды на 10 минут',
+        store_booster_overdrive: 'Боевой овердрайв',
+        store_booster_overdrive_desc: 'Урон и темп стрельбы на 10 минут',
+        store_purchase_ok: 'Покупка применена!',
+        store_purchase_fail: 'Покупка не выполнена',
+        store_pending_applied: 'Восстановлены необработанные покупки',
+        store_reward_progress: 'Реклама просмотрена:',
+        store_reward_steps: 'нужно просмотров'
     },
     en: {
         game_title: 'BASEHOLD',
@@ -411,6 +432,27 @@ export const Translations: Record<Language, any> = {
         wave_pattern_heavy: '⚠️ HEAVY ASSAULT',
         wave_mutator_fog: 'MUTATOR: FOG',
         wave_mutator_overcharge: 'MUTATOR: OVERCHARGE',
-        wave_mutator_swarm: 'MUTATOR: SWARM'
+        wave_mutator_swarm: 'MUTATOR: SWARM',
+
+        store_title: 'Virtual Store',
+        store_buy: 'Buy',
+        store_reward: 'Watch Ad',
+        store_auth: 'Sign In',
+        store_auth_desc: 'Sign in to keep purchases linked to your account.',
+        store_pack_biomass_s: 'Biomass Pack S',
+        store_pack_biomass_s_desc: '+500 biomass',
+        store_pack_biomass_l: 'Biomass Pack L',
+        store_pack_biomass_l_desc: '+2200 biomass',
+        store_pack_metal_s: 'Metal Pack S',
+        store_pack_metal_s_desc: '+800 metal',
+        store_booster_double_rewards: 'x2 Rewards',
+        store_booster_double_rewards_desc: 'Double rewards for 10 minutes',
+        store_booster_overdrive: 'Combat Overdrive',
+        store_booster_overdrive_desc: 'Damage and fire tempo for 10 minutes',
+        store_purchase_ok: 'Purchase applied!',
+        store_purchase_fail: 'Purchase failed',
+        store_pending_applied: 'Recovered unconsumed purchases',
+        store_reward_progress: 'Ad progress:',
+        store_reward_steps: 'views required'
     }
 };

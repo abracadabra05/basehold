@@ -6,6 +6,7 @@ import { Z_INDEX, COLORS, UI_POSITIONS } from './UIConstants';
 import { graphicsSettings } from './GraphicsSettings';
 import { VERSION, CHANGELOG } from './ChangelogData';
 import type { GameStats } from './StatsTracker';
+import { STORE_ITEMS } from './store/StoreCatalog';
 
 export type ToolType = BuildingType | 'repair' | 'demolish';
 
@@ -51,6 +52,10 @@ export class UIManager {
     public onPause?: () => void; // Добавлено
     public onResume?: () => void; // Добавлено
     public onShowAchievements?: () => void;
+    public onStorePurchase?: (productId: string) => Promise<boolean> | boolean;
+    public onStoreReward?: (productId: string) => Promise<{ status: 'granted' | 'progress' | 'failed'; progress?: number; required?: number }> | { status: 'granted' | 'progress' | 'failed'; progress?: number; required?: number };
+    public onAuthRequest?: () => Promise<boolean> | boolean;
+    public getStoreCatalog?: () => Promise<Array<{ id: string; price?: string }>>;
     public onMute?: (muted: boolean) => void; // Добавлено
     public onVolumeChange?: (volume: number) => void; // Изменение громкости (0-1)
     public onShowLocked?: () => void; // Показать сообщение "заблокировано"
@@ -573,6 +578,7 @@ export class UIManager {
             <!-- КНОПКИ (Настройки, Фуллскрин) - Адаптивные иконки -->
             <div style="position: absolute; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); right: 20px; display: flex; gap: ${this.isMobile ? '3vmin' : '15px'}; z-index: 20; align-items: center;">
                 <button id="achievements-btn" style="background: none; border: none; font-size: ${this.isMobile ? '7vmin' : '28px'}; cursor: pointer; opacity: 0.7; color: white; padding: 0; line-height: 1;">🏅</button>
+                <button id="store-btn" style="background: none; border: none; font-size: ${this.isMobile ? '7vmin' : '28px'}; cursor: pointer; opacity: 0.7; color: white; padding: 0; line-height: 1;">🛒</button>
                 <button id="changelog-btn" style="background: none; border: none; font-size: ${this.isMobile ? '7vmin' : '28px'}; cursor: pointer; opacity: 0.7; color: white; position: relative; padding: 0; line-height: 1;">
                     📋${this.hasUnreadChangelog ? `<span style="position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: ${this.isMobile ? '2.5vmin' : '10px'}; padding: 2px 5px; border-radius: 10px; font-weight: bold;">${this.t('changelog_new')}</span>` : ''}
                 </button>
@@ -599,6 +605,7 @@ export class UIManager {
         });
 
         bindBtn(div.querySelector('#achievements-btn'), () => { if (this.onShowAchievements) this.onShowAchievements(); });
+        bindBtn(div.querySelector('#store-btn'), () => this.showVirtualStore());
         bindBtn(div.querySelector('#changelog-btn'), () => this.showChangelog());
         bindBtn(div.querySelector('#settings-btn'), () => this.showSettings());
         bindBtn(div.querySelector('#mob-lb-btn'), () => this.showLeaderboardModal());
@@ -841,6 +848,7 @@ export class UIManager {
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                    <button id="set-store" style="padding: 12px; background: #8e44ad; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s;">🛒 ${this.t('store_title')}</button>
                     <button id="set-exit" style="padding: 12px; background: #c0392b; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: bold; display: none; transition: all 0.2s;">${this.t('settings_exit')}</button>
                     <button id="set-close" style="padding: 12px; background: #27ae60; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s;">${this.t('btn_ok')}</button>
                 </div>
@@ -891,6 +899,144 @@ export class UIManager {
             this.isSettingsOpen = false;
             if (this.onResume) this.onResume();
         });
+        overlay.querySelector('#set-store')?.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+            this.showVirtualStore();
+        });
+    }
+
+    private async showVirtualStore() {
+        const overlay = document.createElement('div');
+        Object.assign(overlay.style, {
+            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+            background: 'radial-gradient(circle at top, rgba(52,152,219,0.25), rgba(0,0,0,0.92))',
+            zIndex: 10010,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'white', fontFamily: "'Segoe UI', sans-serif",
+            backdropFilter: 'blur(8px)'
+        });
+
+        const catalog = this.getStoreCatalog ? await this.getStoreCatalog() : [];
+        const priceById = new Map(catalog.map((p: any) => [p.id, p.price || '']));
+        const authorized = yaSdk.isAuthorized();
+
+        const cards = STORE_ITEMS.map(item => {
+            const price = priceById.get(item.id) || 'YAN';
+            const canReward = item.type === 'currency';
+            const adSteps = item.rewardedAdsRequired || 1;
+            return `
+                <div style="background: rgba(20, 24, 28, 0.85); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 14px; width: 220px; box-shadow: 0 8px 25px rgba(0,0,0,0.35);">
+                    <div style="font-size: 42px; margin-bottom: 8px; text-align: center;">${item.icon}</div>
+                    <div style="font-weight: bold; text-align: center; margin-bottom: 6px;">${this.t(item.titleKey)}</div>
+                    <div style="font-size: 12px; color: #b2bec3; text-align: center; min-height: 34px;">${this.t(item.descKey)}</div>
+                    <div style="display: flex; gap: 6px; margin-top: 10px;">
+                        <button data-buy="${item.id}" style="flex: 1; padding: 8px; border: none; border-radius: 6px; background: #27ae60; color: white; font-weight: bold; cursor: pointer;">${this.t('store_buy')} ${price}</button>
+                        ${canReward ? `<button data-reward="${item.id}" style="flex: 1; padding: 8px; border: none; border-radius: 6px; background: #e67e22; color: white; font-weight: bold; cursor: pointer;">${this.t('store_reward')} x${adSteps}</button>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        overlay.innerHTML = `
+            <div style="width: min(980px, 92vw); max-height: 90vh; overflow-y: auto; background: rgba(10,10,12,0.92); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 18px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+                    <div style="font-size: 22px; font-weight: bold; letter-spacing: 1px;">🛒 ${this.t('store_title')}</div>
+                    <button id="store-close" style="border: none; border-radius: 8px; background: #2d3436; color: white; padding: 8px 12px; cursor: pointer;">${this.t('btn_ok')}</button>
+                </div>
+                ${authorized ? '' : `
+                    <div style="margin-bottom: 12px; padding: 10px; border-radius: 8px; background: rgba(241,196,15,0.12); border: 1px solid rgba(241,196,15,0.45); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                        <div style="font-size: 12px; color: #f1c40f;">${this.t('store_auth_desc')}</div>
+                        <button id="store-auth" style="border: none; border-radius: 6px; padding: 8px 10px; background: #3498db; color: white; cursor: pointer; font-weight: bold;">${this.t('store_auth')}</button>
+                    </div>
+                `}
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+                    ${cards}
+                </div>
+            </div>
+        `;
+
+        const setBusy = (busy: boolean) => {
+            overlay.querySelectorAll('button').forEach((btn) => {
+                const b = btn as HTMLButtonElement;
+                if (b.id === 'store-close') return;
+                b.disabled = busy;
+                b.style.opacity = busy ? '0.65' : '1';
+            });
+        };
+
+        overlay.querySelector('#store-close')?.addEventListener('click', () => document.body.removeChild(overlay));
+        overlay.querySelector('#store-auth')?.addEventListener('click', async () => {
+            if (!this.onAuthRequest) return;
+            setBusy(true);
+            await this.onAuthRequest();
+            setBusy(false);
+            document.body.removeChild(overlay);
+            this.showVirtualStore();
+        });
+
+        overlay.querySelectorAll('[data-buy]').forEach((el) => {
+            el.addEventListener('click', async () => {
+                const productId = (el as HTMLElement).getAttribute('data-buy');
+                if (!productId || !this.onStorePurchase) return;
+                setBusy(true);
+                const ok = await this.onStorePurchase(productId);
+                setBusy(false);
+                if (ok) {
+                    this.showStoreToast(this.t('store_purchase_ok'), true);
+                } else {
+                    this.showStoreToast(this.t('store_purchase_fail'), false);
+                }
+            });
+        });
+
+        overlay.querySelectorAll('[data-reward]').forEach((el) => {
+            el.addEventListener('click', async () => {
+                const productId = (el as HTMLElement).getAttribute('data-reward');
+                if (!productId || !this.onStoreReward) return;
+                setBusy(true);
+                const result = await this.onStoreReward(productId);
+                setBusy(false);
+                if (result.status === 'granted') {
+                    this.showStoreToast(this.t('store_purchase_ok'), true);
+                } else if (result.status === 'progress') {
+                    const progress = result.progress ?? 0;
+                    const required = result.required ?? 0;
+                    this.showStoreToast(`${this.t('store_reward_progress')} ${progress}/${required}`, true);
+                } else {
+                    this.showStoreToast(this.t('store_purchase_fail'), false);
+                }
+            });
+        });
+
+        document.body.appendChild(overlay);
+    }
+
+    private showStoreToast(message: string, success: boolean): void {
+        const toast = document.createElement('div');
+        Object.assign(toast.style, {
+            position: 'fixed',
+            left: '50%',
+            bottom: '28px',
+            transform: 'translateX(-50%)',
+            padding: '10px 14px',
+            borderRadius: '8px',
+            border: `1px solid ${success ? 'rgba(39,174,96,0.8)' : 'rgba(231,76,60,0.8)'}`,
+            background: success ? 'rgba(39,174,96,0.2)' : 'rgba(192,57,43,0.2)',
+            color: 'white',
+            zIndex: '10020',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            letterSpacing: '0.3px',
+            opacity: '0',
+            transition: 'opacity 0.2s ease'
+        });
+        toast.innerText = message;
+        document.body.appendChild(toast);
+        requestAnimationFrame(() => { toast.style.opacity = '1'; });
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 220);
+        }, 1600);
     }
 
     private refreshUI() {

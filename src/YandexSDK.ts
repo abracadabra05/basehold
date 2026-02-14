@@ -12,6 +12,7 @@ export interface LeaderboardEntry {
 export class YandexSDK {
     private ysdk: any = null;
     private player: any = null;
+    private payments: any = null;
 
     // v3 leaderboard season: use new IDs to start from clean boards
     private readonly LEADERBOARD_SEASON = 'v3s1';
@@ -66,12 +67,14 @@ export class YandexSDK {
                     this.lang = 'ru';
                 }
                 console.log(`Yandex SDK initialized. Lang: ${this.lang}`);
+                await this.initSafeStorage();
 
                 try {
                     this.player = await this.ysdk.getPlayer();
                 } catch (e) {
                     console.warn('Player not authorized (guest mode)');
                 }
+                void this.initPayments();
 
                 // Подписываемся на события паузы/возобновления
                 this.ysdk.on('game_api_pause', () => {
@@ -94,6 +97,23 @@ export class YandexSDK {
             console.error('Yandex SDK init failed', e);
             this.isReady = true;
             this.isYandexEnvironment = false; // Принудительно включаем локальный режим
+        }
+    }
+
+    private async initSafeStorage(): Promise<void> {
+        if (!this.isYandexEnvironment || !this.ysdk?.getStorage) return;
+        try {
+            const safeStorage = await this.ysdk.getStorage();
+            // Avoid overriding if already replaced.
+            const current = Object.getOwnPropertyDescriptor(window, 'localStorage');
+            if (!current || current.get?.name !== 'get') {
+                Object.defineProperty(window, 'localStorage', {
+                    configurable: true,
+                    get: () => safeStorage,
+                });
+            }
+        } catch (e) {
+            console.warn('safeStorage init failed', e);
         }
     }
 
@@ -211,6 +231,103 @@ export class YandexSDK {
                 }
             }
         });
+    }
+
+    public isAuthorized(): boolean {
+        return !!this.player?.isAuthorized?.();
+    }
+
+    public async openAuthDialog(): Promise<boolean> {
+        if (!this.isYandexEnvironment || !this.ysdk?.auth?.openAuthDialog) return false;
+        try {
+            await this.ysdk.auth.openAuthDialog();
+            this.player = await this.ysdk.getPlayer();
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    private async initPayments(): Promise<void> {
+        if (!this.isYandexEnvironment || !this.ysdk?.getPayments) return;
+        if (this.payments) return;
+        try {
+            this.payments = await this.ysdk.getPayments();
+        } catch (e) {
+            console.warn('Payments init error', e);
+        }
+    }
+
+    public async getCatalog(): Promise<Array<{ id: string; title?: string; description?: string; price?: string }>> {
+        if (!this.isYandexEnvironment) return [];
+        await this.initPayments();
+        if (!this.payments?.getCatalog) return [];
+        try {
+            const result = await this.payments.getCatalog();
+            if (Array.isArray(result)) return result;
+            if (Array.isArray(result?.products)) return result.products;
+            return [];
+        } catch (e) {
+            console.warn('getCatalog failed', e);
+            return [];
+        }
+    }
+
+    public async purchaseProduct(productId: string): Promise<{ success: boolean; purchaseToken?: string }> {
+        if (!this.isYandexEnvironment) {
+            console.log(`[DEV] Mock purchase success: ${productId}`);
+            return { success: true, purchaseToken: `mock-${productId}` };
+        }
+        await this.initPayments();
+        if (!this.payments?.purchase) return { success: false };
+        try {
+            const purchase = await this.payments.purchase({ id: productId });
+            const token = purchase?.purchaseToken || purchase?.token || purchase?.id;
+            return { success: true, purchaseToken: token };
+        } catch (e) {
+            console.warn('Purchase failed', e);
+            return { success: false };
+        }
+    }
+
+    public async consumePurchase(purchaseToken: string): Promise<void> {
+        if (!this.isYandexEnvironment) return;
+        await this.initPayments();
+        if (!this.payments?.consumePurchase) return;
+        try {
+            await this.payments.consumePurchase(purchaseToken);
+        } catch (e) {
+            console.warn('Consume purchase failed', e);
+        }
+    }
+
+    public async processPendingPurchases(
+        onPurchase: (productId: string) => Promise<void> | void
+    ): Promise<number> {
+        if (!this.isYandexEnvironment) return 0;
+        await this.initPayments();
+        if (!this.payments?.getPurchases) return 0;
+        try {
+            const result = await this.payments.getPurchases();
+            const purchases = Array.isArray(result) ? result : (Array.isArray(result?.purchases) ? result.purchases : []);
+            let processed = 0;
+            for (const p of purchases) {
+                const productId = p?.productID || p?.productId || p?.id;
+                const token = p?.purchaseToken || p?.token;
+                if (!productId || !token) continue;
+                try {
+                    await onPurchase(productId);
+                    await this.consumePurchase(token);
+                    processed++;
+                } catch (e) {
+                    console.warn('Pending purchase process failed', e);
+                }
+            }
+            return processed;
+        } catch (e) {
+            console.warn('getPurchases failed', e);
+            return 0;
+        }
     }
 
     public async getLeaderboardEntries(boardName: 'waves' | 'score' = 'waves', limit: number = 5): Promise<LeaderboardEntry[]> {
@@ -364,7 +481,7 @@ export class YandexSDK {
         return task;
     }
 
-    public async saveData(data: YandexData) {
+    public async saveData(data: YandexData, flush: boolean = false) {
         const normalized: YandexData = {
             ...saveMigrationService.toCurrent(data),
             saveVersion: SAVE_VERSION,
@@ -376,7 +493,7 @@ export class YandexSDK {
         };
         if (this.isYandexEnvironment && this.player) {
             try {
-                await this.player.setData(normalized);
+                await this.player.setData(normalized, flush);
             } catch (e) {
                 console.error('Save error', e);
             }
@@ -386,6 +503,19 @@ export class YandexSDK {
             } catch (e) {
                 console.warn('Local save failed', e);
             }
+        }
+    }
+
+    public async saveStats(stats: { maxWave?: number; maxScore?: number }): Promise<void> {
+        if (!this.isYandexEnvironment || !this.player?.setStats) return;
+        const payload: Record<string, number> = {};
+        if (typeof stats.maxWave === 'number') payload.maxWave = Math.max(0, Math.floor(stats.maxWave));
+        if (typeof stats.maxScore === 'number') payload.maxScore = Math.max(0, Math.floor(stats.maxScore));
+        if (Object.keys(payload).length === 0) return;
+        try {
+            await this.player.setStats(payload);
+        } catch (e) {
+            console.warn('saveStats failed', e);
         }
     }
 

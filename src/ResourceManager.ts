@@ -90,6 +90,13 @@ export class ResourceManager {
         if (this.onResourceMined) this.onResourceMined(amount);
     }
     public addBiomass(amount: number) { this.biomass += amount; this.updateUI(); }
+    public getMetal(): number { return this.metal; }
+    public getBiomass(): number { return this.biomass; }
+    public setResourceState(metal: number, biomass: number): void {
+        this.metal = Math.max(0, Math.floor(metal));
+        this.biomass = Math.max(0, Math.floor(biomass));
+        this.updateUI();
+    }
 
     public spendBiomass(amount: number): boolean {
         if (this.biomass >= amount) { this.biomass -= amount; this.updateUI(); return true; }
