@@ -495,6 +495,7 @@ export class Game {
         } else {
             this.miniMap.setDarkness(0);
             this.uiManager.updateTime(0);
+            this.lightingSystem.darknessOverlay.visible = false;
         }
 
         const worldMouse = this.inputSystem.getMouseWorldPosition(this.world);
