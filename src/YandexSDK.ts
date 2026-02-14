@@ -1,16 +1,6 @@
-export interface YandexData {
-    wave: number;
-    biomass: number;
-    tech: string[];
-    upgrades: {
-        damage: number;
-        speed: number;
-        mine: number;
-        regen: number;
-        thorns: number;
-        magnet: number;
-    };
-}
+import { SAVE_VERSION, saveMigrationService, type YandexDataV3 } from './save/SaveMigrationService';
+
+export type YandexData = YandexDataV3;
 
 export interface LeaderboardEntry {
     rank: number;
@@ -23,9 +13,14 @@ export class YandexSDK {
     private ysdk: any = null;
     private player: any = null;
 
-    // Два лидерборда в консоли Yandex Games
-    private readonly LEADERBOARD_WAVES = 'maxWave';
-    private readonly LEADERBOARD_SCORE = 'maxScore';
+    // v3 leaderboard season: use new IDs to start from clean boards
+    private readonly LEADERBOARD_SEASON = 'v3s1';
+    private readonly LEADERBOARD_WAVES = 'maxwavev3';
+    private readonly LEADERBOARD_SCORE = 'maxscorev3';
+    private readonly LEADERBOARD_ALIASES: Record<'waves' | 'score', string[]> = {
+        waves: [this.LEADERBOARD_WAVES],
+        score: [this.LEADERBOARD_SCORE]
+    };
 
     public isReady: boolean = false;
     public isYandexEnvironment: boolean = false;
@@ -33,8 +28,29 @@ export class YandexSDK {
 
     public onPause?: () => void;
     public onResume?: () => void;
+    private leaderboardQueue: Promise<void> = Promise.resolve();
+    private lastLeaderboardSubmitAt: number = 0;
+    private readonly LEADERBOARD_SUBMIT_COOLDOWN_MS = 1100;
 
     constructor() { }
+
+    private sleep(ms: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    private async waitLeaderboardCooldown(): Promise<void> {
+        const now = Date.now();
+        const elapsed = now - this.lastLeaderboardSubmitAt;
+        const waitMs = this.LEADERBOARD_SUBMIT_COOLDOWN_MS - elapsed;
+        if (waitMs > 0) {
+            await this.sleep(waitMs);
+        }
+    }
+
+    private isRateLimitError(e: any): boolean {
+        const message = typeof e === 'string' ? e : (e?.message || String(e));
+        return message.includes('no more than once per second');
+    }
 
     public async init(): Promise<void> {
         try {
@@ -198,46 +214,50 @@ export class YandexSDK {
     }
 
     public async getLeaderboardEntries(boardName: 'waves' | 'score' = 'waves', limit: number = 5): Promise<LeaderboardEntry[]> {
-        const leaderboardKey = boardName === 'score' ? this.LEADERBOARD_SCORE : this.LEADERBOARD_WAVES;
-        const localKey = boardName === 'score' ? 'basehold_leaderboard_score' : 'basehold_leaderboard';
+        const localKey = boardName === 'score'
+            ? `basehold_leaderboard_score_${this.LEADERBOARD_SEASON}`
+            : `basehold_leaderboard_${this.LEADERBOARD_SEASON}`;
+        const aliases = this.LEADERBOARD_ALIASES[boardName];
 
         if (this.isYandexEnvironment && this.ysdk?.leaderboards) {
-            try {
-                const result = await this.ysdk.leaderboards.getEntries(leaderboardKey, {
-                    quantityTop: limit,
-                    includeUser: true,
-                    quantityAround: 0
-                });
+            for (const leaderboardKey of aliases) {
+                try {
+                    const result = await this.ysdk.leaderboards.getEntries(leaderboardKey, {
+                        quantityTop: limit,
+                        includeUser: true,
+                        quantityAround: 0
+                    });
 
-                const currentPlayerId = this.player?.getUniqueID?.() || null;
+                    const currentPlayerId = this.player?.getUniqueID?.() || null;
 
-                const topEntries: LeaderboardEntry[] = [];
-                let userEntry: LeaderboardEntry | null = null;
+                    const topEntries: LeaderboardEntry[] = [];
+                    let userEntry: LeaderboardEntry | null = null;
 
-                for (const e of result.entries) {
-                    const isUser = currentPlayerId && e.player?.uniqueID === currentPlayerId;
-                    const entry: LeaderboardEntry = {
-                        rank: e.rank,
-                        score: e.score,
-                        player: { name: e.player.publicName || 'Пользователь скрыт' },
-                        isCurrentUser: !!isUser
-                    };
+                    for (const e of result.entries) {
+                        const isUser = currentPlayerId && e.player?.uniqueID === currentPlayerId;
+                        const entry: LeaderboardEntry = {
+                            rank: e.rank,
+                            score: e.score,
+                            player: { name: e.player.publicName || 'Пользователь скрыт' },
+                            isCurrentUser: !!isUser
+                        };
 
-                    if (e.rank <= limit) {
-                        topEntries.push(entry);
-                        if (isUser) userEntry = entry;
-                    } else if (isUser && !userEntry) {
-                        userEntry = entry;
+                        if (e.rank <= limit) {
+                            topEntries.push(entry);
+                            if (isUser) userEntry = entry;
+                        } else if (isUser && !userEntry) {
+                            userEntry = entry;
+                        }
                     }
-                }
 
-                if (userEntry && !topEntries.find(e => e.isCurrentUser)) {
-                    topEntries.push(userEntry);
-                }
+                    if (userEntry && !topEntries.find(e => e.isCurrentUser)) {
+                        topEntries.push(userEntry);
+                    }
 
-                return topEntries;
-            } catch (e) {
-                console.warn('Failed to get Yandex leaderboard, falling back to local', e);
+                    return topEntries;
+                } catch (e) {
+                    console.warn(`[Yandex] Failed to get leaderboard "${leaderboardKey}"`, e);
+                }
             }
         }
 
@@ -276,47 +296,93 @@ export class YandexSDK {
 
     }
 
-    public async setLeaderboardScore(score: number, boardName: 'waves' | 'score' = 'waves') {
-        const leaderboardKey = boardName === 'score' ? this.LEADERBOARD_SCORE : this.LEADERBOARD_WAVES;
-        const localKey = boardName === 'score' ? 'basehold_leaderboard_score' : 'basehold_leaderboard';
+    public async setLeaderboardScore(score: number, boardName: 'waves' | 'score' = 'waves'): Promise<boolean> {
+        const run = async (): Promise<boolean> => {
+            const localKey = boardName === 'score'
+                ? `basehold_leaderboard_score_${this.LEADERBOARD_SEASON}`
+                : `basehold_leaderboard_${this.LEADERBOARD_SEASON}`;
+            const aliases = this.LEADERBOARD_ALIASES[boardName];
+            const normalizedScore = Math.max(0, Math.floor(score));
+            let yandexSaved = false;
 
-        if (this.isYandexEnvironment && this.ysdk?.leaderboards) {
-            try {
-                const canSet = await this.ysdk.isAvailableMethod('leaderboards.setScore');
-                if (canSet) {
-                    await this.ysdk.leaderboards.setScore(leaderboardKey, score);
-                    console.log(`[Yandex] ${boardName} leaderboard score set: ${score}`);
-                } else {
-                    console.warn('Leaderboard setScore not available (user not authorized)');
+            if (this.isYandexEnvironment && this.ysdk?.leaderboards) {
+                try {
+                    const canSet = await this.ysdk.isAvailableMethod('leaderboards.setScore');
+                    if (canSet) {
+                        await this.waitLeaderboardCooldown();
+
+                        for (const leaderboardKey of aliases) {
+                            try {
+                                await this.ysdk.leaderboards.setScore(leaderboardKey, normalizedScore);
+                                this.lastLeaderboardSubmitAt = Date.now();
+                                console.log(`[Yandex] ${boardName} leaderboard score set (${leaderboardKey}): ${normalizedScore}`);
+                                yandexSaved = true;
+                                break;
+                            } catch (e) {
+                                if (this.isRateLimitError(e)) {
+                                    await this.sleep(this.LEADERBOARD_SUBMIT_COOLDOWN_MS);
+                                    try {
+                                        await this.ysdk.leaderboards.setScore(leaderboardKey, normalizedScore);
+                                        this.lastLeaderboardSubmitAt = Date.now();
+                                        console.log(`[Yandex] ${boardName} leaderboard score set (${leaderboardKey}) after retry: ${normalizedScore}`);
+                                        yandexSaved = true;
+                                        break;
+                                    } catch (retryError) {
+                                        console.warn(`[Yandex] Failed to set leaderboard "${leaderboardKey}" after retry`, retryError);
+                                        break;
+                                    }
+                                } else {
+                                    console.warn(`[Yandex] Failed to set leaderboard "${leaderboardKey}"`, e);
+                                }
+                            }
+                        }
+                    } else {
+                        console.warn('Leaderboard setScore not available (user not authorized)');
+                    }
+                } catch (e) {
+                    console.warn('Leaderboard set error (fallback to local)', e);
                 }
-            } catch (e) {
-                console.warn('Leaderboard set error (fallback to local)', e);
             }
-        }
 
-        // Локальный fallback
-        try {
-            const raw = localStorage.getItem(localKey);
-            let entries = raw ? JSON.parse(raw) : [];
-            entries.push({ name: 'You', score: score });
-            entries.sort((a: any, b: any) => b.score - a.score);
-            entries = entries.slice(0, 20);
-            localStorage.setItem(localKey, JSON.stringify(entries));
-        } catch (e) {
-            console.warn('Local leaderboard save failed', e);
-        }
+            // Локальный fallback
+            try {
+                const raw = localStorage.getItem(localKey);
+                let entries = raw ? JSON.parse(raw) : [];
+                entries.push({ name: 'You', score: normalizedScore });
+                entries.sort((a: any, b: any) => b.score - a.score);
+                entries = entries.slice(0, 20);
+                localStorage.setItem(localKey, JSON.stringify(entries));
+            } catch (e) {
+                console.warn('Local leaderboard save failed', e);
+            }
+
+            return yandexSaved;
+        };
+
+        const task = this.leaderboardQueue.then(run, run);
+        this.leaderboardQueue = task.then(() => undefined, () => undefined);
+        return task;
     }
 
     public async saveData(data: YandexData) {
+        const normalized: YandexData = {
+            ...saveMigrationService.toCurrent(data),
+            saveVersion: SAVE_VERSION,
+            meta: {
+                createdAt: data.meta?.createdAt ?? Date.now(),
+                updatedAt: Date.now(),
+                build: SAVE_VERSION,
+            },
+        };
         if (this.isYandexEnvironment && this.player) {
             try {
-                await this.player.setData(data);
+                await this.player.setData(normalized);
             } catch (e) {
                 console.error('Save error', e);
             }
         } else {
             try {
-                localStorage.setItem('basehold_save', JSON.stringify(data));
+                localStorage.setItem('basehold_save', JSON.stringify(normalized));
             } catch (e) {
                 console.warn('Local save failed', e);
             }
@@ -328,7 +394,7 @@ export class YandexSDK {
             try {
                 const data = await this.player.getData();
                 if (Object.keys(data).length === 0) return null;
-                return data as YandexData;
+                return saveMigrationService.toCurrent(data);
             } catch (e) {
                 console.error('Load error', e);
                 return null;
@@ -336,7 +402,8 @@ export class YandexSDK {
         } else {
             try {
                 const raw = localStorage.getItem('basehold_save');
-                return raw ? JSON.parse(raw) : null;
+                if (!raw) return null;
+                return saveMigrationService.toCurrent(JSON.parse(raw));
             } catch (e) {
                 console.warn('Local load failed', e);
                 return null;

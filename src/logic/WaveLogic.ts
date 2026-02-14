@@ -7,12 +7,26 @@ import { TIMING, ENDLESS_MODE } from '../constants/GameConstants';
 
 /**
  * Calculates the number of enemies to spawn for a wave.
- * Formula: 3 + floor(waveNumber * 1.5)
+ * Strong progression formula for v3:
+ * 4 + floor(wave * 1.8 + wave^2 / 90)
  * @param waveNumber - Current wave number (1-based)
  * @returns Number of enemies to spawn
  */
 export function calculateEnemyCount(waveNumber: number): number {
-  return 3 + Math.floor(waveNumber * 1.5);
+  const wave = Math.max(1, waveNumber);
+  return 4 + Math.floor(wave * 1.8 + (wave * wave) / 90);
+}
+
+/**
+ * Calculates global enemy HP/damage multiplier by wave.
+ * Gives noticeably stronger progression before endless mode.
+ */
+export function calculateWaveEnemyStatMultiplier(waveNumber: number): number {
+  const wave = Math.max(1, waveNumber);
+  if (wave === 1) return 1;
+  const linear = 1 + (wave - 1) * 0.045;
+  const accel = Math.pow(Math.max(0, wave - 8), 1.18) * 0.01;
+  return linear + accel;
 }
 
 /**

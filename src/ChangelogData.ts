@@ -1,4 +1,4 @@
-export const VERSION = '2.5.1';
+export const VERSION = '3.0.0-beta';
 
 export interface ChangelogEntry {
     version: string;
@@ -10,6 +10,26 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '3.0.0-beta',
+        date: '2026-02-14',
+        changes: {
+            ru: [
+                'Добавлены новые враги: Саботажник, Джаггернаут, Фазоход',
+                'Добавлены новые здания: Радар, Ракетница, Рем-хаб',
+                'Добавлены 3 волновых мутаторa: Туман, Перегрузка, Рой',
+                'Добавлена адаптивная графика по FPS',
+                'Введена миграция сейвов 2.x -> 3.0.0'
+            ],
+            en: [
+                'Added new enemies: Saboteur, Juggernaut, Phasewalker',
+                'Added new buildings: Radar, Missile Launcher, Repair Hub',
+                'Added 3 wave mutators: Fog, Overcharge, Swarm',
+                'Added adaptive graphics quality based on FPS',
+                'Introduced save migration from 2.x to 3.0.0'
+            ]
+        }
+    },
     {
         version: '2.5.0',
         date: '2025-02-10',

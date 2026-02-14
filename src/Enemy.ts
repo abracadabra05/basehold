@@ -2,8 +2,8 @@ import { Container, Graphics, Ticker } from 'pixi.js';
 import type { Building } from './Building';
 import { GameConfig } from './GameConfig';
 import type { Pathfinder, PathPoint } from './Pathfinder';
-
-export type EnemyType = 'basic' | 'fast' | 'tank' | 'boss' | 'kamikaze' | 'shooter' | 'healer' | 'splitter' | 'shieldbearer' | 'miniboss';
+import type { EnemyType } from './types/GameContent';
+export type { EnemyType } from './types/GameContent';
 
 export class Enemy extends Container {
     private body: Graphics;
@@ -118,6 +118,15 @@ export class Enemy extends Container {
                 // Shield shape
                 this.body.moveTo(0, -stats.radius).lineTo(stats.radius, -stats.radius / 2).lineTo(stats.radius, stats.radius / 2).lineTo(0, stats.radius).lineTo(-stats.radius, stats.radius / 2).lineTo(-stats.radius, -stats.radius / 2).fill(color);
                 this.body.circle(0, 0, stats.radius * 1.5).stroke({ width: 2, color: 0x00FFFF, alpha: 0.5 });
+            } else if (type === 'saboteur') {
+                this.body.rect(-stats.radius, -stats.radius, stats.radius * 2, stats.radius * 2).fill(color);
+                this.body.moveTo(-stats.radius, -stats.radius).lineTo(stats.radius, stats.radius).stroke({ width: 2, color: 0xffffff });
+            } else if (type === 'juggernaut') {
+                this.body.roundRect(-stats.radius, -stats.radius, stats.radius * 2, stats.radius * 2, 6).fill(color);
+                this.body.roundRect(-10, -10, 20, 20, 4).fill(0x2d3436);
+            } else if (type === 'phasewalker') {
+                this.body.circle(0, 0, stats.radius).fill({ color, alpha: 0.65 });
+                this.body.circle(0, 0, stats.radius + 4).stroke({ width: 2, color: 0xb388ff, alpha: 0.7 });
             } else {
                 // Basic, Fast, Tank - прямоугольники
                 const s = stats.radius * 2; // примерно под размер радиуса
@@ -198,6 +207,9 @@ export class Enemy extends Container {
 
         if (this.type === 'kamikaze') {
             this.body.scale.set(1 + Math.sin(Date.now() / 100) * 0.2);
+        }
+        if (this.type === 'phasewalker') {
+            this.alpha = 0.55 + Math.sin(Date.now() / 120) * 0.25;
         }
 
         let targetX = this.target.x;

@@ -21,7 +21,11 @@ const BUILDING_COSTS: Record<BuildingType, number> = {
     'core': 0,
     // v2.0 Buildings
     'tesla': 80,
-    'slowfield': 50
+    'slowfield': 50,
+    // v3.0 Buildings
+    'radar': 90,
+    'missile': 220,
+    'repairhub': 140
 };
 
 export class BuildingSystem {
@@ -47,7 +51,7 @@ export class BuildingSystem {
     private thornsDamage: number = 0;
 
     public onBuildingDestroyed?: (x: number, y: number) => void;
-    public onBuildingPlaced?: (type: BuildingType) => void;
+    public onBuildingPlaced?: (type: BuildingType, x: number, y: number) => void;
     public onChainLightning?: (x: number, y: number, targets: { x: number; y: number }[]) => void;
     public checkUnlock?: (type: string) => boolean; // Добавлено
 
@@ -172,7 +176,7 @@ export class BuildingSystem {
             name: b.buildingType,
             hp: b.hp,
             maxHp: b.maxHp,
-            damage: (['turret', 'sniper', 'minigun', 'laser'].includes(b.buildingType)) ? b.damage : undefined,
+            damage: (['turret', 'sniper', 'minigun', 'laser', 'missile'].includes(b.buildingType)) ? b.damage : undefined,
             energy: energyStr || undefined
         };
     }
@@ -320,6 +324,9 @@ export class BuildingSystem {
             if (type === 'minigun') color = 0x8e44ad;
             if (type === 'battery') color = 0x2ecc71;
             if (type === 'laser') color = 0xe74c3c;
+            if (type === 'radar') color = 0x1abc9c;
+            if (type === 'missile') color = 0xe67e22;
+            if (type === 'repairhub') color = 0x00cec9;
 
             this.ghost.fill({ color: color, alpha: 0.5 });
 
@@ -439,7 +446,7 @@ export class BuildingSystem {
         this.soundManager?.playBuild();
         this.world.addChild(building);
         this.buildings.set(`${gx},${gy}`, building);
-        if (this.onBuildingPlaced) this.onBuildingPlaced(type);
+        if (this.onBuildingPlaced) this.onBuildingPlaced(type, gx, gy);
     }
 
     public spawnCore(x: number, y: number) {

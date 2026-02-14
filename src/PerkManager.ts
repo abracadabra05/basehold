@@ -1,9 +1,10 @@
 import { GameConfig } from './GameConfig';
 import { Translations } from './Localization';
 import type { UIManager } from './UIManager';
+import type { PerkId } from './types/GameContent';
 
 export interface Perk {
-    id: string;
+    id: PerkId;
     key: string;
     icon: string;
 }
@@ -11,7 +12,7 @@ export interface Perk {
 export class PerkManager {
     private uiManager: UIManager;
     private container: HTMLDivElement;
-    private onSelectCallback: ((perkId: string) => void) | null = null;
+    private onSelectCallback: ((perkId: PerkId) => void) | null = null;
 
     constructor(uiManager: UIManager) {
         this.uiManager = uiManager;
@@ -25,7 +26,7 @@ export class PerkManager {
         return (Translations[lang] as any)[key] || key;
     }
 
-    public showSelection(onSelect: (perkId: string) => void) {
+    public showSelection(onSelect: (perkId: PerkId) => void) {
         this.onSelectCallback = onSelect;
         this.container.innerHTML = '';
         
@@ -43,7 +44,7 @@ export class PerkManager {
 
         // Выбираем 3 случайных перка
         const shuffled = [...GameConfig.PERKS].sort(() => 0.5 - Math.random());
-        const selection = shuffled.slice(0, 3);
+        const selection = shuffled.slice(0, 3) as Perk[];
 
         selection.forEach(perk => {
             const card = this.createPerkCard(perk);

@@ -1,8 +1,8 @@
 import { Container, Graphics, Ticker } from 'pixi.js';
 import type { ResourceManager } from './ResourceManager';
 import type { Enemy } from './Enemy';
-
-export type BuildingType = 'wall' | 'drill' | 'generator' | 'turret' | 'core' | 'sniper' | 'minigun' | 'battery' | 'laser' | 'tesla' | 'slowfield';
+import type { BuildingType } from './types/GameContent';
+export type { BuildingType } from './types/GameContent';
 
 export class Building extends Container {
     public buildingType: BuildingType;
@@ -38,6 +38,7 @@ export class Building extends Container {
     public slowAmount: number = 0;
     public onChainLightning?: (x: number, y: number, targets: { x: number; y: number }[]) => void;
     public lifeSteal: boolean = false;
+    public repairAura: number = 0;
 
     // ГЕТТЕР ДЛЯ УГЛА (чтобы Game.ts видел поворот)
     public get rotationAngle(): number {
@@ -89,6 +90,24 @@ export class Building extends Container {
                 this.energyConsumption = 10;
                 this.range = 150;
                 this.slowAmount = 0.5;
+                break;
+            case 'radar':
+                this.maxHp = 70;
+                this.energyConsumption = 12;
+                this.range = 320;
+                break;
+            case 'missile':
+                this.maxHp = 110;
+                this.energyConsumption = 30;
+                this.range = 550;
+                this.fireRate = 150;
+                this.damage = 70;
+                break;
+            case 'repairhub':
+                this.maxHp = 130;
+                this.energyConsumption = 18;
+                this.range = 180;
+                this.repairAura = 2;
                 break;
         }
         this.hp = this.maxHp;
@@ -148,6 +167,18 @@ export class Building extends Container {
                 baseG.circle(cx, cy, size / 2.5).stroke({ width: 2, color: 0x00FFFF, alpha: 0.5 });
                 baseG.circle(cx, cy, size / 3).stroke({ width: 1, color: 0x00FFFF, alpha: 0.3 });
                 break;
+            case 'radar':
+                baseG.roundRect(0, 0, size, size, 5).fill(0x2c3e50).stroke({ width: 2, color: 0x1abc9c });
+                baseG.circle(cx, cy, 12).stroke({ width: 2, color: 0x1abc9c });
+                break;
+            case 'missile':
+                baseG.roundRect(0, 0, size, size, 5).fill(0x4a4a4a).stroke({ width: 2, color: 0xe67e22 });
+                baseG.rect(8, 6, 24, 28).fill(0x7f8c8d);
+                break;
+            case 'repairhub':
+                baseG.roundRect(0, 0, size, size, 5).fill(0x2d3436).stroke({ width: 2, color: 0x00cec9 });
+                baseG.circle(cx, cy, 7).fill(0x00cec9);
+                break;
         }
         baseG.zIndex = 0;
         this.addChild(baseG);
@@ -199,14 +230,26 @@ export class Building extends Container {
                 headG.roundRect(-12, -3, 24, 6, 2).fill(0x7f8c8d);
                 headG.circle(0, 0, 4).fill(0xffffff);
                 break;
+            case 'radar':
+                headG.circle(0, 0, 10).stroke({ width: 2, color: 0x1abc9c });
+                headG.moveTo(0, 0).lineTo(10, -8).stroke({ width: 2, color: 0x1abc9c });
+                break;
+            case 'missile':
+                headG.roundRect(-8, -10, 16, 20, 4).fill(0xe67e22);
+                headG.moveTo(0, -14).lineTo(-5, -6).lineTo(5, -6).fill(0xf1c40f);
+                break;
+            case 'repairhub':
+                headG.circle(0, 0, 8).fill(0x00cec9);
+                headG.circle(0, 0, 3).fill(0xffffff);
+                break;
         }
 
         this.muzzleFlash = new Graphics();
 
-        if (['turret', 'sniper', 'minigun', 'drill', 'laser', 'tesla'].includes(type)) {
+        if (['turret', 'sniper', 'minigun', 'drill', 'laser', 'tesla', 'radar', 'missile', 'repairhub'].includes(type)) {
             this.turretHead.addChild(headG);
 
-            if (['turret', 'sniper', 'minigun', 'laser', 'tesla'].includes(type)) {
+            if (['turret', 'sniper', 'minigun', 'laser', 'tesla', 'missile'].includes(type)) {
                 this.muzzleFlash.visible = false;
                 let offset = 22;
                 let color = 0xFFFF00;
@@ -215,6 +258,7 @@ export class Building extends Container {
                 if (type === 'minigun') offset = 20;
                 if (type === 'laser') { offset = 25; color = 0xFF0000; }
                 if (type === 'tesla') { offset = 15; color = 0x9B59B6; }
+                if (type === 'missile') { offset = 24; color = 0xFFAA00; }
 
                 this.muzzleFlash.x = offset;
                 this.muzzleFlash.circle(0, 0, 6).fill(color).circle(0, 0, 3).fill(0xFFFFFF);
@@ -331,7 +375,17 @@ export class Building extends Container {
             this.scale.set(pulse);
         }
 
-        if (['turret', 'sniper', 'minigun', 'laser', 'tesla'].includes(this.buildingType)) {
+        if (this.buildingType === 'repairhub' && this.repairAura > 0) {
+            this.cooldown -= ticker.deltaTime * efficiency;
+            if (this.cooldown <= 0) {
+                this.cooldown = 60;
+                // Repair pulse is handled in BuildingSystem via global regen, this gives extra local visual pulse.
+                this.scale.set(1.06);
+                setTimeout(() => this.scale.set(1.0), 80);
+            }
+        }
+
+        if (['turret', 'sniper', 'minigun', 'laser', 'tesla', 'missile'].includes(this.buildingType)) {
             if (this.cooldown > 0) {
                 this.cooldown -= ticker.deltaTime * efficiency;
             }
@@ -361,6 +415,7 @@ export class Building extends Container {
                 if (this.buildingType === 'sniper') turnSpeed = 0.08;
                 if (this.buildingType === 'minigun') turnSpeed = 0.15;
                 if (this.buildingType === 'laser') turnSpeed = 0.3;
+                if (this.buildingType === 'missile') turnSpeed = 0.06;
 
                 this.turretHead.rotation += diff * turnSpeed * efficiency;
 

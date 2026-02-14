@@ -55,11 +55,25 @@ export class Pathfinder {
         }
     }
 
+    /** Mark a grid cell as walkable by tile coordinates */
+    public unblockTile(tileX: number, tileY: number): void {
+        if (tileX >= 0 && tileX < MAP_TILES && tileY >= 0 && tileY < MAP_TILES) {
+            this.grid[tileY * MAP_TILES + tileX] = false;
+        }
+    }
+
     /** Mark a grid cell as blocked by world pixel coordinates */
     public blockWorld(worldX: number, worldY: number): void {
         const tx = Math.floor(worldX / GRID_SIZE);
         const ty = Math.floor(worldY / GRID_SIZE);
         this.blockTile(tx, ty);
+    }
+
+    /** Mark a world cell as walkable */
+    public unblockWorld(worldX: number, worldY: number): void {
+        const tx = Math.floor(worldX / GRID_SIZE);
+        const ty = Math.floor(worldY / GRID_SIZE);
+        this.unblockTile(tx, ty);
     }
 
     /** Block all grid tiles that a rock overlaps (circle → grid cells) */

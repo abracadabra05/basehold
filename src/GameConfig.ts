@@ -17,6 +17,10 @@ export const GameConfig = {
         SPLITTER: { speed: 2.2, hp: 25, damage: 15, radius: 18, color: 0x9B59B6, reward: 20, score: 35, splitCount: 2 },
         SHIELDBEARER: { speed: 1.2, hp: 50, damage: 20, radius: 22, color: 0x3498DB, reward: 40, score: 60, shieldRange: 100 },
         MINIBOSS: { speed: 0.8, hp: 300, damage: 50, radius: 45, color: 0xE67E22, reward: 150, score: 300 },
+        // v3.0 Enemies
+        SABOTEUR: { speed: 2.9, hp: 32, damage: 24, radius: 14, color: 0x34495e, reward: 50, score: 75, attackRange: 30 },
+        JUGGERNAUT: { speed: 0.65, hp: 480, damage: 75, radius: 28, color: 0x6d4c41, reward: 90, score: 130 },
+        PHASEWALKER: { speed: 3.8, hp: 20, damage: 22, radius: 12, color: 0x8e44ad, reward: 55, score: 80 },
     },
     WAVES: {
         SPAWN_RADIUS: 1500, // Увеличил с 800 до 1500 (за пределы экрана/границ)
@@ -27,7 +31,12 @@ export const GameConfig = {
             7: { type: 'shooter', countMultiplier: 1.5, messageKey: 'wave_pattern_ranged' },
             15: { type: 'kamikaze', countMultiplier: 2.5, messageKey: 'wave_pattern_explosive' },
             20: { type: 'tank', countMultiplier: 1.0, messageKey: 'wave_pattern_heavy' }
-        }
+        },
+        MUTATORS: [
+            { type: 'fog', startsAtWave: 8, interval: 7, messageKey: 'wave_mutator_fog' },
+            { type: 'overcharge', startsAtWave: 12, interval: 8, messageKey: 'wave_mutator_overcharge' },
+            { type: 'swarm', startsAtWave: 16, interval: 6, messageKey: 'wave_mutator_swarm' }
+        ]
     },
     GAME: {
         GRID_SIZE: 40,
@@ -49,6 +58,10 @@ export const GameConfig = {
         // v2.0 Buildings
         tesla: { hp: 120, cost: 80, energy: -25, range: 200, damage: 15, fireRate: 45, chainCount: 3, unlocked: false, researchCost: 600 },
         slowfield: { hp: 80, cost: 50, energy: -10, range: 150, slowAmount: 0.5, unlocked: false, researchCost: 400 },
+        // v3.0 Buildings
+        radar: { hp: 70, cost: 90, energy: -12, range: 320, unlocked: false, researchCost: 700 },
+        missile: { hp: 110, cost: 220, energy: -30, range: 550, damage: 70, fireRate: 150, unlocked: false, researchCost: 1000 },
+        repairhub: { hp: 130, cost: 140, energy: -18, range: 180, unlocked: false, researchCost: 850 },
     },
     PERKS: [
         { id: 'double_shot', key: 'perk_double_shot', icon: '⚔️' },
@@ -61,6 +74,11 @@ export const GameConfig = {
         { id: 'ricochet', key: 'perk_ricochet', icon: '↩️' },
         { id: 'critical_hit', key: 'perk_critical', icon: '💀' },
         { id: 'slow_bullets', key: 'perk_slow_bullets', icon: '🐌' },
-        { id: 'life_steal', key: 'perk_life_steal', icon: '💚' }
+        { id: 'life_steal', key: 'perk_life_steal', icon: '💚' },
+        // v3.0 Perks
+        { id: 'overdrive', key: 'perk_overdrive', icon: '🚀' },
+        { id: 'salvage', key: 'perk_salvage', icon: '🧲' },
+        { id: 'nanoburst', key: 'perk_nanoburst', icon: '🧬' },
+        { id: 'hunter_protocol', key: 'perk_hunter_protocol', icon: '🎯' }
     ]
 };

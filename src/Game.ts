@@ -28,6 +28,18 @@ import { StatsTracker } from './StatsTracker';
 import { AchievementManager } from './AchievementManager';
 import { Pathfinder } from './Pathfinder';
 import { graphicsSettings } from './GraphicsSettings';
+import { determineEnemyType } from './logic/SpawnLogic';
+import { calculateEndlessDifficultyMultiplier, calculateWaveEnemyStatMultiplier } from './logic/WaveLogic';
+import {
+    applyWaveMutatorCount,
+    applyWaveMutatorEnemyStats,
+    applyWaveMutatorSpawnRadius,
+    getScheduledWaveMutator,
+    type ActiveWaveMutator,
+    type WaveMutatorConfig,
+} from './logic/WaveMutatorLogic';
+import { AdaptiveQualityController } from './performance/AdaptiveQualityController';
+import type { PerkId } from './types/GameContent';
 
 export class Game {
     private app: Application;
@@ -83,6 +95,11 @@ export class Game {
     private resizeTimeout: ReturnType<typeof setTimeout> | null = null;
     private rockBlocker: Building | null = null; // Indestructible blocker for rock collisions
     private pathfinder: Pathfinder = new Pathfinder();
+    private activeWaveMutator: ActiveWaveMutator | null = null;
+    private adaptiveQualityController: AdaptiveQualityController = new AdaptiveQualityController();
+    private salvageBonusMultiplier: number = 1.0;
+    private eliteDamageMultiplier: number = 1.0;
+    private waveStatMultiplier: number = 1.0;
 
     constructor(app: Application) {
         this.app = app;
@@ -205,13 +222,13 @@ export class Game {
 
         this.buildingSystem.onBuildingDestroyed = (x, y) => {
             this.createExplosion(x + 20, y + 20, 0x555555, 15);
-            this.rebuildPathfinderGrid();
+            this.pathfinder.unblockWorld(x, y);
         };
 
-        this.buildingSystem.onBuildingPlaced = () => {
+        this.buildingSystem.onBuildingPlaced = (_, x, y) => {
             this.statsTracker.addBuilding();
             this.achievementManager.addProgress('build');
-            this.rebuildPathfinderGrid();
+            this.pathfinder.blockWorld(x, y);
         };
 
         this.buildingSystem.onChainLightning = (x, y, targets) => {
@@ -382,6 +399,7 @@ export class Game {
 
     private initGameLoop(): void {
         this.app.ticker.add((ticker) => {
+            this.adaptiveQualityController.recordFrame(ticker.deltaMS);
             if (!this.isGameStarted) return;
             if (this.waveManager.isShopOpen) return;
 
@@ -514,7 +532,7 @@ export class Game {
         }
     }
 
-    private applyPerk(perkId: string) {
+    private applyPerk(perkId: PerkId) {
         this.spawnFloatingText(this.player.x, this.player.y - 50, this.t('perk_activated'), '#3498db', 20);
         this.soundManager.playBuild();
 
@@ -550,6 +568,21 @@ export class Game {
             case 'life_steal':
                 // Turrets heal themselves when dealing damage
                 this.buildingSystem.setLifeSteal(true);
+                break;
+            case 'overdrive':
+                this.player.fireRate = Math.max(2, this.player.fireRate * 0.8);
+                this.player.moveSpeed += 0.6;
+                break;
+            case 'salvage':
+                this.salvageBonusMultiplier = 1.35;
+                break;
+            case 'nanoburst':
+                for (const building of this.buildingSystem.activeBuildings) {
+                    building.repair(35);
+                }
+                break;
+            case 'hunter_protocol':
+                this.eliteDamageMultiplier = 1.25;
                 break;
         }
     }
@@ -646,6 +679,7 @@ export class Game {
         this.canRevive = true;
         this.isEndlessMode = false;
         this.endlessDifficultyMultiplier = 1.0;
+        this.waveStatMultiplier = 1.0;
         this.inputSystem.hideControls(); // Скрываем
 
         // Очистка
@@ -672,13 +706,16 @@ export class Game {
 
         // Сброс ресурсов и камней
         this.resources.forEach(r => this.world.removeChild(r));
-        this.resources = [];
+        this.resources.length = 0;
         this.rocks.forEach(r => this.world.removeChild(r));
-        this.rocks = [];
+        this.rocks.length = 0;
 
         // Генерация нового мира
         this.generateResources();
         this.generateRocks();
+        // Keep BuildingSystem references synced after world regeneration.
+        this.buildingSystem.setResources(this.resources, this.resourceManager);
+        this.buildingSystem.setRocks(this.rocks);
         this.rebuildPathfinderGrid();
 
         // Сброс игрока
@@ -704,6 +741,9 @@ export class Game {
         this.player.explosiveRounds = false;
         this.currentMineMultiplier = 1;
         this.magnetRadius = 0;
+        this.salvageBonusMultiplier = 1.0;
+        this.eliteDamageMultiplier = 1.0;
+        this.activeWaveMutator = null;
 
         // Сброс менеджеров
         this.resourceManager.reset();
@@ -801,7 +841,18 @@ export class Game {
 
     private spawnWave(waveNum: number, count: number) {
         if (!this.coreBuilding || this.coreBuilding.isDestroyed) return;
-        const spawnRadius = GameConfig.WAVES.SPAWN_RADIUS;
+        this.activeWaveMutator = getScheduledWaveMutator(
+            waveNum,
+            (GameConfig.WAVES.MUTATORS || []) as WaveMutatorConfig[]
+        );
+        this.waveStatMultiplier = calculateWaveEnemyStatMultiplier(waveNum);
+        const spawnRadius = applyWaveMutatorSpawnRadius(GameConfig.WAVES.SPAWN_RADIUS, this.activeWaveMutator?.type ?? null);
+        const effectiveCount = applyWaveMutatorCount(count, this.activeWaveMutator?.type ?? null);
+
+        if (this.activeWaveMutator) {
+            this.spawnFloatingText(this.player.x, this.player.y - 130, this.t(this.activeWaveMutator.messageKey), '#8e44ad', 22);
+            this.soundManager.playError();
+        }
 
         // Check for endless mode activation (after wave 50)
         if (waveNum === 51 && !this.isEndlessMode) {
@@ -812,8 +863,7 @@ export class Game {
 
         // Update endless mode difficulty scaling
         if (this.isEndlessMode) {
-            // Increase difficulty by 5% each wave after 50
-            this.endlessDifficultyMultiplier = 1.0 + (waveNum - 50) * 0.05;
+            this.endlessDifficultyMultiplier = calculateEndlessDifficultyMultiplier(waveNum);
         }
 
         // 1. Проверка на БОССА (каждые 10 волн)
@@ -843,7 +893,7 @@ export class Game {
             this.spawnEnemy(this.coreBuilding.x + Math.cos(angle) * spawnRadius, this.coreBuilding.y + Math.sin(angle) * spawnRadius, 'miniboss');
 
             // Also spawn some escort enemies
-            for (let i = 0; i < Math.floor(count / 2); i++) {
+            for (let i = 0; i < Math.floor(effectiveCount / 2); i++) {
                 const a = angle + (Math.random() - 0.5) * 1.0;
                 this.spawnEnemy(this.coreBuilding.x + Math.cos(a) * spawnRadius, this.coreBuilding.y + Math.sin(a) * spawnRadius, Math.random() < 0.5 ? 'fast' : 'shooter');
             }
@@ -857,7 +907,7 @@ export class Game {
             this.spawnFloatingText(this.player.x, this.player.y - 100, this.t(p.messageKey), '#f1c40f', 24);
             this.soundManager.playError();
 
-            const specialCount = Math.ceil(count * p.countMultiplier);
+            const specialCount = Math.ceil(effectiveCount * p.countMultiplier);
             for (let i = 0; i < specialCount; i++) {
                 const angle = Math.random() * Math.PI * 2;
                 this.spawnEnemy(this.coreBuilding.x + Math.cos(angle) * spawnRadius, this.coreBuilding.y + Math.sin(angle) * spawnRadius, p.type as EnemyType);
@@ -866,30 +916,8 @@ export class Game {
         }
 
         // 3. ОБЫЧНАЯ ВОЛНА (Смешанная)
-        for (let i = 0; i < count; i++) {
-            let type: EnemyType = 'basic';
-            const rand = Math.random();
-
-            if (waveNum <= 3) {
-                if (rand < 0.2) type = 'fast'; else type = 'basic';
-            } else if (waveNum <= 10) {
-                // Чем выше волна, тем больше сильных врагов
-                if (rand < 0.1 + waveNum * 0.005) type = 'tank';
-                else if (rand < 0.25 + waveNum * 0.005) type = 'shooter';
-                else if (rand < 0.4 + waveNum * 0.005) type = 'kamikaze';
-                else if (rand < 0.6) type = 'fast';
-                else type = 'basic';
-            } else {
-                // Wave 10+: Add v2.0 enemies
-                if (rand < 0.05) type = 'healer'; // 5% healer
-                else if (rand < 0.10 && waveNum >= 15) type = 'splitter'; // 5% splitter (wave 15+)
-                else if (rand < 0.15 && waveNum >= 20) type = 'shieldbearer'; // 5% shieldbearer (wave 20+)
-                else if (rand < 0.20) type = 'tank';
-                else if (rand < 0.35) type = 'shooter';
-                else if (rand < 0.50) type = 'kamikaze';
-                else if (rand < 0.70) type = 'fast';
-                else type = 'basic';
-            }
+        for (let i = 0; i < effectiveCount; i++) {
+            const type: EnemyType = determineEnemyType(waveNum, Math.random()) as EnemyType;
 
             const angle = Math.random() * Math.PI * 2;
             this.spawnEnemy(
@@ -929,6 +957,17 @@ export class Game {
         if (this.isEndlessMode && this.endlessDifficultyMultiplier > 1.0) {
             enemy.hp *= this.endlessDifficultyMultiplier;
             enemy.damage *= this.endlessDifficultyMultiplier;
+        }
+
+        if (this.waveStatMultiplier > 1.0) {
+            enemy.hp *= this.waveStatMultiplier;
+            enemy.damage *= this.waveStatMultiplier;
+        }
+
+        if (this.activeWaveMutator) {
+            const boosted = applyWaveMutatorEnemyStats(enemy.hp, enemy.damage, this.activeWaveMutator.type);
+            enemy.hp = boosted.hp;
+            enemy.damage = boosted.damage;
         }
 
         enemy.onShoot = (sx, sy, tx, ty, dmg) => this.spawnProjectile(sx, sy, tx, ty, dmg, true);
@@ -1002,6 +1041,9 @@ export class Game {
                         // Critical hit check
                         let finalDamage = p.damage;
                         let isCrit = false;
+                        if (this.eliteDamageMultiplier > 1.0 && ['boss', 'miniboss', 'juggernaut', 'shieldbearer'].includes(enemy.type)) {
+                            finalDamage *= this.eliteDamageMultiplier;
+                        }
                         if (this.player.critChance > 0 && Math.random() < this.player.critChance) {
                             finalDamage *= 2;
                             isCrit = true;
@@ -1181,9 +1223,11 @@ export class Game {
         this.statsTracker.setWave(this.waveManager.waveCount);
         const stats = this.statsTracker.getStats();
 
-        // Отправляем рекорды в оба лидерборда
-        yaSdk.setLeaderboardScore(this.waveManager.waveCount, 'waves');
-        yaSdk.setLeaderboardScore(this.score, 'score');
+        // Отправляем рекорды в оба лидерборда последовательно, чтобы избежать гонки вызовов SDK
+        void (async () => {
+            await yaSdk.setLeaderboardScore(this.waveManager.waveCount, 'waves');
+            await yaSdk.setLeaderboardScore(this.score, 'score');
+        })();
 
         // Show Game Over screen directly - ads will be shown when user clicks Restart (per Yandex requirements)
         setTimeout(() => {
@@ -1251,14 +1295,15 @@ export class Game {
                     this.dropItems.push(drop);
                 } else if (enemy.type === 'miniboss') {
                     // Mini-boss drops bonus resources
-                    const bonusMetal = 100 + this.waveManager.waveCount * 5;
+                    const bonusMetal = Math.floor((100 + this.waveManager.waveCount * 5) * this.salvageBonusMultiplier);
                     this.resourceManager.addMetal(bonusMetal);
-                    this.resourceManager.addBiomass(50);
-                    this.spawnFloatingText(enemy.x, enemy.y - 30, `+${bonusMetal} 🔩 +50 🧬`, '#2ecc71', 18);
+                    this.resourceManager.addBiomass(Math.floor(50 * this.salvageBonusMultiplier));
+                    const bonusBio = Math.floor(50 * this.salvageBonusMultiplier);
+                    this.spawnFloatingText(enemy.x, enemy.y - 30, `+${bonusMetal} 🔩 +${bonusBio} 🧬`, '#2ecc71', 18);
                 } else {
                     // Шанс дропа обычных ресурсов повышен до 70%
                     if (Math.random() < 0.7) {
-                        const reward = GameConfig.ENEMIES[enemy.type.toUpperCase() as keyof typeof GameConfig.ENEMIES]?.reward || 5;
+                        const reward = Math.floor((GameConfig.ENEMIES[enemy.type.toUpperCase() as keyof typeof GameConfig.ENEMIES]?.reward || 5) * this.salvageBonusMultiplier);
                         const drop = new DropItem(enemy.x, enemy.y, reward);
                         this.world.addChild(drop);
                         this.dropItems.push(drop);

@@ -103,7 +103,7 @@ export const ENDLESS_MODE = {
   /** Wave number when endless mode activates */
   START_WAVE: 51,
   /** Difficulty increase per wave after endless mode starts */
-  DIFFICULTY_INCREASE_PER_WAVE: 0.05,
+  DIFFICULTY_INCREASE_PER_WAVE: 0.08,
 } as const;
 
 export const UPGRADE = {

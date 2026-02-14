@@ -4,6 +4,7 @@
  */
 
 import { SPAWNING } from '../constants/GameConstants';
+import type { EnemyType } from '../types/GameContent';
 
 /**
  * Represents a 2D point
@@ -67,9 +68,6 @@ export function getGroupSpawnPositions(
 /**
  * Enemy types that can spawn
  */
-export type EnemyType = 'basic' | 'fast' | 'tank' | 'boss' | 'kamikaze' | 'shooter' |
-                        'healer' | 'splitter' | 'shieldbearer' | 'miniboss';
-
 /**
  * Determines enemy type based on wave number and random roll.
  * @param waveNumber - Current wave number
@@ -93,6 +91,9 @@ export function determineEnemyType(waveNumber: number, random: number): EnemyTyp
   }
 
   // Late waves (10+): add v2.0 enemies
+  if (waveNumber >= 30 && random < 0.03) return 'juggernaut';
+  if (waveNumber >= 25 && random < 0.07) return 'saboteur';
+  if (waveNumber >= 22 && random < 0.11) return 'phasewalker';
   if (random < 0.05) return 'healer';
   if (random < 0.10 && waveNumber >= 15) return 'splitter';
   if (random < 0.15 && waveNumber >= 20) return 'shieldbearer';

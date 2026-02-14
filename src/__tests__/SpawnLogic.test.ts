@@ -184,6 +184,12 @@ describe('SpawnLogic', () => {
         expect(determineEnemyType(11, 0.71)).toBe('basic');
         expect(determineEnemyType(11, 0.99)).toBe('basic');
       });
+
+      it('spawns v3 elite enemies on later waves', () => {
+        expect(determineEnemyType(22, 0.1)).toBe('phasewalker');
+        expect(determineEnemyType(25, 0.05)).toBe('saboteur');
+        expect(determineEnemyType(30, 0.02)).toBe('juggernaut');
+      });
     });
   });
 

@@ -228,7 +228,7 @@ export class UpgradeManager {
         techContent.style.gap = '8px';
 
         // Генерируем кнопки для закрытых технологий
-        const unlockables = ['battery', 'sniper', 'minigun', 'laser', 'tesla', 'slowfield'];
+        const unlockables = ['battery', 'sniper', 'minigun', 'laser', 'tesla', 'slowfield', 'radar', 'missile', 'repairhub'];
         unlockables.forEach(type => {
             if (GameConfig.BUILDINGS[type as keyof typeof GameConfig.BUILDINGS]) {
                 this.createUnlockBtn(techContent, type);

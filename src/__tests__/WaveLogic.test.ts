@@ -7,26 +7,27 @@ import {
   calculateSkipBonus,
   shouldActivateEndlessMode,
   calculateEndlessDifficultyMultiplier,
+  calculateWaveEnemyStatMultiplier,
   getWavePattern,
   calculateBreakDuration
 } from '../logic/WaveLogic';
 
 describe('WaveLogic', () => {
   describe('calculateEnemyCount', () => {
-    it('wave 1 has 4 enemies', () => {
-      expect(calculateEnemyCount(1)).toBe(4);
+    it('wave 1 has 5 enemies', () => {
+      expect(calculateEnemyCount(1)).toBe(5);
     });
 
-    it('wave 2 has 6 enemies', () => {
-      expect(calculateEnemyCount(2)).toBe(6);
+    it('wave 2 has 7 enemies', () => {
+      expect(calculateEnemyCount(2)).toBe(7);
     });
 
-    it('wave 10 has 18 enemies', () => {
-      expect(calculateEnemyCount(10)).toBe(18);
+    it('wave 10 has 23 enemies', () => {
+      expect(calculateEnemyCount(10)).toBe(23);
     });
 
-    it('wave 20 has 33 enemies', () => {
-      expect(calculateEnemyCount(20)).toBe(33);
+    it('wave 20 has 44 enemies', () => {
+      expect(calculateEnemyCount(20)).toBe(44);
     });
 
     it('enemy count increases with wave number', () => {
@@ -141,17 +142,28 @@ describe('WaveLogic', () => {
       expect(calculateEndlessDifficultyMultiplier(50)).toBe(1.0);
     });
 
-    it('returns 1.05 for wave 51', () => {
-      expect(calculateEndlessDifficultyMultiplier(51)).toBeCloseTo(1.05);
+    it('returns 1.08 for wave 51', () => {
+      expect(calculateEndlessDifficultyMultiplier(51)).toBeCloseTo(1.08);
     });
 
-    it('returns 1.10 for wave 52', () => {
-      expect(calculateEndlessDifficultyMultiplier(52)).toBeCloseTo(1.10);
+    it('returns 1.16 for wave 52', () => {
+      expect(calculateEndlessDifficultyMultiplier(52)).toBeCloseTo(1.16);
     });
 
     it('scales with wave number', () => {
-      expect(calculateEndlessDifficultyMultiplier(60)).toBeCloseTo(1.50);
-      expect(calculateEndlessDifficultyMultiplier(100)).toBeCloseTo(3.50);
+      expect(calculateEndlessDifficultyMultiplier(60)).toBeCloseTo(1.80);
+      expect(calculateEndlessDifficultyMultiplier(100)).toBeCloseTo(5.00);
+    });
+  });
+
+  describe('calculateWaveEnemyStatMultiplier', () => {
+    it('is 1.0 at wave 1', () => {
+      expect(calculateWaveEnemyStatMultiplier(1)).toBe(1);
+    });
+
+    it('increases significantly by late game', () => {
+      expect(calculateWaveEnemyStatMultiplier(20)).toBeGreaterThan(1.9);
+      expect(calculateWaveEnemyStatMultiplier(40)).toBeGreaterThan(3.2);
     });
   });
 

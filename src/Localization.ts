@@ -88,6 +88,11 @@ export const Translations: Record<Language, any> = {
         tool_laser_desc: 'Мощный луч',
         tool_tesla_desc: 'Цепная молния',
         tool_slowfield_desc: 'Замедляет врагов',
+        tool_radar: 'Радар',
+        tool_radar_desc: 'Раскрывает угрозы рядом с ядром',
+        tool_missile_desc: 'Тяжёлые ракеты по дальним целям',
+        tool_repairhub: 'Рем-хаб',
+        tool_repairhub_desc: 'Усиливает ремонт построек',
 
         // Wave alerts
         wave_miniboss: 'МИНИ-БОСС',
@@ -130,6 +135,14 @@ export const Translations: Record<Language, any> = {
         perk_slow_bullets_desc: 'Пули замедляют врагов.',
         perk_life_steal: 'Вампиризм зданий',
         perk_life_steal_desc: 'Здания восстанавливают HP от урона.',
+        perk_overdrive: 'Овердрайв',
+        perk_overdrive_desc: 'Скорость стрельбы и движение +20%.',
+        perk_salvage: 'Сбор трофеев',
+        perk_salvage_desc: 'Больше ресурсов с убитых врагов.',
+        perk_nanoburst: 'Нано-всплеск',
+        perk_nanoburst_desc: 'Мгновенно чинит постройки вокруг игрока.',
+        perk_hunter_protocol: 'Протокол охоты',
+        perk_hunter_protocol_desc: 'Доп. урон по элитным врагам.',
 
         // Changelog
         changelog_title: 'Обновления',
@@ -149,6 +162,9 @@ export const Translations: Record<Language, any> = {
         enemy_teleporter: 'Телепортер',
         enemy_swarm: 'Рой',
         enemy_miniboss: 'Мини-босс',
+        enemy_saboteur: 'Саботажник',
+        enemy_juggernaut: 'Джаггернаут',
+        enemy_phasewalker: 'Фазоход',
 
         // Achievements
         achievements_title: 'Достижения',
@@ -186,7 +202,10 @@ export const Translations: Record<Language, any> = {
         wave_pattern_speed: '⚠️ РОЙ СКОРОСТИ',
         wave_pattern_ranged: '⚠️ ДАЛЬНЯЯ АТАКА',
         wave_pattern_explosive: '⚠️ ВЗРЫВНОЙ ДОЖДЬ',
-        wave_pattern_heavy: '⚠️ ТЯЖЁЛЫЙ ШТУРМ'
+        wave_pattern_heavy: '⚠️ ТЯЖЁЛЫЙ ШТУРМ',
+        wave_mutator_fog: 'МУТАТОР: ТУМАН',
+        wave_mutator_overcharge: 'МУТАТОР: ПЕРЕГРУЗКА',
+        wave_mutator_swarm: 'МУТАТОР: РОЙ'
     },
     en: {
         game_title: 'BASEHOLD',
@@ -275,6 +294,11 @@ export const Translations: Record<Language, any> = {
         tool_laser_desc: 'Powerful beam',
         tool_tesla_desc: 'Chain lightning',
         tool_slowfield_desc: 'Slows enemies',
+        tool_radar: 'Radar',
+        tool_radar_desc: 'Reveals local threats around the core',
+        tool_missile_desc: 'Heavy rockets against distant targets',
+        tool_repairhub: 'Repair Hub',
+        tool_repairhub_desc: 'Boosts nearby structure repairs',
 
         // Wave alerts
         wave_miniboss: 'MINI-BOSS',
@@ -317,6 +341,14 @@ export const Translations: Record<Language, any> = {
         perk_slow_bullets_desc: 'Bullets slow down enemies.',
         perk_life_steal: 'Building Lifesteal',
         perk_life_steal_desc: 'Buildings restore HP from damage.',
+        perk_overdrive: 'Overdrive',
+        perk_overdrive_desc: 'Fire rate and movement +20%.',
+        perk_salvage: 'Salvage',
+        perk_salvage_desc: 'More resources from enemy kills.',
+        perk_nanoburst: 'Nano Burst',
+        perk_nanoburst_desc: 'Instantly repairs structures around player.',
+        perk_hunter_protocol: 'Hunter Protocol',
+        perk_hunter_protocol_desc: 'Bonus damage against elite enemies.',
 
         // Changelog
         changelog_title: 'Updates',
@@ -336,6 +368,9 @@ export const Translations: Record<Language, any> = {
         enemy_teleporter: 'Teleporter',
         enemy_swarm: 'Swarm',
         enemy_miniboss: 'Mini-Boss',
+        enemy_saboteur: 'Saboteur',
+        enemy_juggernaut: 'Juggernaut',
+        enemy_phasewalker: 'Phasewalker',
 
         // Achievements
         achievements_title: 'Achievements',
@@ -373,6 +408,9 @@ export const Translations: Record<Language, any> = {
         wave_pattern_speed: '⚠️ SPEED SWARM',
         wave_pattern_ranged: '⚠️ RANGED ATTACK',
         wave_pattern_explosive: '⚠️ EXPLOSIVE RAIN',
-        wave_pattern_heavy: '⚠️ HEAVY ASSAULT'
+        wave_pattern_heavy: '⚠️ HEAVY ASSAULT',
+        wave_mutator_fog: 'MUTATOR: FOG',
+        wave_mutator_overcharge: 'MUTATOR: OVERCHARGE',
+        wave_mutator_swarm: 'MUTATOR: SWARM'
     }
 };

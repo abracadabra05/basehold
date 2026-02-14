@@ -69,6 +69,10 @@ export class UIManager {
         // v2.0 Buildings
         { type: 'tesla', key: 'tool_tesla', icon: '⚡', cost: 80 },
         { type: 'slowfield', key: 'tool_slowfield', icon: '❄️', cost: 50 },
+        // v3.0 Buildings
+        { type: 'radar', key: 'tool_radar', icon: '📡', cost: 90 },
+        { type: 'missile', key: 'tool_missile', icon: '🚀', cost: 220 },
+        { type: 'repairhub', key: 'tool_repairhub', icon: '🛠️', cost: 140 },
         { type: 'repair', key: 'tool_repair', icon: '🔧', color: '#f1c40f' },
         { type: 'demolish', key: 'tool_remove', icon: '❌', color: '#e74c3c' },
     ];
@@ -77,6 +81,7 @@ export class UIManager {
         this.onSelect = onSelect;
         this.detectPlatform();
         this.lang = yaSdk.lang;
+        this.showTutorialFlag = this.loadTutorialPreference();
 
         // Check for unread changelog
         try {
@@ -107,6 +112,26 @@ export class UIManager {
         // createButtons перенесен в init
         // this.createButtons(); 
         // this.highlightButton('wall');
+    }
+
+    private loadTutorialPreference(): boolean {
+        try {
+            const explicit = localStorage.getItem('basehold_tutorial_enabled');
+            if (explicit === 'true') return true;
+            if (explicit === 'false') return false;
+            const alreadyPlayed = localStorage.getItem('basehold_tutorial_shown') === 'true';
+            return !alreadyPlayed;
+        } catch {
+            return true;
+        }
+    }
+
+    private saveTutorialPreference(enabled: boolean): void {
+        try {
+            localStorage.setItem('basehold_tutorial_enabled', enabled ? 'true' : 'false');
+        } catch {
+            // ignore storage errors
+        }
     }
 
     public get currentLang(): Language { return this.lang; }
@@ -434,6 +459,8 @@ export class UIManager {
 
     public showTutorial(onComplete: () => void) {
         if (localStorage.getItem('basehold_tutorial_shown') === 'true') {
+            this.showTutorialFlag = false;
+            this.saveTutorialPreference(false);
             onComplete();
             return;
         }
@@ -486,6 +513,8 @@ export class UIManager {
             if (stepIndex >= steps.length) {
                 document.body.removeChild(overlay);
                 localStorage.setItem('basehold_tutorial_shown', 'true');
+                this.showTutorialFlag = false;
+                this.saveTutorialPreference(false);
                 onComplete();
                 return;
             }
@@ -533,7 +562,7 @@ export class UIManager {
 
             <!-- ЛИДЕРБОРД (Виджет для ПК) -->
             ${!this.isMobile ? `
-            <div id="main-leaderboard" style="position: absolute; top: 50%; right: 20px; transform: translateY(-50%); width: 220px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(5px);">
+            <div id="main-leaderboard" style="position: absolute; top: 50%; right: 20px; transform: translateY(-50%); width: 220px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(5px); z-index: 50; pointer-events: auto;">
                 <h4 style="margin: 0 0 10px 0; color: #f1c40f; text-align: center; text-transform: uppercase; font-size: 14px;">🏆 ${this.t('leaderboard')}</h4>
                 <div id="lb-list" style="font-size: 12px; min-height: 80px;">Loading...</div>
             </div>` : ''}
@@ -835,7 +864,10 @@ export class UIManager {
         overlay.querySelector('#set-en')?.addEventListener('click', () => { this.lang = 'en'; this.refreshUI(); document.body.removeChild(overlay); this.showSettings(); });
         overlay.querySelector('#set-ru')?.addEventListener('click', () => { this.lang = 'ru'; this.refreshUI(); document.body.removeChild(overlay); this.showSettings(); });
 
-        overlay.querySelector('#set-tut')?.addEventListener('change', (e: any) => { this.showTutorialFlag = e.target.checked; });
+        overlay.querySelector('#set-tut')?.addEventListener('change', (e: any) => {
+            this.showTutorialFlag = !!e.target.checked;
+            this.saveTutorialPreference(this.showTutorialFlag);
+        });
 
         overlay.querySelector('#gfx-high')?.addEventListener('click', () => { graphicsSettings.setQuality('high'); document.body.removeChild(overlay); this.showSettings(); });
         overlay.querySelector('#gfx-low')?.addEventListener('click', () => { graphicsSettings.setQuality('low'); document.body.removeChild(overlay); this.showSettings(); });
