@@ -414,9 +414,21 @@ export class Game {
         this.app.stage.addChild(this.voidOverlay);
     }
 
+    private fpsTimer: number = 0;
+    private fpsCount: number = 0;
+
     private initGameLoop(): void {
         this.app.ticker.add((ticker) => {
             this.adaptiveQualityController.recordFrame(ticker.deltaMS);
+            
+            this.fpsCount++;
+            this.fpsTimer += ticker.deltaMS;
+            if (this.fpsTimer >= 1000) {
+                this.uiManager.updateFPS(this.fpsCount);
+                this.fpsCount = 0;
+                this.fpsTimer = 0;
+            }
+
             if (!this.isGameStarted) return;
             if (this.waveManager.isShopOpen) return;
 

@@ -45,6 +45,7 @@ export class BuildingSystem {
     private soundManager: SoundManager | null = null;
     private isPaused: boolean = false;
     private activeBuildPointerId: number | null = null;
+    private activeSlowfields: Building[] = [];
 
     private regenAmount: number = 0;
     private regenTimer: number = 0;
@@ -106,6 +107,7 @@ export class BuildingSystem {
         // Пока сбросим.
         this.regenAmount = 0;
         this.thornsDamage = 0;
+        this.activeSlowfields = [];
     }
 
     public update(
@@ -155,6 +157,9 @@ export class BuildingSystem {
 
                 this.world.removeChild(building);
                 this.buildings.delete(key);
+                if (building.buildingType === 'slowfield') {
+                    this.activeSlowfields = this.activeSlowfields.filter(b => b !== building);
+                }
                 this.soundManager?.playHit();
             } else {
                 building.update(ticker, enemies, spawnProjectile, efficiency);
@@ -372,6 +377,9 @@ export class BuildingSystem {
 
                 this.world.removeChild(building);
                 this.buildings.delete(`${x},${y}`);
+                if (building.buildingType === 'slowfield') {
+                    this.activeSlowfields = this.activeSlowfields.filter(b => b !== building);
+                }
                 this.soundManager?.playMine();
             }
             return;
@@ -446,6 +454,9 @@ export class BuildingSystem {
         this.soundManager?.playBuild();
         this.world.addChild(building);
         this.buildings.set(`${gx},${gy}`, building);
+        if (type === 'slowfield') {
+            this.activeSlowfields.push(building);
+        }
         if (this.onBuildingPlaced) this.onBuildingPlaced(type, gx, gy);
     }
 
@@ -467,12 +478,12 @@ export class BuildingSystem {
 
     public getSlowFactorAt(x: number, y: number): number {
         let slowFactor = 1.0;
-        for (const b of this.buildings.values()) {
-            if (b.buildingType === 'slowfield' && b.slowAmount > 0) {
+        for (const b of this.activeSlowfields) {
+            if (b.slowAmount > 0) {
                 const dx = x - (b.x + 20);
                 const dy = y - (b.y + 20);
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist <= b.range) {
+                const distSq = dx * dx + dy * dy;
+                if (distSq <= b.range * b.range) {
                     slowFactor = Math.min(slowFactor, b.slowAmount);
                 }
             }

@@ -42,6 +42,7 @@ const QUALITY_PRESETS: Record<GraphicsQuality, GraphicsConfig> = {
 class GraphicsSettingsManager {
     private _quality: GraphicsQuality = 'high';
     private _config: GraphicsConfig = { ...QUALITY_PRESETS.high };
+    public showFPS: boolean = false;
 
     constructor() {
         this.load();
@@ -61,9 +62,15 @@ class GraphicsSettingsManager {
         this.save();
     }
 
+    public setShowFPS(show: boolean): void {
+        this.showFPS = show;
+        this.save();
+    }
+
     private save(): void {
         try {
             localStorage.setItem('basehold_graphics', this._quality);
+            localStorage.setItem('basehold_fps', this.showFPS ? 'true' : 'false');
         } catch (_) { /* ignore */ }
     }
 
@@ -73,6 +80,10 @@ class GraphicsSettingsManager {
             if (saved && (saved === 'high' || saved === 'low')) {
                 this._quality = saved;
                 this._config = { ...QUALITY_PRESETS[saved] };
+            }
+            const savedFPS = localStorage.getItem('basehold_fps');
+            if (savedFPS !== null) {
+                this.showFPS = savedFPS === 'true';
             }
         } catch (_) { /* ignore */ }
     }

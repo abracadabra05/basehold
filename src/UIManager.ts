@@ -28,6 +28,7 @@ export class UIManager {
     private hudPlayer: HTMLDivElement;
     private hudCore: HTMLDivElement;
     private hudTime: HTMLDivElement;
+    private fpsCounter: HTMLDivElement;
     private mainMenu: HTMLDivElement;
 
     private buttons: Map<ToolType, HTMLButtonElement> = new Map();
@@ -112,6 +113,7 @@ export class UIManager {
         this.initCoreHUD();
 
         this.hudTime = document.createElement('div');
+        this.fpsCounter = document.createElement('div');
         this.initTimeHUD();
 
         // createButtons перенесен в init
@@ -176,6 +178,9 @@ export class UIManager {
         document.body.appendChild(this.infoPanel);
         document.body.appendChild(this.hudPlayer);
         document.body.appendChild(this.hudCore);
+        if (graphicsSettings.showFPS) {
+            document.body.appendChild(this.fpsCounter);
+        }
         // hudTime удалён - иконка времени не отображается
 
         // Settings button - below minimap on mobile, bottom right on desktop
@@ -838,6 +843,11 @@ export class UIManager {
                 </div>
 
                 <div style="border-top: 1px solid #444; padding-top: 15px; margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 16px; margin-bottom: 12px; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.05);">
+                        <input type="checkbox" id="set-fps" ${graphicsSettings.showFPS ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: #3498db;">
+                        <span>${this.t('settings_fps')}</span>
+                    </label>
+
                     <div style="display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.05); margin-bottom: 12px;">
                         <span style="font-size: 16px;">${this.t('settings_graphics')}</span>
                         <div id="gfx-toggle" style="margin-left: auto; display: flex; gap: 6px;">
@@ -875,6 +885,16 @@ export class UIManager {
         overlay.querySelector('#set-tut')?.addEventListener('change', (e: any) => {
             this.showTutorialFlag = !!e.target.checked;
             this.saveTutorialPreference(this.showTutorialFlag);
+        });
+
+        overlay.querySelector('#set-fps')?.addEventListener('change', (e: any) => {
+            const checked = !!e.target.checked;
+            graphicsSettings.setShowFPS(checked);
+            if (checked && !document.body.contains(this.fpsCounter)) {
+                document.body.appendChild(this.fpsCounter);
+            } else if (!checked && document.body.contains(this.fpsCounter)) {
+                this.fpsCounter.remove();
+            }
         });
 
         overlay.querySelector('#gfx-high')?.addEventListener('click', () => { graphicsSettings.setQuality('high'); document.body.removeChild(overlay); this.showSettings(); });
@@ -1077,6 +1097,19 @@ export class UIManager {
         if (sky) sky.style.transform = `rotate(${progress * 360}deg)`;
     }
 
+    public updateFPS(fps: number) {
+        if (graphicsSettings.showFPS && this.fpsCounter) {
+            this.fpsCounter.innerText = `FPS: ${fps}`;
+            if (fps < 30) {
+                this.fpsCounter.style.color = '#FF4444'; // Red
+            } else if (fps < 50) {
+                this.fpsCounter.style.color = '#FFCC00'; // Yellow
+            } else {
+                this.fpsCounter.style.color = '#00FF00'; // Green
+            }
+        }
+    }
+
     public updateScore(score: number) {
         const el = document.getElementById('hud-score');
         if (el) el.innerText = `${score}`;
@@ -1169,6 +1202,22 @@ export class UIManager {
     private initTimeHUD() {
         // Time indicator - REMOVED (hidden on all devices)
         this.hudTime.style.display = 'none';
+
+        // FPS Counter style
+        Object.assign(this.fpsCounter.style, {
+            position: 'absolute',
+            top: '40px',
+            right: '10px',
+            fontSize: '12px',
+            color: '#00FF00',
+            fontFamily: 'monospace',
+            background: 'rgba(0,0,0,0.5)',
+            padding: '4px 8px',
+            borderRadius: '4px',
+            zIndex: `${Z_INDEX.HUD_PANELS}`,
+            pointerEvents: 'none'
+        });
+        this.fpsCounter.innerText = 'FPS: 60';
     }
 
     private initCoreHUD() {

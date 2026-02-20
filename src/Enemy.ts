@@ -38,6 +38,7 @@ export class Enemy extends Container {
     private healAmount: number = 0;
     private healTimer: number = 0;
     private shieldRange: number = 0;
+    private shieldTimer: number = 0;
     public isShielded: boolean = false;
     public splitCount: number = 0;
     public speedMultiplier: number = 1.0;
@@ -62,6 +63,7 @@ export class Enemy extends Container {
         this.checkCollision = checkCollision;
         this.type = type;
         this.pathfinder = pathfinder;
+        this.pathRecalcTimer = Math.random() * this.pathRecalcInterval;
 
         this.body = new Graphics();
 
@@ -169,11 +171,12 @@ export class Enemy extends Container {
             this.healTimer++;
             if (this.healTimer >= 60) { // Heal every second
                 this.healTimer = 0;
+                const rangeSq = this.healRange * this.healRange;
                 for (const other of enemies) {
                     if (other === this || other.isDead) continue;
                     const dx = other.x - this.x;
                     const dy = other.y - this.y;
-                    if (Math.sqrt(dx * dx + dy * dy) <= this.healRange) {
+                    if (dx * dx + dy * dy <= rangeSq) {
                         other.heal(this.healAmount);
                     }
                 }
@@ -182,16 +185,21 @@ export class Enemy extends Container {
 
         // Shield bearer aura
         if (this.type === 'shieldbearer' && this.shieldRange > 0) {
-            for (const other of enemies) {
-                if (other === this || other.isDead) continue;
-                const dx = other.x - this.x;
-                const dy = other.y - this.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                // Shield enemies in front of the shieldbearer (towards core)
-                if (dist <= this.shieldRange) {
-                    other.setShielded(true);
-                } else if (other.isShielded) {
-                    other.setShielded(false);
+            this.shieldTimer++;
+            if (this.shieldTimer >= 30) {
+                this.shieldTimer = 0;
+                const rangeSq = this.shieldRange * this.shieldRange;
+                for (const other of enemies) {
+                    if (other === this || other.isDead) continue;
+                    const dx = other.x - this.x;
+                    const dy = other.y - this.y;
+                    const distSq = dx * dx + dy * dy;
+                    // Shield enemies in front of the shieldbearer (towards core)
+                    if (distSq <= rangeSq) {
+                        other.setShielded(true);
+                    } else if (other.isShielded) {
+                        other.setShielded(false);
+                    }
                 }
             }
         }
@@ -219,12 +227,14 @@ export class Enemy extends Container {
 
         const dx = targetX - this.x;
         const dy = targetY - this.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const distSq = dx * dx + dy * dy;
 
         // ATTACK LOGIC
         let isAttacking = false;
 
-        if (dist < this.attackRange) {
+        const attackRangeSq = this.attackRange * this.attackRange;
+
+        if (distSq < attackRangeSq) {
             // Shooter logic
             if (this.type === 'shooter') {
                 this.vx = 0;
@@ -240,6 +250,7 @@ export class Enemy extends Container {
             }
 
             // Melee/Boss Logic - Check line-of-sight before attacking!
+            const dist = Math.sqrt(distSq); // Calculate dist only when needed for dir calculation
             const dirX = dx / dist;
             const dirY = dy / dist;
             const checkDist = Math.min(dist, 20);
@@ -282,6 +293,7 @@ export class Enemy extends Container {
         }
 
         if (!isAttacking) {
+            const dist = Math.sqrt(distSq);
             this.moveToTarget(ticker, targetX, targetY, dist);
         }
     }

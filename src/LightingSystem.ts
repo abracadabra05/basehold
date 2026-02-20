@@ -2,16 +2,19 @@ import { Container, Graphics, AlphaFilter } from 'pixi.js';
 
 export class LightingSystem {
     public darknessOverlay: Container;
-    
+
     // Параметры цикла
     private time: number = 0.0; // 0.0 - это начало дня (светло)
     private dayDuration: number = 120000; // 2 минуты (было 60000)
-    
-    private nightColor: number = 0x050510; 
-    public currentAlpha: number = 0; 
+
+    private nightColor: number = 0x050510;
+    public currentAlpha: number = 0;
 
     // Список источников света
-    private lights: {x: number, y: number, radius: number, angle: number, cone: number}[] = [];
+    private lights: { x: number, y: number, radius: number, angle: number, cone: number }[] = [];
+
+    private bgGraphics: Graphics;
+    private lightsGraphics: Graphics;
 
     public get cycleProgress(): number { return this.time; }
 
@@ -19,6 +22,13 @@ export class LightingSystem {
         this.darknessOverlay = new Container();
         this.darknessOverlay.eventMode = 'none';
         this.darknessOverlay.filters = [new AlphaFilter()];
+
+        this.bgGraphics = new Graphics();
+        this.darknessOverlay.addChild(this.bgGraphics);
+
+        this.lightsGraphics = new Graphics();
+        this.lightsGraphics.blendMode = 'erase';
+        this.darknessOverlay.addChild(this.lightsGraphics);
     }
 
     public update(deltaMS: number, width: number, height: number) {
@@ -40,45 +50,35 @@ export class LightingSystem {
         }
         this.darknessOverlay.visible = true;
 
-        this.darknessOverlay.removeChildren();
+        // Очищаем буферы вместо их создания
+        this.bgGraphics.clear();
+        this.lightsGraphics.clear();
 
-        // Тьма
-        const bg = new Graphics();
-        bg.rect(0, 0, width, height);
-        bg.fill({ color: this.nightColor, alpha: this.currentAlpha });
-        this.darknessOverlay.addChild(bg);
+        // Рисуем тьму
+        this.bgGraphics.rect(0, 0, width, height);
+        this.bgGraphics.fill({ color: this.nightColor, alpha: this.currentAlpha });
 
-        // Свет
-        const lightsGraphics = new Graphics();
-        
+        // Рисуем свет
         for (const light of this.lights) {
-            // Если полный круг (cone >= 2PI)
             if (light.cone >= Math.PI * 2 - 0.1) {
-                lightsGraphics.circle(light.x, light.y, light.radius).fill({ color: 0xFFFFFF, alpha: 1 });
+                this.lightsGraphics.circle(light.x, light.y, light.radius).fill({ color: 0xFFFFFF, alpha: 1 });
             } else {
-                // Конус (Фонарик)
-                // arc(cx, cy, radius, startAngle, endAngle)
-                // Pixi arc рисует линию? Нет, можно залить сектор.
-                // Нам нужно moveTo(center), arc(...), lineTo(center)
                 const startAngle = light.angle - light.cone / 2;
                 const endAngle = light.angle + light.cone / 2;
-                
-                lightsGraphics.moveTo(light.x, light.y);
-                lightsGraphics.arc(light.x, light.y, light.radius, startAngle, endAngle);
-                lightsGraphics.lineTo(light.x, light.y);
-                lightsGraphics.fill({ color: 0xFFFFFF, alpha: 1 });
+
+                this.lightsGraphics.moveTo(light.x, light.y);
+                this.lightsGraphics.arc(light.x, light.y, light.radius, startAngle, endAngle);
+                this.lightsGraphics.lineTo(light.x, light.y);
+                this.lightsGraphics.fill({ color: 0xFFFFFF, alpha: 1 });
             }
         }
-        
-        lightsGraphics.blendMode = 'erase';
-        this.darknessOverlay.addChild(lightsGraphics);
     }
-    
+
     // cone: ширина конуса в радианах (Math.PI/3 = 60 град). Если не задан - круг.
     public renderLight(screenX: number, screenY: number, radius: number, angle: number = 0, cone: number = 10) {
         this.lights.push({ x: screenX, y: screenY, radius: radius, angle: angle, cone: cone });
     }
-    
+
     public clearLights() {
         this.lights = [];
     }
@@ -88,7 +88,7 @@ export class LightingSystem {
         const minute = Math.floor((this.time * 24 % 1) * 60);
         return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
     }
-    
+
     public isNight(): boolean {
         return this.currentAlpha > 0.5;
     }

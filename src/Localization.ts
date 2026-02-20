@@ -73,6 +73,7 @@ export const Translations: Record<Language, any> = {
         settings_exit: 'Выйти в меню', // Добавлено
         settings_language: 'Язык',
         settings_graphics: 'Графика',
+        settings_fps: 'Показывать FPS',
         settings_gfx_high: 'Высокая',
         settings_gfx_low: 'Низкая',
         locked: 'ЗАКРЫТО', // Заблокированная технология
@@ -300,6 +301,7 @@ export const Translations: Record<Language, any> = {
         settings_exit: 'Exit to Menu',
         settings_language: 'Language',
         settings_graphics: 'Graphics',
+        settings_fps: 'Show FPS',
         settings_gfx_high: 'High',
         settings_gfx_low: 'Low',
         locked: 'LOCKED', // Locked technology
