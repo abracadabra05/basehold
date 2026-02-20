@@ -557,33 +557,33 @@ export class UIManager {
 
         div.innerHTML = `
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%; z-index: 10;">
-                <h1 style="font-size: ${titleSize}; color: #3498db; margin: 0; text-transform: uppercase; letter-spacing: 5px; font-weight: 900; text-shadow: 0 4px 10px rgba(0,0,0,0.5);">${this.t('game_title')}</h1>
-                <p style="color: #aaa; margin-bottom: ${gap}; font-size: ${subSize}; letter-spacing: 2px;">${this.t('subtitle')}</p>
+                <h1 class="text-glow" style="font-size: ${titleSize}; color: #3498db; margin: 0; text-transform: uppercase; letter-spacing: 5px; font-weight: 900;">${this.t('game_title')}</h1>
+                <p style="color: #ccc; margin-bottom: ${gap}; font-size: ${subSize}; letter-spacing: 2px; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">${this.t('subtitle')}</p>
                 
-                <button id="start-btn" style="padding: ${btnPadding}; font-size: ${btnFontSize}; cursor: pointer; background: rgba(52, 152, 219, 0.15); color: #3498db; border: 2px solid #3498db; borderRadius: 4px; text-transform: uppercase; letter-spacing: 3px; font-weight: bold; transition: all 0.2s; backdrop-filter: blur(4px);">
+                <button id="start-btn" class="premium-btn" style="padding: ${btnPadding}; font-size: ${btnFontSize}; cursor: pointer; background: rgba(52, 152, 219, 0.2); color: #3498db; border: 2px solid #3498db; border-radius: 8px; text-transform: uppercase; letter-spacing: 3px; font-weight: bold; transition: all 0.2s; backdrop-filter: blur(10px); box-shadow: 0 0 15px rgba(52, 152, 219, 0.3);">
                     ${this.t('start')}
                 </button>
             </div>
 
             <!-- ЛИДЕРБОРД (Виджет для ПК) -->
             ${!this.isMobile ? `
-            <div id="main-leaderboard" style="position: absolute; top: 50%; right: 20px; transform: translateY(-50%); width: 220px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(5px); z-index: 50; pointer-events: auto;">
-                <h4 style="margin: 0 0 10px 0; color: #f1c40f; text-align: center; text-transform: uppercase; font-size: 14px;">🏆 ${this.t('leaderboard')}</h4>
+            <div class="glass-panel" id="main-leaderboard" style="position: absolute; top: 50%; right: 20px; transform: translateY(-50%); width: 220px; padding: 15px; border-radius: 12px; z-index: 50; pointer-events: auto;">
+                <h4 class="text-glow" style="margin: 0 0 10px 0; color: #f1c40f; text-align: center; text-transform: uppercase; font-size: 14px;">🏆 ${this.t('leaderboard')}</h4>
                 <div id="lb-list" style="font-size: 12px; min-height: 80px;">Loading...</div>
             </div>` : ''}
 
             <!-- VERSION NUMBER -->
-            <div style="position: absolute; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); left: 20px; font-size: 12px; color: #666; z-index: 20;">v${VERSION}</div>
+            <div style="position: absolute; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); left: 20px; font-size: 12px; color: #888; z-index: 20; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">v${VERSION}</div>
 
             <!-- КНОПКИ (Настройки, Фуллскрин) - Адаптивные иконки -->
-            <div style="position: absolute; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); right: 20px; display: flex; gap: ${this.isMobile ? '3vmin' : '15px'}; z-index: 20; align-items: center;">
-                <button id="achievements-btn" style="background: none; border: none; font-size: ${this.isMobile ? '7vmin' : '28px'}; cursor: pointer; opacity: 0.7; color: white; padding: 0; line-height: 1;">🏅</button>
-                <button id="store-btn" style="background: none; border: none; font-size: ${this.isMobile ? '7vmin' : '28px'}; cursor: pointer; opacity: 0.7; color: white; padding: 0; line-height: 1;">🛒</button>
-                <button id="changelog-btn" style="background: none; border: none; font-size: ${this.isMobile ? '7vmin' : '28px'}; cursor: pointer; opacity: 0.7; color: white; position: relative; padding: 0; line-height: 1;">
-                    📋${this.hasUnreadChangelog ? `<span style="position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: ${this.isMobile ? '2.5vmin' : '10px'}; padding: 2px 5px; border-radius: 10px; font-weight: bold;">${this.t('changelog_new')}</span>` : ''}
+            <div style="position: absolute; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); right: 20px; display: flex; gap: ${this.isMobile ? '3vmin' : '15px'}; z-index: 20; align-items: center; flex-wrap: wrap; justify-content: flex-end; max-width: min(58vw, 360px);">
+                <button id="achievements-btn" style="background: none; border: none; font-size: ${this.isMobile ? '7vmin' : '28px'}; cursor: pointer; opacity: 0.8; color: white; padding: 0; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));">🏅</button>
+                <button id="store-btn" style="background: none; border: none; font-size: ${this.isMobile ? '7vmin' : '28px'}; cursor: pointer; opacity: 0.8; color: white; padding: 0; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));">🛒</button>
+                <button id="changelog-btn" style="background: none; border: none; font-size: ${this.isMobile ? '7vmin' : '28px'}; cursor: pointer; opacity: 0.8; color: white; position: relative; padding: 0; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));">
+                    📋${this.hasUnreadChangelog ? `<span style="position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: ${this.isMobile ? '2.5vmin' : '10px'}; padding: 2px 5px; border-radius: 10px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.5);">NEW</span>` : ''}
                 </button>
-                ${this.isMobile ? `<button id="mob-lb-btn" style="background: none; border: none; font-size: 7vmin; cursor: pointer; padding: 0; line-height: 1;">🏆</button>` : ''}
-                <button id="settings-btn" style="background: none; border: none; font-size: ${this.isMobile ? '7vmin' : '28px'}; cursor: pointer; opacity: 0.7; color: white; padding: 0; line-height: 1;">⚙️</button>
+                ${this.isMobile ? `<button id="mob-lb-btn" style="background: none; border: none; font-size: 7vmin; cursor: pointer; padding: 0; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));">🏆</button>` : ''}
+                <button id="settings-btn" style="background: none; border: none; font-size: ${this.isMobile ? '7vmin' : '28px'}; cursor: pointer; opacity: 0.8; color: white; padding: 0; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));">⚙️</button>
             </div>
         `;
 
@@ -909,11 +909,11 @@ export class UIManager {
         const overlay = document.createElement('div');
         Object.assign(overlay.style, {
             position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-            background: 'radial-gradient(circle at top, rgba(52,152,219,0.25), rgba(0,0,0,0.92))',
+            background: 'radial-gradient(circle at top, rgba(52,152,219,0.25), rgba(0,0,0,0.85))',
             zIndex: 10010,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: 'white', fontFamily: "'Segoe UI', sans-serif",
-            backdropFilter: 'blur(8px)'
+            backdropFilter: 'blur(12px)'
         });
 
         const catalog = this.getStoreCatalog ? await this.getStoreCatalog() : [];
@@ -925,31 +925,33 @@ export class UIManager {
             const canReward = item.type === 'currency';
             const adSteps = item.rewardedAdsRequired || 1;
             return `
-                <div style="background: rgba(20, 24, 28, 0.85); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 14px; width: 220px; box-shadow: 0 8px 25px rgba(0,0,0,0.35);">
-                    <div style="font-size: 42px; margin-bottom: 8px; text-align: center;">${item.icon}</div>
-                    <div style="font-weight: bold; text-align: center; margin-bottom: 6px;">${this.t(item.titleKey)}</div>
+                <div class="store-card" style="border-radius: 12px; padding: 16px; width: 220px; display: flex; flex-direction: column;">
+                    <div style="font-size: 48px; margin-bottom: 12px; text-align: center; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));">${item.icon}</div>
+                    <div style="font-weight: bold; text-align: center; margin-bottom: 6px; font-size: 16px;">${this.t(item.titleKey)}</div>
                     <div style="font-size: 12px; color: #b2bec3; text-align: center; min-height: 34px;">${this.t(item.descKey)}</div>
-                    <div style="display: flex; gap: 6px; margin-top: 10px;">
-                        <button data-buy="${item.id}" style="flex: 1; padding: 8px; border: none; border-radius: 6px; background: #27ae60; color: white; font-weight: bold; cursor: pointer;">${this.t('store_buy')} ${price}</button>
-                        ${canReward ? `<button data-reward="${item.id}" style="flex: 1; padding: 8px; border: none; border-radius: 6px; background: #e67e22; color: white; font-weight: bold; cursor: pointer;">${this.t('store_reward')} x${adSteps}</button>` : ''}
+                    <div style="display: flex; gap: 8px; margin-top: auto; padding-top: 12px;">
+                        <button data-buy="${item.id}" class="premium-btn" ${authorized ? '' : 'disabled'} style="flex: 1; padding: 10px; border: none; border-radius: 8px; background: ${authorized ? '#27ae60' : '#555'}; color: white; font-weight: bold; cursor: ${authorized ? 'pointer' : 'not-allowed'}; opacity: ${authorized ? '1' : '0.7'}; box-shadow: 0 4px 10px rgba(39, 174, 96, 0.4);">${this.t('store_buy')} ${price}</button>
+                        ${canReward ? `<button data-reward="${item.id}" class="premium-btn" style="flex: 1; padding: 10px; border: none; border-radius: 8px; background: #e67e22; color: white; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(230, 126, 34, 0.4);">${this.t('store_reward')} x${adSteps}</button>` : ''}
                     </div>
                 </div>
             `;
         }).join('');
 
         overlay.innerHTML = `
-            <div style="width: min(980px, 92vw); max-height: 90vh; overflow-y: auto; background: rgba(10,10,12,0.92); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 18px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
-                    <div style="font-size: 22px; font-weight: bold; letter-spacing: 1px;">🛒 ${this.t('store_title')}</div>
-                    <button id="store-close" style="border: none; border-radius: 8px; background: #2d3436; color: white; padding: 8px 12px; cursor: pointer;">${this.t('btn_ok')}</button>
+            <div class="glass-panel" style="width: min(980px, 92vw); max-height: 90vh; overflow-y: auto; border-radius: 20px; padding: 24px; box-sizing: border-box;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                    <div class="text-glow" style="font-size: 26px; font-weight: 800; letter-spacing: 1.5px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 28px;">🛒</span> ${this.t('store_title')}
+                    </div>
+                    <button id="store-close" class="premium-btn" style="border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(255,255,255,0.1); color: white; padding: 8px 16px; cursor: pointer; font-weight: bold;">${this.t('btn_ok')}</button>
                 </div>
                 ${authorized ? '' : `
-                    <div style="margin-bottom: 12px; padding: 10px; border-radius: 8px; background: rgba(241,196,15,0.12); border: 1px solid rgba(241,196,15,0.45); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-                        <div style="font-size: 12px; color: #f1c40f;">${this.t('store_auth_desc')}</div>
-                        <button id="store-auth" style="border: none; border-radius: 6px; padding: 8px 10px; background: #3498db; color: white; cursor: pointer; font-weight: bold;">${this.t('store_auth')}</button>
+                    <div style="margin-bottom: 16px; padding: 12px 16px; border-radius: 10px; background: rgba(241,196,15,0.12); border: 1px solid rgba(241,196,15,0.45); display: flex; align-items: center; justify-content: space-between; gap: 10px; box-shadow: inset 0 0 10px rgba(241,196,15,0.1);">
+                        <div style="font-size: 13px; color: #f1c40f;">${this.t('store_auth_desc')}</div>
+                        <button id="store-auth" class="premium-btn" style="border: none; border-radius: 8px; padding: 8px 14px; background: #3498db; color: white; cursor: pointer; font-weight: bold; white-space: nowrap; box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);">${this.t('store_auth')}</button>
                     </div>
                 `}
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; align-items: stretch; margin-top: 10px;">
                     ${cards}
                 </div>
             </div>
@@ -1182,10 +1184,11 @@ export class UIManager {
             alignItems: 'center',
             gap: this.isMobile ? '5px' : '8px',
             padding: this.isMobile ? '5px 8px' : '6px 12px',
-            background: 'rgba(0,0,0,0.6)',
+            background: 'rgba(15, 20, 25, 0.65)',
+            backdropFilter: 'blur(8px)',
             borderRadius: '16px',
-            border: 'none',
-            boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
             zIndex: `${Z_INDEX.HUD_PANELS}`
         });
 
@@ -1210,9 +1213,11 @@ export class UIManager {
             boxSizing: 'border-box',
             padding: '8px',
             zIndex: `${Z_INDEX.HUD_PANELS}`,
-            background: 'rgba(0,0,0,0.6)',
-            border: `1px solid ${COLORS.PANEL_BORDER}`,
-            borderRadius: '6px',
+            background: 'rgba(15, 20, 25, 0.65)',
+            backdropFilter: 'blur(8px)',
+            border: `1px solid rgba(255,255,255,0.08)`,
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
             color: 'white',
             fontFamily: "'Segoe UI', sans-serif",
             pointerEvents: 'none'
@@ -1243,9 +1248,12 @@ export class UIManager {
             transform: 'translateX(-50%)',
             display: 'flex',
             gap: this.isMobile ? '4px' : '6px',
-            padding: this.isMobile ? '6px' : '10px',
-            background: 'transparent',
-            border: 'none',
+            padding: this.isMobile ? '6px' : '8px',
+            background: 'rgba(10, 15, 20, 0.4)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.05)',
+            borderRadius: '16px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
             pointerEvents: 'auto',
             zIndex: `${Z_INDEX.TOOLBAR}`,
             maxWidth: '95vw',

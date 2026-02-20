@@ -213,3 +213,54 @@ button:hover {
     filter: saturate(1.12);
   }
 }
+
+/* ========================================
+   PREMIUM UI & GLASSMORPHISM
+   ======================================== */
+.glass-panel {
+  background: linear-gradient(135deg, rgba(20, 25, 30, 0.85), rgba(10, 12, 15, 0.95));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.store-card {
+  background: linear-gradient(145deg, rgba(30, 35, 42, 0.9), rgba(15, 18, 22, 0.95));
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.store-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4), 0 0 15px rgba(52, 152, 219, 0.2);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.premium-btn {
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.premium-btn::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 60%);
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.premium-btn:hover::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.text-glow {
+  text-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+}
