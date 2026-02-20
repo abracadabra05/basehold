@@ -27,7 +27,7 @@ export const STORE_ITEMS: StoreItem[] = [
     icon: '🧬',
     type: 'currency',
     payload: { biomass: 300 },
-    rewardPayload: { biomass: 120 },
+    rewardPayload: { biomass: 300 },
     rewardedAdsRequired: 2,
   },
   {
@@ -37,7 +37,7 @@ export const STORE_ITEMS: StoreItem[] = [
     icon: '🧪',
     type: 'currency',
     payload: { biomass: 1300 },
-    rewardPayload: { biomass: 320 },
+    rewardPayload: { biomass: 1300 },
     rewardedAdsRequired: 3,
   },
   {
@@ -47,7 +47,7 @@ export const STORE_ITEMS: StoreItem[] = [
     icon: '🔩',
     type: 'currency',
     payload: { metal: 450 },
-    rewardPayload: { metal: 160 },
+    rewardPayload: { metal: 450 },
     rewardedAdsRequired: 2,
   },
   {

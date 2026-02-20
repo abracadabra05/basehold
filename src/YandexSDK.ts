@@ -274,6 +274,10 @@ export class YandexSDK {
     }
 
     public async purchaseProduct(productId: string): Promise<{ success: boolean; purchaseToken?: string }> {
+        if (!this.isAuthorized()) {
+            console.warn('Purchase blocked: user is not authorized');
+            return { success: false };
+        }
         if (!this.isYandexEnvironment) {
             console.log(`[DEV] Mock purchase success: ${productId}`);
             return { success: true, purchaseToken: `mock-${productId}` };

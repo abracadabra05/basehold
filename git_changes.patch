@@ -1,0 +1,162 @@
+diff --git a/src/Game.ts b/src/Game.ts
+index f1267c6..d06ba5e 100644
+--- a/src/Game.ts
++++ b/src/Game.ts
+@@ -846,6 +846,9 @@ export class Game {
+     }
+ 
+     private async purchaseStoreItem(productId: string): Promise<boolean> {
++        if (!yaSdk.isAuthorized()) {
++            return false;
++        }
+         const purchase = await yaSdk.purchaseProduct(productId);
+         if (!purchase.success) return false;
+ 
+diff --git a/src/Localization.ts b/src/Localization.ts
+index be6e3c7..424feb0 100644
+--- a/src/Localization.ts
++++ b/src/Localization.ts
+@@ -213,15 +213,15 @@ export const Translations: Record<Language, any> = {
+         store_auth: 'Войти',
+         store_auth_desc: 'Войдите, чтобы покупки сохранялись в аккаунте.',
+         store_pack_biomass_s: 'Пак биомассы S',
+-        store_pack_biomass_s_desc: '+500 биомассы',
++        store_pack_biomass_s_desc: '+300 биомассы',
+         store_pack_biomass_l: 'Пак биомассы L',
+-        store_pack_biomass_l_desc: '+2200 биомассы',
++        store_pack_biomass_l_desc: '+1300 биомассы',
+         store_pack_metal_s: 'Пак металла S',
+-        store_pack_metal_s_desc: '+800 металла',
++        store_pack_metal_s_desc: '+450 металла',
+         store_booster_double_rewards: 'x2 награды',
+-        store_booster_double_rewards_desc: 'Удваивает награды на 10 минут',
++        store_booster_double_rewards_desc: 'Удваивает награды на 7 минут',
+         store_booster_overdrive: 'Боевой овердрайв',
+-        store_booster_overdrive_desc: 'Урон и темп стрельбы на 10 минут',
++        store_booster_overdrive_desc: 'Урон и темп стрельбы на 7 минут',
+         store_purchase_ok: 'Покупка применена!',
+         store_purchase_fail: 'Покупка не выполнена',
+         store_pending_applied: 'Восстановлены необработанные покупки',
+@@ -440,15 +440,15 @@ export const Translations: Record<Language, any> = {
+         store_auth: 'Sign In',
+         store_auth_desc: 'Sign in to keep purchases linked to your account.',
+         store_pack_biomass_s: 'Biomass Pack S',
+-        store_pack_biomass_s_desc: '+500 biomass',
++        store_pack_biomass_s_desc: '+300 biomass',
+         store_pack_biomass_l: 'Biomass Pack L',
+-        store_pack_biomass_l_desc: '+2200 biomass',
++        store_pack_biomass_l_desc: '+1300 biomass',
+         store_pack_metal_s: 'Metal Pack S',
+-        store_pack_metal_s_desc: '+800 metal',
++        store_pack_metal_s_desc: '+450 metal',
+         store_booster_double_rewards: 'x2 Rewards',
+-        store_booster_double_rewards_desc: 'Double rewards for 10 minutes',
++        store_booster_double_rewards_desc: 'Double rewards for 7 minutes',
+         store_booster_overdrive: 'Combat Overdrive',
+-        store_booster_overdrive_desc: 'Damage and fire tempo for 10 minutes',
++        store_booster_overdrive_desc: 'Damage and fire tempo for 7 minutes',
+         store_purchase_ok: 'Purchase applied!',
+         store_purchase_fail: 'Purchase failed',
+         store_pending_applied: 'Recovered unconsumed purchases',
+diff --git a/src/UIManager.ts b/src/UIManager.ts
+index 30331ac..1cae795 100644
+--- a/src/UIManager.ts
++++ b/src/UIManager.ts
+@@ -576,7 +576,7 @@ export class UIManager {
+             <div style="position: absolute; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); left: 20px; font-size: 12px; color: #666; z-index: 20;">v${VERSION}</div>
+ 
+             <!-- КНОПКИ (Настройки, Фуллскрин) - Адаптивные иконки -->
+-            <div style="position: absolute; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); right: 20px; display: flex; gap: ${this.isMobile ? '3vmin' : '15px'}; z-index: 20; align-items: center;">
++            <div style="position: absolute; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); right: 20px; display: flex; gap: ${this.isMobile ? '3vmin' : '15px'}; z-index: 20; align-items: center; flex-wrap: wrap; justify-content: flex-end; max-width: min(58vw, 360px);">
+                 <button id="achievements-btn" style="background: none; border: none; font-size: ${this.isMobile ? '7vmin' : '28px'}; cursor: pointer; opacity: 0.7; color: white; padding: 0; line-height: 1;">🏅</button>
+                 <button id="store-btn" style="background: none; border: none; font-size: ${this.isMobile ? '7vmin' : '28px'}; cursor: pointer; opacity: 0.7; color: white; padding: 0; line-height: 1;">🛒</button>
+                 <button id="changelog-btn" style="background: none; border: none; font-size: ${this.isMobile ? '7vmin' : '28px'}; cursor: pointer; opacity: 0.7; color: white; position: relative; padding: 0; line-height: 1;">
+@@ -930,7 +930,7 @@ export class UIManager {
+                     <div style="font-weight: bold; text-align: center; margin-bottom: 6px;">${this.t(item.titleKey)}</div>
+                     <div style="font-size: 12px; color: #b2bec3; text-align: center; min-height: 34px;">${this.t(item.descKey)}</div>
+                     <div style="display: flex; gap: 6px; margin-top: 10px;">
+-                        <button data-buy="${item.id}" style="flex: 1; padding: 8px; border: none; border-radius: 6px; background: #27ae60; color: white; font-weight: bold; cursor: pointer;">${this.t('store_buy')} ${price}</button>
++                        <button data-buy="${item.id}" ${authorized ? '' : 'disabled'} style="flex: 1; padding: 8px; border: none; border-radius: 6px; background: ${authorized ? '#27ae60' : '#555'}; color: white; font-weight: bold; cursor: ${authorized ? 'pointer' : 'not-allowed'}; opacity: ${authorized ? '1' : '0.7'};">${this.t('store_buy')} ${price}</button>
+                         ${canReward ? `<button data-reward="${item.id}" style="flex: 1; padding: 8px; border: none; border-radius: 6px; background: #e67e22; color: white; font-weight: bold; cursor: pointer;">${this.t('store_reward')} x${adSteps}</button>` : ''}
+                     </div>
+                 </div>
+@@ -938,7 +938,7 @@ export class UIManager {
+         }).join('');
+ 
+         overlay.innerHTML = `
+-            <div style="width: min(980px, 92vw); max-height: 90vh; overflow-y: auto; background: rgba(10,10,12,0.92); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 18px;">
++            <div style="width: min(980px, 92vw); max-height: 90vh; overflow-y: auto; background: rgba(10,10,12,0.92); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 18px; box-sizing: border-box;">
+                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+                     <div style="font-size: 22px; font-weight: bold; letter-spacing: 1px;">🛒 ${this.t('store_title')}</div>
+                     <button id="store-close" style="border: none; border-radius: 8px; background: #2d3436; color: white; padding: 8px 12px; cursor: pointer;">${this.t('btn_ok')}</button>
+@@ -949,7 +949,7 @@ export class UIManager {
+                         <button id="store-auth" style="border: none; border-radius: 6px; padding: 8px 10px; background: #3498db; color: white; cursor: pointer; font-weight: bold;">${this.t('store_auth')}</button>
+                     </div>
+                 `}
+-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
++                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; align-items: stretch;">
+                     ${cards}
+                 </div>
+             </div>
+diff --git a/src/UpgradeManager.ts b/src/UpgradeManager.ts
+index 3b53a3b..0eb81c0 100644
+--- a/src/UpgradeManager.ts
++++ b/src/UpgradeManager.ts
+@@ -414,6 +414,11 @@ export class UpgradeManager {
+         };
+ 
+         iapBtn.onclick = async () => {
++            if (!yaSdk.isAuthorized()) {
++                iapBtn.style.background = '#c0392b';
++                setTimeout(() => { iapBtn.style.background = '#8e44ad'; }, 350);
++                return;
++            }
+             if (this.onPauseRequest) this.onPauseRequest();
+             try {
+                 const productId = `tech${type}`;
+diff --git a/src/YandexSDK.ts b/src/YandexSDK.ts
+index 6bae9a5..6233cca 100644
+--- a/src/YandexSDK.ts
++++ b/src/YandexSDK.ts
+@@ -274,6 +274,10 @@ export class YandexSDK {
+     }
+ 
+     public async purchaseProduct(productId: string): Promise<{ success: boolean; purchaseToken?: string }> {
++        if (!this.isAuthorized()) {
++            console.warn('Purchase blocked: user is not authorized');
++            return { success: false };
++        }
+         if (!this.isYandexEnvironment) {
+             console.log(`[DEV] Mock purchase success: ${productId}`);
+             return { success: true, purchaseToken: `mock-${productId}` };
+diff --git a/src/store/StoreCatalog.ts b/src/store/StoreCatalog.ts
+index 04eb2b0..ac2d273 100644
+--- a/src/store/StoreCatalog.ts
++++ b/src/store/StoreCatalog.ts
+@@ -27,7 +27,7 @@ export const STORE_ITEMS: StoreItem[] = [
+     icon: '🧬',
+     type: 'currency',
+     payload: { biomass: 300 },
+-    rewardPayload: { biomass: 120 },
++    rewardPayload: { biomass: 300 },
+     rewardedAdsRequired: 2,
+   },
+   {
+@@ -37,7 +37,7 @@ export const STORE_ITEMS: StoreItem[] = [
+     icon: '🧪',
+     type: 'currency',
+     payload: { biomass: 1300 },
+-    rewardPayload: { biomass: 320 },
++    rewardPayload: { biomass: 1300 },
+     rewardedAdsRequired: 3,
+   },
+   {
+@@ -47,7 +47,7 @@ export const STORE_ITEMS: StoreItem[] = [
+     icon: '🔩',
+     type: 'currency',
+     payload: { metal: 450 },
+-    rewardPayload: { metal: 160 },
++    rewardPayload: { metal: 450 },
+     rewardedAdsRequired: 2,
+   },
+   {

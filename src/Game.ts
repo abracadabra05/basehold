@@ -846,6 +846,9 @@ export class Game {
     }
 
     private async purchaseStoreItem(productId: string): Promise<boolean> {
+        if (!yaSdk.isAuthorized()) {
+            return false;
+        }
         const purchase = await yaSdk.purchaseProduct(productId);
         if (!purchase.success) return false;
 

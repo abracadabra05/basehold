@@ -414,6 +414,11 @@ export class UpgradeManager {
         };
 
         iapBtn.onclick = async () => {
+            if (!yaSdk.isAuthorized()) {
+                iapBtn.style.background = '#c0392b';
+                setTimeout(() => { iapBtn.style.background = '#8e44ad'; }, 350);
+                return;
+            }
             if (this.onPauseRequest) this.onPauseRequest();
             try {
                 const productId = `tech${type}`;
