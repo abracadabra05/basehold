@@ -57,9 +57,11 @@ export class SoundManager {
         let interval = this.minInterval;
         
         // Индивидуальные интервалы для категорий
-        if (category === 'hit') interval = 0.1; // Удары не чаще 100мс
-        if (category === 'shoot') interval = 0.05; // Выстрелы не чаще 50мс
-        if (category === 'explosion') interval = 0.2; // Взрывы не чаще 200мс
+        if (category === 'hit') interval = 0.1;
+        if (category === 'playerShoot') interval = 0.04;
+        if (category === 'turretShoot') interval = 0.04;
+        if (category === 'shoot') interval = 0.05;
+        if (category === 'explosion') interval = 0.2;
 
         if (now - lastTime < interval) return;
         this.lastSoundTime.set(category, now);
@@ -89,11 +91,11 @@ export class SoundManager {
     }
 
     public playShoot() { 
-        this.playTone(600, "triangle", 0.1, 0.25, 100, 'shoot'); // Было square
+        this.playTone(600, "triangle", 0.1, 0.25, 100, 'playerShoot');
     }
     
     public playTurretShoot() { 
-        this.playTone(400, "triangle", 0.1, 0.15, 50, 'shoot'); // Было square
+        this.playTone(400, "triangle", 0.1, 0.15, 50, 'turretShoot');
     }
     
     public playHit() {

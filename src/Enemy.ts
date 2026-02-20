@@ -316,6 +316,17 @@ export class Enemy extends Container {
 
         // --- Follow path waypoints ---
         if (this.currentPath.length > 0 && this.currentWaypointIndex < this.currentPath.length) {
+
+            // String Pulling: skip waypoints if we can see further down the path
+            while (this.currentWaypointIndex < this.currentPath.length - 1) {
+                const nextWp = this.currentPath[this.currentWaypointIndex + 1];
+                if (this.hasLineOfSight(this.x, this.y, nextWp.x, nextWp.y)) {
+                    this.currentWaypointIndex++;
+                } else {
+                    break;
+                }
+            }
+
             const wp = this.currentPath[this.currentWaypointIndex];
             const wpDx = wp.x - this.x;
             const wpDy = wp.y - this.y;
@@ -336,25 +347,35 @@ export class Enemy extends Container {
                 const moveX = dirX * effectiveSpeed * ticker.deltaTime;
                 const moveY = dirY * effectiveSpeed * ticker.deltaTime;
 
-                // Collision check on each axis
                 const checkDist = this.hitboxRadius + 5;
+                const nextX = this.x + moveX;
+                const nextY = this.y + moveY;
 
-                const collisionX = this.isColliding(this.x + moveX + dirX * checkDist, this.y);
-                const collisionY = this.isColliding(this.x, this.y + moveY + dirY * checkDist);
+                // Don't merge with player
+                const distToPlayer = Math.sqrt(Math.pow(nextX - this.player.x, 2) + Math.pow(nextY - this.player.y, 2));
+                if (distToPlayer <= 25) return;
 
-                if (!collisionX) {
-                    const distToPlayer = Math.sqrt(Math.pow(this.x + moveX - this.player.x, 2) + Math.pow(this.y - this.player.y, 2));
-                    if (distToPlayer > 25) this.x += moveX;
-                } else if (collisionX && !(collisionX.hp === Infinity || !isFinite(collisionX.hp))) {
-                    // Hit a destructible building — attack it
-                    this.attackBuilding(collisionX);
-                }
+                const collision = this.isColliding(nextX + dirX * checkDist, nextY + dirY * checkDist);
 
-                if (!collisionY) {
-                    const distToPlayer = Math.sqrt(Math.pow(this.x - this.player.x, 2) + Math.pow(this.y + moveY - this.player.y, 2));
-                    if (distToPlayer > 25) this.y += moveY;
-                } else if (collisionY && !(collisionY.hp === Infinity || !isFinite(collisionY.hp))) {
-                    this.attackBuilding(collisionY);
+                if (!collision) {
+                    this.x = nextX;
+                    this.y = nextY;
+                } else {
+                    // Slide fallback
+                    const collisionX = this.isColliding(nextX + dirX * checkDist, this.y);
+                    const collisionY = this.isColliding(this.x, nextY + dirY * checkDist);
+
+                    if (!collisionX) {
+                        this.x = nextX;
+                    } else if (collisionX.hp !== Infinity && isFinite(collisionX.hp)) {
+                        this.attackBuilding(collisionX);
+                    }
+
+                    if (!collisionY) {
+                        this.y = nextY;
+                    } else if (collisionY.hp !== Infinity && isFinite(collisionY.hp)) {
+                        this.attackBuilding(collisionY);
+                    }
                 }
             }
         } else {
@@ -412,35 +433,71 @@ export class Enemy extends Container {
         const moveY = dirY * effectiveSpeed * ticker.deltaTime;
         const checkDist = this.hitboxRadius + 5;
 
-        const collisionX = this.isColliding(this.x + moveX + dirX * checkDist, this.y);
-        const collisionY = this.isColliding(this.x, this.y + moveY + dirY * checkDist);
+        const nextX = this.x + moveX;
+        const nextY = this.y + moveY;
 
-        const isRockX = collisionX && (collisionX.hp === Infinity || !isFinite(collisionX.hp));
-        const isRockY = collisionY && (collisionY.hp === Infinity || !isFinite(collisionY.hp));
+        // Don't merge with player
+        const distToPlayer = Math.sqrt(Math.pow(nextX - this.player.x, 2) + Math.pow(nextY - this.player.y, 2));
+        if (distToPlayer <= 25) return;
 
-        if (!collisionX) {
-            this.x += moveX;
-        } else if (isRockX) {
-            const slideY = dirY !== 0 ? Math.sign(dirY) : this.slideDirection;
-            const slideAmount = effectiveSpeed * ticker.deltaTime;
-            if (!this.isColliding(this.x, this.y + slideY * (checkDist + slideAmount))) {
-                this.y += slideY * slideAmount;
-            }
+        const collision = this.isColliding(nextX + dirX * checkDist, nextY + dirY * checkDist);
+
+        if (!collision) {
+            this.x = nextX;
+            this.y = nextY;
         } else {
-            this.attackBuilding(collisionX);
-        }
+            const collisionX = this.isColliding(nextX + dirX * checkDist, this.y);
+            const collisionY = this.isColliding(this.x, nextY + dirY * checkDist);
 
-        if (!collisionY) {
-            this.y += moveY;
-        } else if (isRockY) {
-            const slideX = dirX !== 0 ? Math.sign(dirX) : this.slideDirection;
-            const slideAmount = effectiveSpeed * ticker.deltaTime;
-            if (!this.isColliding(this.x + slideX * (checkDist + slideAmount), this.y)) {
-                this.x += slideX * slideAmount;
+            const isRockX = collisionX && (collisionX.hp === Infinity || !isFinite(collisionX.hp));
+            const isRockY = collisionY && (collisionY.hp === Infinity || !isFinite(collisionY.hp));
+
+            if (!collisionX) {
+                this.x = nextX;
+            } else if (isRockX) {
+                const slideY = dirY !== 0 ? Math.sign(dirY) : this.slideDirection;
+                const slideAmount = effectiveSpeed * ticker.deltaTime;
+                if (!this.isColliding(this.x, this.y + slideY * (checkDist + slideAmount))) {
+                    this.y += slideY * slideAmount;
+                }
+            } else {
+                this.attackBuilding(collisionX);
             }
-        } else {
-            this.attackBuilding(collisionY);
+
+            if (!collisionY) {
+                this.y = nextY;
+            } else if (isRockY) {
+                const slideX = dirX !== 0 ? Math.sign(dirX) : this.slideDirection;
+                const slideAmount = effectiveSpeed * ticker.deltaTime;
+                if (!this.isColliding(this.x + slideX * (checkDist + slideAmount), this.y)) {
+                    this.x += slideX * slideAmount;
+                }
+            } else {
+                this.attackBuilding(collisionY);
+            }
         }
+    }
+
+    private hasLineOfSight(x1: number, y1: number, x2: number, y2: number): boolean {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const distSq = dx * dx + dy * dy;
+
+        if (distSq <= 0) return true;
+
+        const dist = Math.sqrt(distSq);
+        const steps = Math.max(1, Math.ceil(dist / 20)); // Check every 20 pixels
+        const stepX = dx / steps;
+        const stepY = dy / steps;
+
+        for (let i = 1; i < steps; i++) {
+            const checkX = x1 + stepX * i;
+            const checkY = y1 + stepY * i;
+            if (this.isColliding(checkX, checkY)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private attackBuilding(building: Building) {
